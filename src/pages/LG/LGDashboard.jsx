@@ -164,39 +164,6 @@ const LgDashboard = () => {
           Welcome, {userName}!
         </h2>
 
-        {/* KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {bentoItems.map((item, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
-              className="relative overflow-hidden rounded-xl shadow-md"
-              data-tooltip-id={`tooltip-${i}`}
-              data-tooltip-content={item.tooltip}
-              onMouseEnter={() => hoverSound.play()}
-            >
-              <div
-                className={`absolute inset-0 bg-gradient-to-tr ${item.glow} opacity-10 animate-pulse blur-xl`}
-              />
-              <div className="relative bg-white p-6 rounded-xl flex items-center gap-4">
-                {item.icon}
-                <div>
-                  <h4 className="text-sm text-gray-500">{item.title}</h4>
-                  <p className="text-xl font-bold text-gray-800">
-                    <CountUp end={item.count} duration={1.5} />
-                  </p>
-                </div>
-              </div>
-              {!isMobile && (
-                <Tooltip id={`tooltip-${i}`} place="top" delayShow={300} />
-              )}
-            </motion.div>
-          ))}
-        </div>
-
-        {/* Action Grid Cards */}
         <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {actionGrids.map((item, i) => (
             <motion.div
@@ -232,6 +199,41 @@ const LgDashboard = () => {
             </motion.div>
           ))}
         </div>
+
+        {/* KPI Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {bentoItems.map((item, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+              className="relative overflow-hidden rounded-xl shadow-md"
+              data-tooltip-id={`tooltip-${i}`}
+              data-tooltip-content={item.tooltip}
+              onMouseEnter={() => hoverSound.play()}
+            >
+              <div
+                className={`absolute inset-0 bg-gradient-to-tr ${item.glow} opacity-10 animate-pulse blur-xl`}
+              />
+              <div className="relative bg-white p-6 rounded-xl flex items-center gap-4">
+                {item.icon}
+                <div>
+                  <h4 className="text-sm text-gray-500">{item.title}</h4>
+                  <p className="text-xl font-bold text-gray-800">
+                    <CountUp end={item.count} duration={1.5} />
+                  </p>
+                </div>
+              </div>
+              {!isMobile && (
+                <Tooltip id={`tooltip-${i}`} place="top" delayShow={300} />
+              )}
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Action Grid Cards */}
+        
       </div>
 
       {/* Logout Modal */}
