@@ -8,7 +8,7 @@ import { ImSpinner2 } from 'react-icons/im';
 import toast, { Toaster } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext'; // ✅ Import context
 
-const baseUrl = 'https://iitg-lead-generation-r4hmq.ondigitalocean.app';
+const baseUrl = 'http://localhost:3000'; // Update with your backend URL
 
 const AuthScreen = () => {
   const [isLogin, setIsLogin] = useState(true);

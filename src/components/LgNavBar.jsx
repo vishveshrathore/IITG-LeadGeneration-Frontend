@@ -12,14 +12,21 @@ const navItems = [
   { name: 'Profile', icon: <FiUser />, path: '/lg/profile' },
 ];
 
-const AnimatedLGNavbar = ({ onLogout }) => {
+const AnimatedLGNavbar = () => {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const [playClick] = useSound(clickSound, { volume: 0.3 });
 
   const toggleMenu = () => {
     playClick();
     setIsOpen(!isOpen);
+  };
+
+  const handleLogout = () => {
+    localStorage.clear();
+    sessionStorage.clear();
+    window.location.href = '/';
   };
 
   return (
@@ -74,7 +81,7 @@ const AnimatedLGNavbar = ({ onLogout }) => {
         <button
           onClick={() => {
             playClick();
-            onLogout();
+            setShowModal(true);
           }}
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-100 rounded-md transition"
         >
@@ -108,16 +115,59 @@ const AnimatedLGNavbar = ({ onLogout }) => {
                 {item.icon} {item.name}
               </Link>
             ))}
+
+            {/* Mobile Logout */}
             <button
               onClick={() => {
                 playClick();
                 setIsOpen(false);
-                onLogout();
+                setShowModal(true);
               }}
-              className="flex items-center gap-3 px-6 py-3 border-t text-sm font-medium text-red-600 hover:bg-red-50"
+              className="flex items-center gap-3 px-6 py-3 border-t text-sm font-medium text-red-600 hover:bg-red-100"
             >
               <FiLogOut /> Logout
             </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Logout Modal */}
+      <AnimatePresence>
+        {showModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 flex items-center justify-center z-[60]"
+          >
+            <motion.div
+              initial={{ scale: 0.8, y: -20, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.8, y: -20, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+              className="bg-white rounded-xl p-6 shadow-xl w-full max-w-sm border border-gray-200"
+            >
+              <h3 className="text-lg font-semibold mb-4 text-gray-800">
+                Confirm Logout
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to log out?
+              </p>
+              <div className="flex justify-end gap-4">
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="px-4 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700 transition"
+                >
+                  Logout
+                </button>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

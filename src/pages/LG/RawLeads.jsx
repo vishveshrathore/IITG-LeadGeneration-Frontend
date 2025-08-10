@@ -1,24 +1,34 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import toast, { Toaster } from 'react-hot-toast';
-import { useAuth } from '../../context/AuthContext';
-import AnimatedLGNavbar from '../../components/LgNavBar';
-import { motion } from 'framer-motion';
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+import toast, { Toaster } from "react-hot-toast";
+import { useAuth } from "../../context/AuthContext";
+import AnimatedLGNavbar from "../../components/LgNavBar";
+import { motion } from "framer-motion";
 
-const API = 'https://iitg-lead-generation-r4hmq.ondigitalocean.app/api/lg/rawlead';
+const API =
+  "https://iitg-lead-generation-r4hmq.ondigitalocean.app/api/lg/rawlead";
 
 const RawLeads = () => {
   const { authToken } = useAuth();
   const [lead, setLead] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState("");
   const [formData, setFormData] = useState({});
 
   const fields = [
-    'name','designation','companyName','location', 'email', 'mobile', 
-    'industryName',  'remarks', 'division',
-    'productLine', 'turnOver', 'employeeStrength',
-     // Display only
+    "name",
+    "designation",
+    "companyName",
+    "location",
+    "email",
+    "mobile",
+    "industryName",
+    "remarks",
+    "division",
+    "productLine",
+    "turnOver",
+    "employeeStrength",
+    // Display only
   ];
 
   // Fetch one lead
@@ -32,17 +42,17 @@ const RawLeads = () => {
       if (data && data._id) {
         setLead(data);
         setFormData(flattenData(data));
-        setMessage('');
-        toast.success('🎯 New raw lead assigned');
+        setMessage("");
+        toast.success("🎯 New raw lead assigned");
       } else {
         setLead(null);
-        setMessage(data.message || 'No leads available');
-        toast('📭 No new leads to assign right now', { icon: '📭' });
+        setMessage(data.message || "No leads available");
+        toast("📭 No new leads to assign right now", { icon: "📭" });
       }
     } catch (err) {
-      console.error('Error fetching lead:', err);
-      setMessage('Failed to fetch lead.');
-      toast.error('🚫 Unable to fetch lead. Please try again later.');
+      console.error("Error fetching lead:", err);
+      setMessage("Failed to fetch lead.");
+      toast.error("🚫 Unable to fetch lead. Please try again later.");
     } finally {
       setLoading(false);
     }
@@ -50,22 +60,20 @@ const RawLeads = () => {
 
   // Flatten nested data (e.g., company.CompanyName -> companyName, keep company ObjectId)
   const flattenData = (data) => {
-  const flattened = { ...data };
+    const flattened = { ...data };
 
-  if (data.company && typeof data.company === 'object') {
-    flattened.companyName = data.company.CompanyName || '';
-    flattened.company = data.company._id || '';
-  }
+    if (data.company && typeof data.company === "object") {
+      flattened.companyName = data.company.CompanyName || "";
+      flattened.company = data.company._id || "";
+    }
 
- if (data.industry && typeof data.industry === 'object') {
-  flattened.industryName = data.industry.name || '';
-  flattened.industry = data.industry._id || '';
-}
+    if (data.industry && typeof data.industry === "object") {
+      flattened.industryName = data.industry.name || "";
+      flattened.industry = data.industry._id || "";
+    }
 
-
-  return flattened;
-};
-
+    return flattened;
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -74,12 +82,14 @@ const RawLeads = () => {
 
   const handleComplete = async () => {
     if (!formData.name || !formData.mobile) {
-      return toast.error('❗ Name and Mobile are required fields');
+      return toast.error("❗ Name and Mobile are required fields");
     }
 
     const cleanedPayload = {
       ...formData,
-      mobile: Array.isArray(formData.mobile) ? formData.mobile[0] : formData.mobile,
+      mobile: Array.isArray(formData.mobile)
+        ? formData.mobile[0]
+        : formData.mobile,
       isComplete: true,
     };
 
@@ -91,42 +101,44 @@ const RawLeads = () => {
         headers: { Authorization: `Bearer ${authToken}` },
       });
 
-      toast.success('✅ Lead marked as completed!');
+      toast.success("✅ Lead marked as completed!");
       fetchLead(); // Load next lead
     } catch (err) {
       const msg =
         err?.response?.data?.message ||
         err?.response?.data?.error ||
-        'Failed to update lead.';
+        "Failed to update lead.";
       toast.error(`🚫 ${msg}`);
     }
   };
 
   const handleNext = async () => {
-    if (!lead?._id) return toast.error('❗ No lead to skip');
+    if (!lead?._id) return toast.error("❗ No lead to skip");
 
     const cleanedPayload = {
       ...formData,
-      mobile: Array.isArray(formData.mobile) ? formData.mobile[0] : formData.mobile,
+      mobile: Array.isArray(formData.mobile)
+        ? formData.mobile[0]
+        : formData.mobile,
     };
 
     // Remove UI-only fields
     delete cleanedPayload.companyName;
 
     try {
-      toast('⏭️ Skipping current lead...', { icon: '⏭️' });
+      toast("⏭️ Skipping current lead...", { icon: "⏭️" });
 
       await axios.put(`${API}/skip/${lead._id}`, cleanedPayload, {
         headers: { Authorization: `Bearer ${authToken}` },
       });
 
-      toast.success('⏩ Lead skipped successfully!');
+      toast.success("⏩ Lead skipped successfully!");
       fetchLead(); // Load the next available lead
     } catch (err) {
       const msg =
         err?.response?.data?.message ||
         err?.response?.data?.error ||
-        'Failed to skip lead.';
+        "Failed to skip lead.";
       toast.error(`🚫 ${msg}`);
     }
   };
@@ -179,14 +191,14 @@ const RawLeads = () => {
                   transition={{ duration: 0.2 }}
                 >
                   <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">
-                    {field.replace(/([A-Z])/g, ' $1')}
+                    {field.replace(/([A-Z])/g, " $1")}
                   </label>
                   <input
                     type="text"
                     name={field}
-                    value={formData[field] || ''}
+                    value={formData[field] || ""}
                     onChange={handleInputChange}
-                    disabled={field === 'companyName'}
+                    disabled={field === "companyName"}
                     className="w-full border border-gray-300 px-4 py-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
                     placeholder={`Enter ${field}`}
                   />
@@ -194,24 +206,58 @@ const RawLeads = () => {
               ))}
             </motion.div>
 
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={handleNext}
-                className="w-full sm:w-auto bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 px-6 rounded-xl shadow-md transition"
-              >
-                ⏭️ Skip & Next
-              </motion.button>
-
+            <div className="flex flex-col gap-4 items-stretch">
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={handleComplete}
-                className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-6 rounded-xl shadow-md transition"
+                className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-6 rounded-xl shadow-md transition"
               >
-                ✅ Submit & Mark Completed
+                ✅ Submit Lead
               </motion.button>
+
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+                className="flex items-center gap-3 bg-gradient-to-r from-green-50 to-green-100 border-l-4 border-green-500 rounded-xl px-4 py-3 shadow-md"
+              >
+                <span className="text-green-600 text-xl">✅</span>
+                <p className="text-sm text-green-800 leading-snug">
+                  <strong>All fields are mandatory.</strong> So click
+                  <span className="font-semibold text-green-900">
+                    {" "}
+                    Submit
+                  </span>{" "}
+                  when all the fields are properly filled.
+                </p>
+              </motion.div>
+
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={handleNext}
+                className="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 px-6 rounded-xl shadow-md transition"
+              >
+                ⏭️ Skip & Next
+              </motion.button>
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+                className="flex items-center gap-3 bg-gradient-to-r from-yellow-50 to-yellow-100 border-l-4 border-yellow-500 rounded-xl px-4 py-3 shadow-md"
+              >
+                <span className="text-yellow-600 text-xl">⚠️</span>
+                <p className="text-sm text-yellow-800 leading-snug">
+                  <strong>All fields are mandatory.</strong> If you can’t get
+                  proper information about the lead, click
+                  <span className="font-semibold text-yellow-900">
+                    {" "}
+                    Skip
+                  </span>{" "}
+                  to get the next lead.
+                </p>
+              </motion.div>
             </div>
           </>
         )}
