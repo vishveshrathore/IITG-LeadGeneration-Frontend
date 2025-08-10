@@ -10,17 +10,18 @@ const DashboardAddLeads = () => {
 
   const cards = [
     {
-      title: 'My Lead',
-      description: 'Enter fresh HR lead details and assign them.',
-      icon: <FaPlusCircle className="text-4xl text-blue-500" />,
-      onClick: () => navigate('/lg/addlead'),
-    },
-    {
       title: "Raw Leads",
       description: 'See all leads you added today for quick reference.',
       icon: <FaEye className="text-4xl text-green-500" />,
       onClick: () => navigate('/lg/rawlead'),
     },
+    {
+      title: 'My Lead',
+      description: 'Enter fresh HR lead details and assign them.',
+      icon: <FaPlusCircle className="text-4xl text-blue-500" />,
+      onClick: () => navigate('/lg/addlead'),
+    },
+    
   ];
 
   return (
