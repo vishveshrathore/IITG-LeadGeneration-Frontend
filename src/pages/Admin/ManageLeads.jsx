@@ -72,7 +72,21 @@ const ManageLeads = () => {
       <h1 className="text-3xl font-bold mb-8 text-gray-800 my-23">Manage Leads</h1>
 
       {/* Bulk Upload Section */}
-      
+      <Link to="/admin/viewleads">
+          <motion.div
+            className="bg-white shadow rounded-xl p-6 hover:shadow-lg transition duration-300 cursor-pointer"
+            initial={{ opacity: 0, x: 30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.4 }}
+          >
+            <h2 className="text-xl font-semibold mb-3 flex items-center gap-2 text-blue-600">
+              <FaList /> View All Leads
+            </h2>
+            <p className="text-sm text-gray-500">
+              View and search all uploaded leads in the system.
+            </p>
+          </motion.div>
+        </Link>
 
       {/* Navigational Cards */}
       <div className="grid md:grid-cols-2 gap-6">
@@ -92,21 +106,7 @@ const ManageLeads = () => {
           </motion.div>
         </Link>
 
-        <Link to="/admin/viewleads">
-          <motion.div
-            className="bg-white shadow rounded-xl p-6 hover:shadow-lg transition duration-300 cursor-pointer"
-            initial={{ opacity: 0, x: 30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4 }}
-          >
-            <h2 className="text-xl font-semibold mb-3 flex items-center gap-2 text-blue-600">
-              <FaList /> View All Leads
-            </h2>
-            <p className="text-sm text-gray-500">
-              View and search all uploaded leads in the system.
-            </p>
-          </motion.div>
-        </Link>
+        
       </div>
 
       <motion.div
