@@ -38,45 +38,9 @@ const AnimatedLGNavbar = () => {
     >
 
       {/* Logo */}
-      <motion.h1
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, ease: "easeOut" }}
-      className="text-2xl md:text-3xl font-extrabold tracking-tight flex items-center gap-3"
-    >
-
-      {/* Animated Company Name */}
-      <motion.span
-        initial={{ opacity: 0, x: -10 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: 0.4, duration: 0.5, ease: "easeOut" }}
-        className="relative font-bold bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900 bg-[length:200%_100%] bg-clip-text text-transparent"
-      >
-        <motion.span
-          animate={{
-            backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"]
-          }}
-          transition={{
-            duration: 6,
-            repeat: Infinity,
-            ease: "linear"
-          }}
-          className="bg-gradient-to-r from-gray-900 via-gray-500 to-gray-900 bg-[length:200%_100%] bg-clip-text text-transparent"
-        >
-          IITGIndianJobs.com
-        </motion.span>
-
-        {/* Underline Sweep */}
-        <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: "100%" }}
-          transition={{ delay: 0.8, duration: 0.6, ease: "easeInOut" }}
-          className="absolute -bottom-1 left-0 h-[2px] bg-gradient-to-r from-black-500 to-blue-300"
-        />
-      </motion.span>
-    </motion.h1>
-
       
+
+      <h1 className="text-xl font-bold text-black-600 tracking-tight">IITGJobs.com</h1>
 
 
       {/* Logo end */}
