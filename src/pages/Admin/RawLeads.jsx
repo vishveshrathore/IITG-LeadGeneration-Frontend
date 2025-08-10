@@ -46,7 +46,7 @@ const RawLeadManager = () => {
     incomplete: 0,
   });
 
-  const leadsPerPage = 10;
+  const leadsPerPage = 25;
   const fileInputRef = useRef(null);
 
   const fetchLeadSummary = async () => {
