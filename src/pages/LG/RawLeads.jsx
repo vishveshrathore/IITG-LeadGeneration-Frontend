@@ -6,19 +6,19 @@ import AnimatedLGNavbar from '../../components/LgNavBar';
 import { motion } from 'framer-motion';
 
 const API = 'https://iitg-lead-generation-r4hmq.ondigitalocean.app/api/lg/rawlead';
-const INDUSTRY_API = 'https://iitg-lead-generation-r4hmq.ondigitalocean.app/api/lg/industry';
 
 const RawLeads = () => {
   const { authToken } = useAuth();
   const [lead, setLead] = useState(null);
-  const [industries, setIndustries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [formData, setFormData] = useState({});
 
   const fields = [
-    'name', 'designation', 'companyName', 'location', 'email', 'mobile',
-    'industryName', 'remarks', 'division', 'productLine', 'turnOver', 'employeeStrength',
+    'name','designation','companyName','location', 'email', 'mobile', 
+    'industryName',  'remarks', 'division',
+    'productLine', 'turnOver', 'employeeStrength',
+     // Display only
   ];
 
   // Fetch one lead
@@ -48,35 +48,24 @@ const RawLeads = () => {
     }
   };
 
-  // Fetch industries
-  const fetchIndustries = async () => {
-    try {
-      const { data } = await axios.get(INDUSTRY_API, {
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
-      setIndustries(data || []);
-    } catch (err) {
-      console.error('Error fetching industries:', err);
-      toast.error('🚫 Failed to load industries');
-    }
-  };
-
-  // Flatten nested data
+  // Flatten nested data (e.g., company.CompanyName -> companyName, keep company ObjectId)
   const flattenData = (data) => {
-    const flattened = { ...data };
+  const flattened = { ...data };
 
-    if (data.company && typeof data.company === 'object') {
-      flattened.companyName = data.company.CompanyName || '';
-      flattened.company = data.company._id || '';
-    }
+  if (data.company && typeof data.company === 'object') {
+    flattened.companyName = data.company.CompanyName || '';
+    flattened.company = data.company._id || '';
+  }
 
-    if (data.industry && typeof data.industry === 'object') {
-      flattened.industryName = data.industry.name || '';
-      flattened.industry = data.industry._id || '';
-    }
+ if (data.industry && typeof data.industry === 'object') {
+  flattened.industryName = data.industry.name || '';
+  flattened.industry = data.industry._id || '';
+}
 
-    return flattened;
-  };
+
+  return flattened;
+};
+
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -96,7 +85,6 @@ const RawLeads = () => {
 
     // Remove UI-only fields
     delete cleanedPayload.companyName;
-    delete cleanedPayload.industryName;
 
     try {
       await axios.put(`${API}/${lead._id}`, cleanedPayload, {
@@ -104,7 +92,7 @@ const RawLeads = () => {
       });
 
       toast.success('✅ Lead marked as completed!');
-      fetchLead();
+      fetchLead(); // Load next lead
     } catch (err) {
       const msg =
         err?.response?.data?.message ||
@@ -124,7 +112,6 @@ const RawLeads = () => {
 
     // Remove UI-only fields
     delete cleanedPayload.companyName;
-    delete cleanedPayload.industryName;
 
     try {
       toast('⏭️ Skipping current lead...', { icon: '⏭️' });
@@ -134,7 +121,7 @@ const RawLeads = () => {
       });
 
       toast.success('⏩ Lead skipped successfully!');
-      fetchLead();
+      fetchLead(); // Load the next available lead
     } catch (err) {
       const msg =
         err?.response?.data?.message ||
@@ -146,7 +133,6 @@ const RawLeads = () => {
 
   useEffect(() => {
     fetchLead();
-    fetchIndustries();
   }, []);
 
   return (
@@ -165,47 +151,45 @@ const RawLeads = () => {
         </h2>
 
         {loading ? (
-          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-gray-500 text-center">
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-gray-500 text-center"
+          >
             🔄 Loading lead details...
           </motion.p>
         ) : message ? (
-          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-red-600 font-semibold text-lg text-center">
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-red-600 font-semibold text-lg text-center"
+          >
             {message}
           </motion.p>
         ) : (
           <>
-            <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-8">
+            <motion.div
+              layout
+              className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-8"
+            >
               {fields.map((field) => (
-                <motion.div key={field} whileHover={{ scale: 1.02 }} transition={{ duration: 0.2 }}>
+                <motion.div
+                  key={field}
+                  whileHover={{ scale: 1.02 }}
+                  transition={{ duration: 0.2 }}
+                >
                   <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">
                     {field.replace(/([A-Z])/g, ' $1')}
                   </label>
-
-                  {field === 'industryName' ? (
-                    <select
-                      name="industry"
-                      value={formData.industry || ''}
-                      onChange={handleInputChange}
-                      className="w-full border border-gray-300 px-4 py-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
-                    >
-                      <option value="">Select Industry</option>
-                      {industries.map((ind) => (
-                        <option key={ind._id} value={ind._id}>
-                          {ind.name}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      type="text"
-                      name={field}
-                      value={formData[field] || ''}
-                      onChange={handleInputChange}
-                      disabled={field === 'companyName'}
-                      className="w-full border border-gray-300 px-4 py-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
-                      placeholder={`Enter ${field}`}
-                    />
-                  )}
+                  <input
+                    type="text"
+                    name={field}
+                    value={formData[field] || ''}
+                    onChange={handleInputChange}
+                    disabled={field === 'companyName'}
+                    className="w-full border border-gray-300 px-4 py-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                    placeholder={`Enter ${field}`}
+                  />
                 </motion.div>
               ))}
             </motion.div>
