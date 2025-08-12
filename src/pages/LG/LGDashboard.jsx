@@ -134,7 +134,7 @@ const currentHour = new Date().getHours();
   //   glow: 'from-green-500 to-lime-500',
   //   tooltip: 'Total leads you have submitted',
   // },
- {
+{
   title: 'Submitted RawLeads Today',
   count: currentHour >= 18 ? counts.submittedToday : null,
   icon: <MdBusiness className="text-teal-600 text-4xl" />,
