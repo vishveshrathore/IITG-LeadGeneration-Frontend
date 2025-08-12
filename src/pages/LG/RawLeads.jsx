@@ -80,37 +80,37 @@ const RawLeads = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleComplete = async () => {
-    if (!formData.name || !formData.mobile) {
-      return toast.error("❗ Name and Mobile are required fields");
-    }
+ const handleComplete = async () => {
+  if (!formData.name || !formData.mobile) {
+    return toast.error("❗ Name and Mobile are required fields");
+  }
 
-    const cleanedPayload = {
-      ...formData,
-      mobile: Array.isArray(formData.mobile)
-        ? formData.mobile[0]
-        : formData.mobile,
-      isComplete: true,
-    };
-
-    // Remove UI-only fields
-    delete cleanedPayload.companyName;
-
-    try {
-      await axios.put(`${API}/${lead._id}`, cleanedPayload, {
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
-
-      toast.success("✅ Lead marked as completed!");
-      fetchLead(); // Load next lead
-    } catch (err) {
-      const msg =
-        err?.response?.data?.message ||
-        err?.response?.data?.error ||
-        "Failed to update lead.";
-      toast.error(`🚫 ${msg}`);
-    }
+  const cleanedPayload = {
+    ...formData,
+    mobile: Array.isArray(formData.mobile)
+      ? formData.mobile
+      : [formData.mobile],  // ✅ Always send array
+    isComplete: true,
   };
+
+  delete cleanedPayload.companyName;
+
+  try {
+    await axios.put(`${API}/${lead._id}`, cleanedPayload, {
+      headers: { Authorization: `Bearer ${authToken}` },
+    });
+
+    toast.success("✅ Lead marked as completed!");
+    fetchLead();
+  } catch (err) {
+    const msg =
+      err?.response?.data?.message ||
+      err?.response?.data?.error ||
+      "Failed to update lead.";
+    toast.error(`🚫 ${msg}`);
+  }
+};
+
 
   const handleNext = async () => {
     if (!lead?._id) return toast.error("❗ No lead to skip");
