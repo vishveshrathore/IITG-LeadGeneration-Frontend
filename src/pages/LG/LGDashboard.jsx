@@ -24,12 +24,18 @@ const LgDashboard = () => {
   const [userName, setUserName] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [infoModal, setInfoModal] = useState(false);       //Raw Lead Count
   const [counts, setCounts] = useState({
-    totalLeads: 0,
-    todayLeads: 0,
-    monthLeads: 0,
-    weekLeads: 0,
-  });
+  totalLeads: 0,
+  todayLeads: 0,
+  monthLeads: 0,
+  weekLeads: 0,
+  skippedTotal: 0,
+  skippedToday: 0,
+  submittedTotal: 0,
+  submittedToday: 0,
+});
+
 
   const { authToken } = useAuth();
   const navigate = useNavigate();
@@ -42,56 +48,103 @@ const LgDashboard = () => {
   }, []);
 
   useEffect(() => {
-    const fetchCounts = async () => {
-      try {
-        const res = await fetch(
-          'https://iitg-lead-generation-r4hmq.ondigitalocean.app/api/lg/count',
-          { headers: { Authorization: `Bearer ${authToken}` } }
-        );
-        const data = await res.json();
-        setCounts({
-          totalLeads: data.totalLeads || 0,
-          todayLeads: data.todayLeads || 0,
-          monthLeads: data.monthLeads || 0,
-          weekLeads: data.weekLeads || 0,
-        });
-      } catch (err) {
-        console.error('Failed to fetch dashboard counts:', err);
-      }
-    };
-    if (authToken) fetchCounts();
-  }, [authToken]);
+  const fetchCounts = async () => {
+    try {
+      // Existing count fetch
+      const res = await fetch(
+        'https://iitg-lead-generation-r4hmq.ondigitalocean.app/api/lg/count',
+        { headers: { Authorization: `Bearer ${authToken}` } }
+      );
+      const data = await res.json();
 
-  const bentoItems = [
-    {
-      title: 'Total Leads Till Date',
-      count: counts.totalLeads,
-      icon: <FiUsers className="text-blue-600 text-4xl" />,
-      glow: 'from-blue-400 to-purple-500',
-      tooltip: 'Leads you’ve added till now',
-    },
-    {
-      title: 'Today’s Leads Generated',
-      count: counts.todayLeads,
-      icon: <FiCheckCircle className="text-green-600 text-4xl" />,
-      glow: 'from-green-400 to-teal-500',
-      tooltip: 'Tasks marked as complete',
-    },
-    {
-      title: 'This Month',
-      count: counts.monthLeads,
-      icon: <FiUsers className="text-indigo-600 text-4xl" />,
-      glow: 'from-indigo-400 to-cyan-500',
-      tooltip: 'Clients who responded',
-    },
-    {
-      title: 'This Week',
-      count: counts.weekLeads,
-      icon: <FiCheckCircle className="text-yellow-600 text-4xl" />,
-      glow: 'from-yellow-400 to-orange-500',
-      tooltip: 'Leads that need follow-up',
-    },
-  ];
+      // New rawcount fetch
+      const rawRes = await fetch(
+        'https://iitg-lead-generation-r4hmq.ondigitalocean.app/api/lg/rawcount',
+        { headers: { Authorization: `Bearer ${authToken}` } }
+      );
+      const rawData = await rawRes.json();
+
+      setCounts({
+        totalLeads: data.totalLeads || 0,
+        todayLeads: data.todayLeads || 0,
+        monthLeads: data.monthLeads || 0,
+        weekLeads: data.weekLeads || 0,
+        skippedTotal: rawData.skippedTotal || 0,
+        skippedToday: rawData.skippedToday || 0,
+        submittedTotal: rawData.submittedTotal || 0,
+        submittedToday: rawData.submittedToday || 0,
+      });
+    } catch (err) {
+      console.error('Failed to fetch dashboard counts:', err);
+    }
+  };
+
+  if (authToken) fetchCounts();
+}, [authToken]);
+  
+const currentHour = new Date().getHours();
+
+ const bentoItems = [
+  {
+    title: 'Total Leads Till Date',
+    count: counts.totalLeads,
+    icon: <FiUsers className="text-blue-600 text-4xl" />,
+    glow: 'from-blue-400 to-purple-500',
+    tooltip: 'Leads you’ve added till now',
+  },
+  {
+    title: 'Today’s Leads Generated',
+    count: counts.todayLeads,
+    icon: <FiCheckCircle className="text-green-600 text-4xl" />,
+    glow: 'from-green-400 to-teal-500',
+    tooltip: 'Tasks marked as complete',
+  },
+  {
+    title: 'This Month',
+    count: counts.monthLeads,
+    icon: <FiUsers className="text-indigo-600 text-4xl" />,
+    glow: 'from-indigo-400 to-cyan-500',
+    tooltip: 'Clients who responded',
+  },
+  {
+    title: 'This Week',
+    count: counts.weekLeads,
+    icon: <FiCheckCircle className="text-yellow-600 text-4xl" />,
+    glow: 'from-yellow-400 to-orange-500',
+    tooltip: 'Leads that need follow-up',
+  },
+  {
+    title: 'Total Skipped Raw Leads',
+    count: counts.skippedTotal,
+    icon: <MdAssignment className="text-red-600 text-4xl" />,
+    glow: 'from-red-400 to-pink-500',
+    tooltip: 'Leads skipped in total',
+  },
+  {
+    title: 'Skipped Raw Leads Today',
+    count: counts.skippedToday,
+    icon: <MdAssignment className="text-orange-600 text-4xl" />,
+    glow: 'from-orange-400 to-yellow-500',
+    tooltip: 'Leads skipped today',
+  },
+  // {
+  //   title: 'Total Submitted Leads',
+  //   count: counts.submittedTotal,
+  //   icon: <MdBusiness className="text-green-700 text-4xl" />,
+  //   glow: 'from-green-500 to-lime-500',
+  //   tooltip: 'Total leads you have submitted',
+  // },
+ {
+  title: 'Submitted RawLeads Today',
+  count: currentHour >= 18 ? counts.submittedToday : null,
+  icon: <MdBusiness className="text-teal-600 text-4xl" />,
+  glow: 'from-teal-400 to-cyan-500',
+  tooltip: 'Leads submitted today',
+  locked: currentHour < 18,
+},
+
+];
+
 
   const actionGrids = [
     {
@@ -111,6 +164,8 @@ const LgDashboard = () => {
       tooltip: 'Check today’s progress',
     },
   ];
+
+  
 
   return (
     <div>
@@ -158,49 +213,78 @@ const LgDashboard = () => {
         {/* KPI Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 my-8">
           {bentoItems.map((item, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
-              className="relative overflow-hidden rounded-xl shadow-md"
-              data-tooltip-id={`tooltip-${i}`}
-              data-tooltip-content={item.tooltip}
-              onMouseEnter={() => hoverSound.play()}
-            >
-              <div
-                className={`absolute inset-0 bg-gradient-to-tr ${item.glow} opacity-10 animate-pulse blur-xl`}
-              />
-              <div className="relative bg-white p-6 rounded-xl flex items-center gap-4">
-                {item.icon}
-                <div>
-                  <h4 className="text-sm text-gray-500">{item.title}</h4>
-                  <p className="text-xl font-bold text-gray-800">
-                    <CountUp end={item.count} duration={1.5} />
-                  </p>
-                </div>
-              </div>
-              {!isMobile && (
-                <Tooltip id={`tooltip-${i}`} place="top" delayShow={300} />
-              )}
-            </motion.div>
-          ))}
+  <motion.div
+    key={i}
+    initial={{ opacity: 0, y: 30 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay: i * 0.1 }}
+    className="relative overflow-hidden rounded-xl shadow-md cursor-pointer"
+    data-tooltip-id={`tooltip-${i}`}
+    data-tooltip-content={item.tooltip}
+    onMouseEnter={() => hoverSound.play()}
+    onClick={() => {
+      if (item.locked) {
+        setInfoModal(true);
+      } else {
+        clickSound.play();
+      }
+    }}
+  >
+    <div
+      className={`absolute inset-0 bg-gradient-to-tr ${item.glow} opacity-10 animate-pulse blur-xl`}
+    />
+    <div className="relative bg-white p-6 rounded-xl flex items-center gap-4">
+      {item.icon}
+      <div>
+        <h4 className="text-sm text-gray-500">{item.title}</h4>
+        <p className="text-xl font-bold text-gray-800">
+          {item.locked ? (
+            <span className="text-gray-400 text-sm">Locked until 6 PM</span>
+          ) : (
+            <CountUp end={item.count} duration={1.5} />
+          )}
+        </p>
+      </div>
+    </div>
+    {!isMobile && (
+      <Tooltip id={`tooltip-${i}`} place="top" delayShow={300} />
+    )}
+  </motion.div>
+))}
+
         </div>
       </div>
 
       {/* Logout Modal Placeholder */}
       <AnimatePresence>
-        {showModal && (
-          <motion.div
-            className="fixed inset-0 flex items-center justify-center z-50 bg-black/40"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            {/* Add your logout modal content here */}
-          </motion.div>
-        )}
-      </AnimatePresence>
+  {infoModal && (
+    <motion.div
+      className="fixed inset-0 flex items-center justify-center z-50 bg-black/40"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      <motion.div
+        className="bg-white p-6 rounded-xl shadow-lg w-80 text-center"
+        initial={{ scale: 0.8, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.8, opacity: 0 }}
+      >
+        <h2 className="text-lg font-bold mb-4">Locked</h2>
+        <p className="text-gray-600 mb-6">
+          The Submitted RawLeads count will be available at <b>6:00 PM</b>.
+        </p>
+        <button
+          onClick={() => setInfoModal(false)}
+          className="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600"
+        >
+          Okay
+        </button>
+      </motion.div>
+    </motion.div>
+  )}
+</AnimatePresence>
+
     </div>
   );
 };
