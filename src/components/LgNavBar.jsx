@@ -8,7 +8,7 @@ import clickSound from '../assets/click.mp3';
 
 const navItems = [
   { name: 'Home', icon: <FiHome />, path: '/lgDashboard' },
-  { name: 'Add Lead', icon: <BsFillPersonPlusFill />, path: '/lg/addlead' },
+  { name: 'My Lead', icon: <BsFillPersonPlusFill />, path: '/lg/addlead' },
   { name: 'Profile', icon: <FiUser />, path: '/lg/profile' },
 ];
 
