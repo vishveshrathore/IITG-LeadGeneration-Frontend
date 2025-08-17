@@ -8,6 +8,8 @@ import { Tooltip } from 'react-tooltip';
 import 'react-tooltip/dist/react-tooltip.css';
 import { motion } from 'framer-motion';
 
+
+
 const TodayLeadsOfLG = () => {
   const { authToken } = useAuth();
   const [leads, setLeads] = useState([]);
