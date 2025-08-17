@@ -12,6 +12,8 @@ const navItems = [
   { name: 'Profile', icon: <FiUser />, path: '/lg/profiles' },
 ];
 
+
+
 const AnimatedLGNavbar = () => {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
