@@ -14,6 +14,7 @@ import ViewLeads from './pages/Admin/ViewLeads.jsx'
 import RawLeadsLG from './pages/LG/RawLeads.jsx'
 import RawLeadManager from './pages/Admin/RawLeads.jsx'
 import DashboardAddLeads from './pages/LG/DashboardAddLeads.jsx'
+import Profile from './pages/LG/Profile.jsx';
 
 function App() {
   const location = useLocation();
@@ -50,6 +51,7 @@ function App() {
         <Route path="/lg/rawlead" element={<RawLeadsLG />} />
         <Route path="/admin/rawleads" element={<RawLeadManager />} />
         <Route path="/lg/dashboard" element={<DashboardAddLeads />} />
+        <Route path="/lg/profile" element={<Profile />} />
 
 
       </Routes>
