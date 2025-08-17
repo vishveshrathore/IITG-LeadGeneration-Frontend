@@ -110,7 +110,7 @@ useEffect(() => {
  const bentoItems = [
   {
     title: 'Submitted RawLeads Today',
-    count: serverHour >= 18 ? counts.submittedToday : null,
+    count: serverHour >= 22 ? counts.submittedToday : null,
     icon: <MdBusiness className="text-teal-600 text-4xl" />,
     glow: 'from-teal-400 to-cyan-500',
     tooltip: 'Leads submitted today',
