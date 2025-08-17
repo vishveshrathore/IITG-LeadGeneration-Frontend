@@ -88,11 +88,19 @@ const LgDashboard = () => {
 useEffect(() => {
   const fetchServerTime = async () => {
     try {
-      const res = await fetch(`https://iitg-lead-generation-r4hmq.ondigitalocean.app/api/server-time`, {
-        headers: { Authorization: `Bearer ${authToken}` }
-      });
+      const res = await fetch(
+        `https://iitg-lead-generation-r4hmq.ondigitalocean.app/api/server-time`,
+        { headers: { Authorization: `Bearer ${authToken}` } }
+      );
       const data = await res.json();
-      setServerHour(data.hour);
+      console.log("Server Time Response:", data);
+
+      // Convert timestamp → Date → Hour
+      const serverDate = new Date(data.timestamp);
+      const hour = serverDate.getHours();
+
+      console.log("Parsed Server Hour:", hour); // 👈 see actual hour in console
+      setServerHour(hour);
     } catch (err) {
       console.error("Failed to fetch server time", err);
     }
@@ -100,22 +108,26 @@ useEffect(() => {
 
   if (authToken) {
     fetchServerTime();
-    const interval = setInterval(fetchServerTime, 60000); // refresh every 1 min
+    const interval = setInterval(fetchServerTime, 60000);
     return () => clearInterval(interval);
   }
 }, [authToken]);
-  
-// const currentHour = new Date().getHours();
+
 
  const bentoItems = [
   {
     title: 'Submitted RawLeads Today',
-    count: serverHour >= 18 ? counts.submittedToday : null,
+    count: counts.submittedToday,
     icon: <MdBusiness className="text-teal-600 text-4xl" />,
     glow: 'from-teal-400 to-cyan-500',
     tooltip: 'Leads submitted today',
-    locked: serverHour < 18,
+    locked: serverHour !== null ? serverHour < 23 : true, // locked until 6PM
+
+
+ // force lock until 11PM
+
   },
+
   {
     title: 'Skipped Raw Leads Today',
     count: counts.skippedToday,
@@ -263,12 +275,14 @@ useEffect(() => {
       <div>
         <h4 className="text-sm text-gray-500">{item.title}</h4>
         <p className="text-xl font-bold text-gray-800">
-          {item.locked ? (
-            <span className="text-gray-400 text-sm">Locked until 6 PM</span>
-          ) : (
-            <CountUp end={item.count} duration={1.5} />
-          )}
-        </p>
+  {item.locked ? (
+    <span className="text-gray-400 text-sm">Locked until 6 PM</span>
+  ) : (
+    <CountUp end={item.count} duration={1.5} />
+  )}
+</p>
+
+
       </div>
     </div>
     {!isMobile && (
