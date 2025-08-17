@@ -21,6 +21,9 @@ const hoverSound = new Howl({
 });
 
 const LgDashboard = () => {
+  const [serverHour, setServerHour] = useState(null);
+
+
   const [userName, setUserName] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -81,8 +84,28 @@ const LgDashboard = () => {
 
   if (authToken) fetchCounts();
 }, [authToken]);
+
+useEffect(() => {
+  const fetchServerTime = async () => {
+    try {
+      const res = await fetch(`https://iitg-lead-generation-r4hmq.ondigitalocean.app/api/server-time`, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      const data = await res.json();
+      setServerHour(data.hour);
+    } catch (err) {
+      console.error("Failed to fetch server time", err);
+    }
+  };
+
+  if (authToken) {
+    fetchServerTime();
+    const interval = setInterval(fetchServerTime, 60000); // refresh every 1 min
+    return () => clearInterval(interval);
+  }
+}, [authToken]);
   
-const currentHour = new Date().getHours();
+// const currentHour = new Date().getHours();
 
  const bentoItems = [
   {
@@ -135,13 +158,13 @@ const currentHour = new Date().getHours();
   //   tooltip: 'Total leads you have submitted',
   // },
 {
-  title: 'Submitted RawLeads Today',
-  count: currentHour >= 18 ? counts.submittedToday : null,
-  icon: <MdBusiness className="text-teal-600 text-4xl" />,
-  glow: 'from-teal-400 to-cyan-500',
-  tooltip: 'Leads submitted today',
-  locked: currentHour < 18,
-},
+    title: 'Submitted RawLeads Today',
+    count: serverHour >= 18 ? counts.submittedToday : null,
+    icon: <MdBusiness className="text-teal-600 text-4xl" />,
+    glow: 'from-teal-400 to-cyan-500',
+    tooltip: 'Leads submitted today',
+    locked: serverHour < 18,
+  },
 
 ];
 
