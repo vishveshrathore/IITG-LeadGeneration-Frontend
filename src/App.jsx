@@ -51,7 +51,7 @@ function App() {
         <Route path="/lg/rawlead" element={<RawLeadsLG />} />
         <Route path="/admin/rawleads" element={<RawLeadManager />} />
         <Route path="/lg/dashboard" element={<DashboardAddLeads />} />
-        <Route path="/lg/profiles" element={<Profile />} />
+        <Route path="/lg/profile" element={<Profile />} />
 
 
       </Routes>
