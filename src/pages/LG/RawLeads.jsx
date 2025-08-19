@@ -28,37 +28,9 @@ const RawLeads = () => {
     "productLine",
     "turnOver",
     "employeeStrength",
-    // Display only
   ];
 
-  // Fetch one lead
-  const fetchLead = async () => {
-    setLoading(true);
-    try {
-      const { data } = await axios.get(`${API}/one`, {
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
-
-      if (data && data._id) {
-        setLead(data);
-        setFormData(flattenData(data));
-        setMessage("");
-        toast.success("🎯 New raw lead assigned");
-      } else {
-        setLead(null);
-        setMessage(data.message || "No leads available");
-        toast("📭 No new leads to assign right now", { icon: "📭" });
-      }
-    } catch (err) {
-      console.error("Error fetching lead:", err);
-      setMessage("Failed to fetch lead.");
-      toast.error("🚫 Unable to fetch lead. Please try again later.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Flatten nested data (e.g., company.CompanyName -> companyName, keep company ObjectId)
+  // Flatten nested data (company, industry)
   const flattenData = (data) => {
     const flattened = { ...data };
 
@@ -75,43 +47,75 @@ const RawLeads = () => {
     return flattened;
   };
 
+  // Fetch new lead from API
+  const fetchLead = async () => {
+    setLoading(true);
+    try {
+      const { data } = await axios.get(`${API}/one`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+
+      if (data && data._id) {
+        setLead(data);
+        setFormData(flattenData(data));
+        setMessage("");
+        localStorage.setItem("currentLead", JSON.stringify(data)); // ✅ Persist
+        toast.success("🎯 New raw lead assigned");
+      } else {
+        setLead(null);
+        setMessage(data.message || "No leads available");
+        localStorage.removeItem("currentLead"); // ✅ Clear if no lead
+        toast("📭 No new leads to assign right now", { icon: "📭" });
+      }
+    } catch (err) {
+      console.error("Error fetching lead:", err);
+      setMessage("Failed to fetch lead.");
+      toast.error("🚫 Unable to fetch lead. Please try again later.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle form input change
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
- const handleComplete = async () => {
-  if (!formData.name || !formData.mobile) {
-    return toast.error("❗ Name and Mobile are required fields");
-  }
+  // Submit lead as completed
+  const handleComplete = async () => {
+    if (!formData.name || !formData.mobile) {
+      return toast.error("❗ Name and Mobile are required fields");
+    }
 
-  const cleanedPayload = {
-    ...formData,
-    mobile: Array.isArray(formData.mobile)
-      ? formData.mobile
-      : [formData.mobile],  // ✅ Always send array
-    isComplete: true,
+    const cleanedPayload = {
+      ...formData,
+      mobile: Array.isArray(formData.mobile)
+        ? formData.mobile
+        : [formData.mobile], // Always array
+      isComplete: true,
+    };
+
+    delete cleanedPayload.companyName;
+
+    try {
+      await axios.put(`${API}/${lead._id}`, cleanedPayload, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+
+      toast.success("✅ Lead marked as completed!");
+      localStorage.removeItem("currentLead"); // ✅ Clear after complete
+      fetchLead();
+    } catch (err) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        "Failed to update lead.";
+      toast.error(`🚫 ${msg}`);
+    }
   };
 
-  delete cleanedPayload.companyName;
-
-  try {
-    await axios.put(`${API}/${lead._id}`, cleanedPayload, {
-      headers: { Authorization: `Bearer ${authToken}` },
-    });
-
-    toast.success("✅ Lead marked as completed!");
-    fetchLead();
-  } catch (err) {
-    const msg =
-      err?.response?.data?.message ||
-      err?.response?.data?.error ||
-      "Failed to update lead.";
-    toast.error(`🚫 ${msg}`);
-  }
-};
-
-
+  // Skip current lead
   const handleNext = async () => {
     if (!lead?._id) return toast.error("❗ No lead to skip");
 
@@ -122,7 +126,6 @@ const RawLeads = () => {
         : formData.mobile,
     };
 
-    // Remove UI-only fields
     delete cleanedPayload.companyName;
 
     try {
@@ -133,7 +136,8 @@ const RawLeads = () => {
       });
 
       toast.success("⏩ Lead skipped successfully!");
-      fetchLead(); // Load the next available lead
+      localStorage.removeItem("currentLead"); // ✅ Clear after skip
+      fetchLead();
     } catch (err) {
       const msg =
         err?.response?.data?.message ||
@@ -143,8 +147,18 @@ const RawLeads = () => {
     }
   };
 
+  // On mount → check localStorage first
   useEffect(() => {
-    fetchLead();
+    const stored = localStorage.getItem("currentLead");
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      setLead(parsed);
+      setFormData(flattenData(parsed));
+      setMessage("");
+      setLoading(false);
+    } else {
+      fetchLead();
+    }
   }, []);
 
   return (
@@ -225,10 +239,7 @@ const RawLeads = () => {
                 <span className="text-green-600 text-xl">✅</span>
                 <p className="text-sm text-green-800 leading-snug">
                   <strong>All fields are mandatory.</strong> So click
-                  <span className="font-semibold text-green-900">
-                    {" "}
-                    Submit
-                  </span>{" "}
+                  <span className="font-semibold text-green-900"> Submit</span>{" "}
                   when all the fields are properly filled.
                 </p>
               </motion.div>
@@ -251,10 +262,7 @@ const RawLeads = () => {
                 <p className="text-sm text-yellow-800 leading-snug">
                   <strong>All fields are mandatory.</strong> If you can’t get
                   proper information about the lead, click
-                  <span className="font-semibold text-yellow-900">
-                    {" "}
-                    Skip
-                  </span>{" "}
+                  <span className="font-semibold text-yellow-900"> Skip</span>{" "}
                   to get the next lead.
                 </p>
               </motion.div>
