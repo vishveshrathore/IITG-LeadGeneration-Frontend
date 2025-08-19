@@ -124,13 +124,13 @@ useEffect(() => {
     locked: serverHour !== null ? serverHour < 18 : true, 
   },
 
-  {
-    title: 'Skipped Raw Leads Today',
-    count: counts.skippedToday,
-    icon: <MdAssignment className="text-orange-600 text-4xl" />,
-    glow: 'from-orange-400 to-yellow-500',
-    tooltip: 'Leads skipped today',
-  },
+  // {
+  //   title: 'Skipped Raw Leads Today',
+  //   count: counts.skippedToday,
+  //   icon: <MdAssignment className="text-orange-600 text-4xl" />,
+  //   glow: 'from-orange-400 to-yellow-500',
+  //   tooltip: 'Leads skipped today',
+  // },
   {
     title: 'Total Skipped Raw Leads',
     count: counts.skippedTotal,
