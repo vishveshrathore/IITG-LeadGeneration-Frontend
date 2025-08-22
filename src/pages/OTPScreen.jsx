@@ -3,8 +3,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { motion } from 'framer-motion';
 import { FaLock } from 'react-icons/fa';
+import { BASE_URL } from "../config";
 
-const baseUrl = 'https://iitg-lead-generation-r4hmq.ondigitalocean.app';
 
 const OTPScreen = () => {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -45,7 +45,7 @@ const OTPScreen = () => {
     if (code.length < 6) return alert('Please enter the complete 6-digit OTP.');
 
     try {
-      const res = await axios.post(`${baseUrl}/api/verify-otp`, { email, otp: code });
+      const res = await axios.post(`${BASE_URL}/api/verify-otp`, { email, otp: code });
       alert(res.data.message);
       navigate('/');
     } catch (error) {

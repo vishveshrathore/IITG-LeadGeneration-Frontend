@@ -6,8 +6,8 @@ import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
 import AdminNavbar from '../../components/AdminNavbar';
 import { ClipLoader } from 'react-spinners';
+import { BASE_URL } from "../../config"; 
 
-const BASE_URL = 'https://iitg-lead-generation-r4hmq.ondigitalocean.app';
 
 const IndustryScreen = () => {
   const [industries, setIndustries] = useState([]);

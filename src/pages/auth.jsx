@@ -7,8 +7,7 @@ import { MdAdminPanelSettings, MdPersonAddAlt1 } from 'react-icons/md';
 import { ImSpinner2 } from 'react-icons/im';
 import toast, { Toaster } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext'; // ✅ Import context
-
-const baseUrl = 'https://iitg-lead-generation-r4hmq.ondigitalocean.app'; // Update with your backend URL
+import { BASE_URL } from "../config"; 
 
 const AuthScreen = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -47,7 +46,7 @@ const AuthScreen = () => {
       setIsLoading(true);
 
       if (isLogin) {
-        const res = await axios.post(`${baseUrl}/api/login`, {
+        const res = await axios.post(`${BASE_URL}/api/login`, {
           email: form.email,
           password: form.password
         });
@@ -63,7 +62,7 @@ const AuthScreen = () => {
           else toast.error('Unknown role');
         }, 500);
       } else {
-        const res = await axios.post(`${baseUrl}/api/signup`, {
+        const res = await axios.post(`${BASE_URL}/api/signup`, {
           name: form.name,
           email: form.email,
           password: form.password,

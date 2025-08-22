@@ -6,6 +6,7 @@ import { FaFileExcel, FaUpload, FaPlus, FaList } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import AdminNavbar from '../../components/AdminNavbar';
+import { BASE_URL } from "../../config"; 
 
 const ManageLeads = () => {
   const { authToken } = useAuth();
@@ -32,7 +33,7 @@ const ManageLeads = () => {
       setUploading(true);
 
       const res = await axios.post(
-        'https://iitg-lead-generation-r4hmq.ondigitalocean.app/api/admin/leads/bulk',
+        `${BASE_URL}/api/admin/leads/bulk`,
         formData,
         {
           headers: {
@@ -89,8 +90,8 @@ const ManageLeads = () => {
         </Link>
 
       {/* Navigational Cards */}
-      <div className="grid md:grid-cols-2 gap-6">
-        <Link to="/admin/add-lead">
+      <div className="grid md:grid-cols-2 gap-6 my-5">
+        <Link to="/lg/addlead">
           <motion.div
             className="bg-white shadow rounded-xl p-6 hover:shadow-lg transition duration-300 cursor-pointer"
             initial={{ opacity: 0, x: -30 }}
@@ -110,7 +111,7 @@ const ManageLeads = () => {
       </div>
 
       <motion.div
-        className="bg-white shadow rounded-xl p-6 mb-10"
+        className="bg-white shadow rounded-xl p-6 mb-10 my-5"
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.2 }}

@@ -3,6 +3,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import AdminNavbar from '../../components/AdminNavbar';
+import { BASE_URL } from "../../config"; 
 
 const ViewLeads = () => {
   const { authToken } = useAuth();
@@ -35,7 +36,7 @@ const ViewLeads = () => {
       if (!params.from) delete params.from;
       if (!params.to) delete params.to;
 
-      const response = await axios.get('https://iitg-lead-generation-r4hmq.ondigitalocean.app/api/admin/leads', {
+      const response = await axios.get(`${BASE_URL}/api/admin/leads`, {
         headers: { Authorization: `Bearer ${authToken}` },
         params,
       });
@@ -53,13 +54,13 @@ const ViewLeads = () => {
   const fetchFilterData = async () => {
     try {
       const [industryRes, companyRes, userRes] = await Promise.all([
-        axios.get('https://iitg-lead-generation-r4hmq.ondigitalocean.app/api/admin/industries', {
+        axios.get(`${BASE_URL}/api/admin/industries`, {
           headers: { Authorization: `Bearer ${authToken}` },
         }),
-        axios.get('https://iitg-lead-generation-r4hmq.ondigitalocean.app/api/admin/companies', {
+        axios.get(`${BASE_URL}/api/admin/companies`, {
           headers: { Authorization: `Bearer ${authToken}` },
         }),
-        axios.get('https://iitg-lead-generation-r4hmq.ondigitalocean.app/api/admin/users', {
+        axios.get(`${BASE_URL}/api/admin/users`, {
           headers: { Authorization: `Bearer ${authToken}` },
         }),
       ]);

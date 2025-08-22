@@ -9,6 +9,9 @@ import { MdBusiness, MdAssignment } from 'react-icons/md';
 import { Tooltip } from 'react-tooltip';
 import { Howl } from 'howler';
 import 'react-tooltip/dist/react-tooltip.css';
+import { BASE_URL } from "../../config";   // if inside pages/LG
+import Quotes from "inspirational-quotes";
+
 
 const clickSound = new Howl({
   src: ['/assets/click.mp3'],
@@ -22,7 +25,7 @@ const hoverSound = new Howl({
 
 const LgDashboard = () => {
   const [serverHour, setServerHour] = useState(null);
-
+  const [quote, setQuote] = useState({ text: "", author: "" });
 
   const [userName, setUserName] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -55,17 +58,19 @@ const LgDashboard = () => {
     try {
       // Existing count fetch
       const res = await fetch(
-        'https://iitg-lead-generation-r4hmq.ondigitalocean.app/api/lg/count',
+        `${BASE_URL}/api/lg/count`,
         { headers: { Authorization: `Bearer ${authToken}` } }
       );
       const data = await res.json();
 
       // New rawcount fetch
       const rawRes = await fetch(
-        'https://iitg-lead-generation-r4hmq.ondigitalocean.app/api/lg/rawcount',
+        `${BASE_URL}/api/lg/rawcount`,
         { headers: { Authorization: `Bearer ${authToken}` } }
       );
       const rawData = await rawRes.json();
+
+  
 
       setCounts({
         totalLeads: data.totalLeads || 0,
@@ -89,7 +94,7 @@ useEffect(() => {
   const fetchServerTime = async () => {
     try {
       const res = await fetch(
-        `https://iitg-lead-generation-r4hmq.ondigitalocean.app/api/server-time`,
+        `${BASE_URL}/api/server-time`,
         { headers: { Authorization: `Bearer ${authToken}` } }
       );
       const data = await res.json();
@@ -112,6 +117,15 @@ useEffect(() => {
     return () => clearInterval(interval);
   }
 }, [authToken]);
+
+useEffect(() => {
+  setQuote(Quotes.getQuote()); // initial quote
+  const interval = setInterval(() => {
+    setQuote(Quotes.getQuote());
+  }, 15000); // refresh every 15s
+
+  return () => clearInterval(interval);
+}, []);
 
 
  const bentoItems = [
@@ -167,7 +181,6 @@ useEffect(() => {
   //   tooltip: 'Leads that need follow-up',
   // },
   
-  
   // {
   //   title: 'Total Submitted Leads',
   //   count: counts.submittedTotal,
@@ -198,13 +211,31 @@ useEffect(() => {
     },
   ];
 
-  
+  const now = new Date();
+const hour = now.getHours();
 
   return (
     <div>
       <AnimatedLGNavbar onLogout={() => setShowModal(true)} />
       <div className="pt-20 px-6">
-        <h2 className="text-2xl font-semibold mb-6">Welcome, {userName}!</h2>
+
+        <h2 className="text-2xl font-semibold mb-2">
+  {`Good ${hour < 12 ? "Morning" : hour < 17 ? "Afternoon" : "Evening"}, ${userName} !`}
+</h2>
+<p className="text-sm text-gray-500">{now.toLocaleTimeString()}</p>
+
+        {/* Motivational Quote */}
+<motion.div
+  className="mt-8 p-6 rounded-xl bg-gradient-to-tr from-white to-indigo-100 shadow-md"
+  initial={{ opacity: 0, y: 20 }}
+  animate={{ opacity: 1, y: 0 }}
+>
+  <p className="text-lg italic text-gray-800 mb-2">
+    “{quote.text}”
+  </p>
+  <p className="text-right text-sm text-gray-600">- {quote.author}</p>
+</motion.div>
+
 
         {/* Action Grids */}
         <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

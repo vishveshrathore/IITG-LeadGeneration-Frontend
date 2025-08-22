@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { FiHome, FiSettings, FiLogOut, FiMenu, FiUser } from 'react-icons/fi';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { FiHome, FiLogOut, FiMenu, FiUser } from 'react-icons/fi';
 import { BsBuildings, BsFillPersonPlusFill } from 'react-icons/bs';
 import { MdBusinessCenter } from 'react-icons/md';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -12,17 +12,25 @@ const adminNavItems = [
   { name: 'Industries', icon: <BsBuildings />, path: '/admin/industries' },
   { name: 'Companies', icon: <MdBusinessCenter />, path: '/admin/companies' },
   { name: 'Leads', icon: <BsFillPersonPlusFill />, path: '/admin/leads' },
-  { name: 'Profile', icon: <FiUser />, path: '/admin/profile' },
+  // { name: 'Profile', icon: <FiUser />, path: '/admin/profile' },
 ];
 
-const AdminNavbar = ({ onLogout }) => {
+const AdminNavbar = () => {
   const location = useLocation();
+  const navigate = useNavigate();   // ✅ better than window.location.href
   const [isOpen, setIsOpen] = useState(false);
   const [playClick] = useSound(clickSound, { volume: 0.3 });
 
   const toggleMenu = () => {
     playClick();
     setIsOpen(!isOpen);
+  };
+
+  const handleLogout = () => {
+    playClick();
+    localStorage.clear();
+    sessionStorage.clear();
+    navigate('/');   // ✅ redirect to login/home
   };
 
   return (
@@ -35,10 +43,7 @@ const AdminNavbar = ({ onLogout }) => {
       <h1 className="text-xl font-bold text-black-600 tracking-tight">IITGJobs.com</h1>
 
       {/* Mobile menu toggle */}
-      <button
-        className="md:hidden text-2xl text-gray-600"
-        onClick={toggleMenu}
-      >
+      <button className="md:hidden text-2xl text-gray-600" onClick={toggleMenu}>
         <FiMenu />
       </button>
 
@@ -74,11 +79,9 @@ const AdminNavbar = ({ onLogout }) => {
           );
         })}
 
+        {/* ✅ fixed logout */}
         <button
-          onClick={() => {
-            playClick();
-            onLogout();
-          }}
+          onClick={handleLogout}
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-100 rounded-md transition"
         >
           <FiLogOut /> Logout
@@ -111,12 +114,10 @@ const AdminNavbar = ({ onLogout }) => {
                 {item.icon} {item.name}
               </Link>
             ))}
+
+            {/* ✅ fixed mobile logout */}
             <button
-              onClick={() => {
-                playClick();
-                setIsOpen(false);
-                onLogout();
-              }}
+              onClick={handleLogout}
               className="flex items-center gap-3 px-6 py-3 border-t text-sm font-medium text-red-600 hover:bg-red-50"
             >
               <FiLogOut /> Logout

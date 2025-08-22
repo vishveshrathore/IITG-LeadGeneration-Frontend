@@ -3,8 +3,9 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { FaEdit, FaTrash } from 'react-icons/fa';
 import AdminNavbar from '../../components/AdminNavbar';
+import { BASE_URL } from "../../config"; 
 
-const API_BASE = 'https://iitg-lead-generation-r4hmq.ondigitalocean.app/api';
+const API_BASE = `${BASE_URL}/api`;
 
 const CompanyManagement = () => {
   const [industries, setIndustries] = useState([]);

@@ -7,6 +7,7 @@ import { FiEdit } from 'react-icons/fi';
 import { Tooltip } from 'react-tooltip';
 import 'react-tooltip/dist/react-tooltip.css';
 import { motion } from 'framer-motion';
+import { BASE_URL } from "../../config";   // if inside pages/LG
 
 
 
@@ -18,7 +19,7 @@ const TodayLeadsOfLG = () => {
 
   const fetchTodayLeads = async () => {
     try {
-      const res = await axios.get('https://iitg-lead-generation-r4hmq.ondigitalocean.app/api/lg/todayleads', {
+      const res = await axios.get(`${BASE_URL}/api/lg/todayleads`, {
         headers: { Authorization: `Bearer ${authToken}` },
       });
       setLeads(res.data.leads);
@@ -31,7 +32,7 @@ const TodayLeadsOfLG = () => {
   const handleToggleComplete = async (id, currentStatus) => {
     try {
       await axios.put(
-        `https://iitg-lead-generation-r4hmq.ondigitalocean.app/api/lg/todayleads/update/${id}`,
+        `${BASE_URL}/api/lg/todayleads/update/${id}`,
         { isComplete: !currentStatus },
         { headers: { Authorization: `Bearer ${authToken}` } }
       );
@@ -56,7 +57,7 @@ const TodayLeadsOfLG = () => {
   const handleSaveEdit = async () => {
     try {
       await axios.put(
-        `https://iitg-lead-generation-r4hmq.ondigitalocean.app/api/lg/todayleads/update/${editingLead}`,
+        `${BASE_URL}/api/lg/todayleads/update/${editingLead}`,
         editForm,
         { headers: { Authorization: `Bearer ${authToken}` } }
       );

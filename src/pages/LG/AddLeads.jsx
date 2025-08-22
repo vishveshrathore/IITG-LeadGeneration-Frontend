@@ -5,7 +5,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import AnimatedLGNavbar from '../../components/LgNavBar';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { FaCopy } from 'react-icons/fa';
-
+import { BASE_URL } from "../../config";    // if inside pages/LG
 const initialFormData = {
   name: '',
   designation: '',
@@ -33,7 +33,7 @@ const AddLeadScreen = () => {
   useEffect(() => {
     const fetchIndustries = async () => {
       try {
-        const res = await axios.get('https://iitg-lead-generation-r4hmq.ondigitalocean.app/api/lg/industry', {
+        const res = await axios.get(`${BASE_URL}/api/lg/industry`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setIndustries(res.data.industries || []);
@@ -52,7 +52,7 @@ const AddLeadScreen = () => {
     const fetchCompanies = async () => {
       try {
         const res = await axios.get(
-          `https://iitg-lead-generation-r4hmq.ondigitalocean.app/api/lg/companies/byindustry/${selectedIndustry._id}`,
+          `${BASE_URL}/api/lg/companies/byindustry/${selectedIndustry._id}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         setCompanies(res.data.companies || []);
@@ -74,7 +74,7 @@ const AddLeadScreen = () => {
 
   const fetchHRLeads = async (industryId, companyId) => {
     try {
-      const res = await axios.get('https://iitg-lead-generation-r4hmq.ondigitalocean.app/api/lg/gethr/idscom', {
+      const res = await axios.get(`${BASE_URL}/api/lg/gethr/idscom`, {
         headers: { Authorization: `Bearer ${token}` },
         params: { industryId, companyId },
       });
@@ -133,7 +133,7 @@ const AddLeadScreen = () => {
     };
 
     try {
-      const res = await axios.post('https://iitg-lead-generation-r4hmq.ondigitalocean.app/api/lg/addhr', payload, {
+      const res = await axios.post(`${BASE_URL}/api/lg/addhr`, payload, {
         headers: { Authorization: `Bearer ${authToken}` },
       });
 
@@ -151,10 +151,10 @@ const AddLeadScreen = () => {
   };
 
   return (
-    <div className="w-full min-h-screen bg-gradient-to-br from-white via-gray-50 to-blue-50 overflow-x-hidden">
+    <div className="w-full min-h-screen bg-gradient-to-br from-white via-gray-50 to-blue-50 overflow-x-hidden my-8">
       <Toaster position="top-center" reverseOrder={false} />
       <AnimatedLGNavbar />
-      <div className="pt-8 px-4 md:px-10 pb-16 max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-10 items-start">
+      <div className="pt-8 px-4 md:px-10 pb-16 max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-10 items-start my-8">
 
         {/* LEFT FORM */}
         <form

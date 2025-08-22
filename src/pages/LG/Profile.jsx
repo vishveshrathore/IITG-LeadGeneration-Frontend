@@ -6,6 +6,7 @@ import toast, { Toaster } from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
 import { FiUser, FiBriefcase, FiMapPin, FiUpload } from "react-icons/fi";
 import AnimatedLGNavbar from '../../components/LgNavBar';
+import { BASE_URL } from "../../config";  
 
 const Profile = () => {
   const { authToken: token } = useAuth();
@@ -23,7 +24,7 @@ const Profile = () => {
     const fetchProfile = async () => {
       if (!token) return;
       try {
-        const res = await axios.get("https://iitg-lead-generation-r4hmq.ondigitalocean.app/api/me", {
+        const res = await axios.get(`${BASE_URL}/api/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.data) {
@@ -74,7 +75,7 @@ const Profile = () => {
     if (profilePic) data.append("Image", profilePic);
 
     try {
-      const url = isEditing ? "https://iitg-lead-generation-r4hmq.ondigitalocean.app/api/update" : "https://iitg-lead-generation-r4hmq.ondigitalocean.app/api/create";
+      const url = isEditing ? `${BASE_URL}/api/update` : `${BASE_URL}/api/create`;
       const method = isEditing ? "put" : "post";
       const res = await axios({ method, url, data, headers: { "Content-Type": "multipart/form-data", Authorization: `Bearer ${token}` } });
       toast.success(res.data.message);

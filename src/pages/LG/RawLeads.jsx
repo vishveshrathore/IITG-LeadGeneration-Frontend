@@ -4,9 +4,10 @@ import toast, { Toaster } from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
 import AnimatedLGNavbar from "../../components/LgNavBar";
 import { motion } from "framer-motion";
+import { BASE_URL } from "../../config";  
 
 const API =
-  "https://iitg-lead-generation-r4hmq.ondigitalocean.app/api/lg/rawlead";
+  `${BASE_URL}/api/lg/rawlead`;
 
 const RawLeads = () => {
   const { authToken } = useAuth();

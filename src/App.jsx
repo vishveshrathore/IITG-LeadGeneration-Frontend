@@ -6,15 +6,17 @@ import LGDashboard from './pages/LG/LGDashboard.jsx';
 import OTPScreen from './pages/OTPScreen.jsx';
 import ProtectedRoute from './components/ProtectedRoute';
 import AddHrForm from './pages/LG/AddLeads.jsx';
-import TodayLeadsOfLG from './pages/LG/TodaysLead.jsx'
-import IndustryScreen from './pages/Admin/Industries.jsx'
-import CompanyManagement from './pages/Admin/Companies.jsx'
-import ManageLeads from './pages/Admin/ManageLeads.jsx'
-import ViewLeads from './pages/Admin/ViewLeads.jsx'
-import RawLeadsLG from './pages/LG/RawLeads.jsx'
-import RawLeadManager from './pages/Admin/RawLeads.jsx'
-import DashboardAddLeads from './pages/LG/DashboardAddLeads.jsx'
+import TodayLeadsOfLG from './pages/LG/TodaysLead.jsx';
+import IndustryScreen from './pages/Admin/Industries.jsx';
+import CompanyManagement from './pages/Admin/Companies.jsx';
+import ManageLeads from './pages/Admin/ManageLeads.jsx';
+import ViewLeads from './pages/Admin/ViewLeads.jsx';
+import RawLeadsLG from './pages/LG/RawLeads.jsx';
+import RawLeadManager from './pages/Admin/RawLeads.jsx';
+import DashboardAddLeads from './pages/LG/DashboardAddLeads.jsx';
 import Profile from './pages/LG/Profile.jsx';
+import RawLeadsDashboard from './pages/Admin/RawLeadsDashboard.jsx';
+import TempRawLeadsDashboard from './pages/Admin/RawLeadsUpload&Approve.jsx';
 
 function App() {
   const location = useLocation();
@@ -22,9 +24,11 @@ function App() {
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
+        {/* Public routes */}
         <Route path="/" element={<AuthScreen />} />
         <Route path="/otp" element={<OTPScreen />} />
-        
+
+        {/* Admin routes */}
         <Route
           path="/adminDashboard"
           element={
@@ -34,26 +38,110 @@ function App() {
           }
         />
         <Route
+          path="/admin/industries"
+          element={
+            <ProtectedRoute role="admin">
+              <IndustryScreen />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/companies"
+          element={
+            <ProtectedRoute role="admin">
+              <CompanyManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/leads"
+          element={
+            <ProtectedRoute role="admin">
+              <ManageLeads />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/viewleads"
+          element={
+            <ProtectedRoute role="admin">
+              <ViewLeads />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/view/rawleads"
+          element={
+            <ProtectedRoute role="admin">
+              <RawLeadManager />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/rawleadsDashboard"
+          element={
+            <ProtectedRoute role="admin">
+              <RawLeadsDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/temprawleadsDashboard"
+          element={
+            <ProtectedRoute role="admin">
+              <TempRawLeadsDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* LG routes */}
+        <Route
           path="/lgDashboard"
           element={
             <ProtectedRoute role="lg">
-
               <LGDashboard />
             </ProtectedRoute>
           }
         />
-        <Route path="/lg/addlead" element={<AddHrForm />} />
-        <Route path="/lg/viewtodaysleads" element={<TodayLeadsOfLG />} />
-        <Route path="/admin/industries" element={<IndustryScreen />} />
-        <Route path="/admin/companies" element={<CompanyManagement />} />
-        <Route path="/admin/leads" element={<ManageLeads />} />
-        <Route path="/admin/viewleads" element={<ViewLeads />} />
-        <Route path="/lg/rawlead" element={<RawLeadsLG />} />
-        <Route path="/admin/rawleads" element={<RawLeadManager />} />
-        <Route path="/lg/dashboard" element={<DashboardAddLeads />} />
-        <Route path="/lg/profile" element={<Profile />} />
-
-
+        <Route
+          path="/lg/addlead"
+          element={
+              <AddHrForm />
+            
+          }
+        />
+        <Route
+          path="/lg/viewtodaysleads"
+          element={
+            <ProtectedRoute role="lg">
+              <TodayLeadsOfLG />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/lg/rawlead"
+          element={
+            <ProtectedRoute role="lg">
+              <RawLeadsLG />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/lg/dashboard"
+          element={
+            <ProtectedRoute role="lg">
+              <DashboardAddLeads />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/lg/profile"
+          element={
+            <ProtectedRoute role="lg">
+              <Profile />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </AnimatePresence>
   );
