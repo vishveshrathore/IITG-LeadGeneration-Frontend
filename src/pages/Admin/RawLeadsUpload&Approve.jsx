@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { motion } from "framer-motion";
 import { toast, Toaster } from "react-hot-toast";
-import AdminNavbar from '../../components/AdminNavbar';
+import AdminNavbar from "../../components/AdminNavbar";
 import {
   FiUpload,
   FiSearch,
@@ -13,7 +13,7 @@ import {
   FiChevronRight,
   FiAlertCircle,
 } from "react-icons/fi";
-import { BASE_URL } from "../../config"; 
+import { BASE_URL } from "../../config";
 
 // ================== CONFIG ==================
 const API_BASE = `${BASE_URL}/api/admin/temp-rawleads`;
@@ -53,6 +53,13 @@ export default function TempRawLeadsDashboard() {
   const [industryFilter, setIndustryFilter] = useState("");
   const [selectedIndustry, setSelectedIndustry] = useState("");
 
+  // pagination state from backend
+  const [pagination, setPagination] = useState({
+    total: 0,
+    totalPages: 1,
+    limit: pageSize,
+  });
+
   // Helpers
   const normalizeListResponse = (data) => {
     if (Array.isArray(data)) return data;
@@ -64,9 +71,17 @@ export default function TempRawLeadsDashboard() {
   const fetchLeads = async () => {
     try {
       setLoading(true);
-      const { data } = await axios.get(API_BASE);
-      const list = normalizeListResponse(data);
-      setLeads(list);
+      const { data } = await axios.get(API_BASE, {
+        params: {
+          page,
+          limit: pageSize,
+          search,
+          industry: industryFilter,
+        },
+      });
+
+      setLeads(normalizeListResponse(data));
+      setPagination(data.pagination || { total: 0, totalPages: 1, limit: pageSize });
       setSelected(new Set());
     } catch (e) {
       console.error(e);
@@ -92,35 +107,7 @@ export default function TempRawLeadsDashboard() {
   useEffect(() => {
     fetchLeads();
     fetchIndustries();
-  }, []);
-
-  const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return leads.filter((l) => {
-      const name = (l.name || "").toLowerCase();
-      const companyName = (l.companyName || l.company?.CompanyName || "").toLowerCase();
-      const designation = (l.designation || "").toLowerCase();
-      const location = (l.location || "").toLowerCase();
-      const industry = (l.industry?.name || "").toLowerCase();
-
-      return (
-        (!industryFilter || industry === industryFilter.toLowerCase()) &&
-        (name.includes(term) ||
-          companyName.includes(term) ||
-          designation.includes(term) ||
-          location.includes(term))
-      );
-    });
-  }, [leads, search, industryFilter]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const currentPage = Math.min(page, totalPages);
-  const start = (currentPage - 1) * pageSize;
-  const pageItems = filtered.slice(start, start + pageSize);
-
-  useEffect(() => {
-    setPage(1);
-  }, [search, industryFilter]);
+  }, [page, search, industryFilter]);
 
   // Actions
   const handleUpload = async () => {
@@ -145,18 +132,41 @@ export default function TempRawLeadsDashboard() {
   };
 
   const approveOne = async (id) => {
-    if (!selectedIndustry) return toast.error("Select an industry first");
+  if (!selectedIndustry) return toast.error("Select an industry first");
+
+  setBusyIds((s) => new Set([...s, id]));
+
+  try {
+    await axios({
+      url: `${API_BASE}/approve/${id}`,
+      method: APPROVE_REJECT_METHOD,
+      data: { industryId: selectedIndustry },
+    });
+
+    toast.success("Lead approved");
+
+    // ✅ Instead of refetching, remove the approved lead from local state
+    setLeads((prev) => prev.filter((lead) => lead._id !== id));
+  } catch (e) {
+    toast.error(e?.response?.data?.message || "Approve failed");
+  } finally {
+    setBusyIds((s) => {
+      const n = new Set(s);
+      n.delete(id);
+      return n;
+    });
+  }
+};
+
+
+  const markPending = async (id) => {
     setBusyIds((s) => new Set([...s, id]));
     try {
-      await axios({
-        url: `${API_BASE}/approve/${id}`,
-        method: APPROVE_REJECT_METHOD,
-        data: { industryId: selectedIndustry },
-      });
-      toast.success("Lead approved");
-      await fetchLeads();
+      await axios.put(`${API_BASE}/pending/${id}`);
+      toast.success("Lead marked as pending");
+       setLeads((prev) => prev.filter((lead) => lead._id !== id));
     } catch (e) {
-      toast.error(e?.response?.data?.message || "Approve failed");
+      toast.error(e?.response?.data?.message || "Pending failed");
     } finally {
       setBusyIds((s) => {
         const n = new Set(s);
@@ -198,19 +208,18 @@ export default function TempRawLeadsDashboard() {
 
   const selectAllOnPage = () => {
     const newSet = new Set(selected);
-    pageItems.forEach((i) => newSet.add(i._id));
+    leads.forEach((i) => newSet.add(i._id));
     setSelected(newSet);
   };
 
   const clearSelection = () => setSelected(new Set());
 
   // Stats
-  const stats = useMemo(() => {
-    const total = leads.length;
-    const pending = leads.filter((l) => (l.status || "pending") === "pending").length;
-    const approved = leads.filter((l) => l.status === "approved").length;
-    return { total, pending, approved };
-  }, [leads]);
+  const stats = {
+    total: pagination.total,
+    pending: leads.filter((l) => (l.status || "pending") === "pending").length,
+    approved: leads.filter((l) => l.status === "approved").length,
+  };
 
   // Helpers: render industry <option>s
   const IndustryOptions = () => (
@@ -226,13 +235,12 @@ export default function TempRawLeadsDashboard() {
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen my-12">
-      
       <Toaster position="top-right" />
-      <AdminNavbar/>
+      <AdminNavbar />
 
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-800">
-         Temporary RawLeads Manager
+          Temporary RawLeads Manager
         </h1>
         <button
           onClick={fetchLeads}
@@ -243,52 +251,55 @@ export default function TempRawLeadsDashboard() {
         </button>
       </div>
 
-      {/* Stats Bento */}
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      {/* Stats + Upload */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* Pending Leads Card */}
+        <motion.div
+          variants={cardVariants}
+          initial="initial"
+          animate="animate"
+          className="rounded-3xl bg-gradient-to-r flex flex-col items-start gap-2"
+        >
+          <div className="text-sm font-medium text-yellow-800 uppercase tracking-wide">
+            Pending Leads
+          </div>
+          <div className="text-3xl md:text-4xl font-bold text-yellow-900">
+            {stats.pending}
+          </div>
+          <div className="text-xs mt-1">
+            Total pending leads awaiting approval
+          </div>
+        </motion.div>
 
-  {/* Pending Leads Card */}
-  <motion.div
-    variants={cardVariants}
-    initial="initial"
-    animate="animate"
-    className="rounded-3xl bg-gradient-to-r flex flex-col items-start gap-2"
-  >
-    <div className="text-sm font-medium text-yellow-800 uppercase tracking-wide">
-      Pending Leads
-    </div>
-    <div className="text-3xl md:text-4xl font-bold text-yellow-900">
-      {stats.pending}
-    </div>
-    <div className="text-xs mt-1">
-      Total pending leads awaiting approval
-    </div>
-  </motion.div>
+        {/* Important Note Card */}
+        <motion.div
+          variants={cardVariants}
+          initial="initial"
+          animate="animate"
+          className="rounded-3xl bg-gradient-to-r bg-blue-100 flex flex-col md:flex-row items-start md:items-center gap-4 p-2"
+        >
+          <div className="flex-shrink-0">
+            <FiAlertCircle className="text-5xl text-red-500 animate-pulse" />
+          </div>
+          <div className="flex-1">
+            <div className="text-lg md:text-xl font-bold text-red-600 mb-2">
+              Important Note
+            </div>
+            <div className="text-sm md:text-base text-gray-700 leading-relaxed">
+              ⚠️ In the Excel file, the header <span className="font-semibold">must</span> include:
+              <br />
+              <span className="font-bold text-blue-700">
+                Name, Company, Designation, Current Location
+              </span>
+              .
+              <br />
+              Only then can you upload the file for proper parsing.
+            </div>
+          </div>
+        </motion.div>
 
-  {/* Important Note Card */}
-  <motion.div
-    variants={cardVariants}
-    initial="initial"
-    animate="animate"
-    className="rounded-3xl bg-gradient-to-r bg-blue-100 flex flex-col md:flex-row items-start md:items-center gap-4 p-2"
-  >
-    {/* Icon */}
-    <div className="flex-shrink-0">
-      <FiAlertCircle className="text-5xl text-red-500 animate-pulse" />
-    </div>
-
-    {/* Text Content */}
-    <div className="flex-1">
-      <div className="text-lg md:text-xl font-bold text-red-600 mb-2">
-        Important Note
-      </div>
-      <div className="text-sm md:text-base text-gray-700 leading-relaxed">
-        ⚠️ In the Excel file, the header <span className="font-semibold">must</span> include:<br />
-        <span className="font-bold text-blue-700">Name, Company, Designation, Current Location</span>.<br />
-        Only then can you upload the file for proper parsing.
-      </div>
-    </div>
-  </motion.div>
-  <div className="flex items-center gap-2">
+        {/* Upload */}
+        <div className="flex items-center gap-2">
           <label className="block w-48 text-sm file:mr-2 file:rounded-md file:border-0 file:bg-blue-50 file:px-2 file:py-1 file:text-blue-700 hover:file:bg-blue-100">
             <input
               type="file"
@@ -305,15 +316,12 @@ export default function TempRawLeadsDashboard() {
             <FiUpload /> Upload {file && `(${file.name})`}
           </button>
         </div>
+      </div>
 
-</div>
-
-      
       <hr className="my-8" />
 
       {/* Toolbar */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
-        {/* Bulk Actions */}
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={bulkApprove}
@@ -333,7 +341,6 @@ export default function TempRawLeadsDashboard() {
 
         {/* Filters and Search */}
         <div className="flex items-center gap-4 flex-wrap w-full md:w-auto">
-          {/* Global Industry Selection */}
           <select
             value={selectedIndustry}
             onChange={(e) => setSelectedIndustry(e.target.value)}
@@ -341,8 +348,6 @@ export default function TempRawLeadsDashboard() {
           >
             <IndustryOptions />
           </select>
-
-          {/* Search */}
           <div className="relative flex-1 min-w-[200px]">
             <FiSearch className="absolute left-3 top-2.5 text-gray-400" />
             <input
@@ -355,39 +360,39 @@ export default function TempRawLeadsDashboard() {
         </div>
       </div>
 
-      {/* Upload & Pagination */}
+      {/* Pagination */}
       <div className="flex items-center justify-between mb-3">
-        
         <div className="flex items-center gap-2">
           <button
             className={`${buttonBase} bg-white border border-gray-300 hover:bg-gray-50 text-gray-700`}
             onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
+            disabled={page === 1}
           >
             <FiChevronLeft />
           </button>
           <Badge className="bg-gray-100 text-gray-800">
-            Page {currentPage} / {totalPages}
+            Page {page} / {pagination.totalPages}
           </Badge>
           <button
             className={`${buttonBase} bg-white border border-gray-300 hover:bg-gray-50 text-gray-700`}
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
+            onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
+            disabled={page === pagination.totalPages}
           >
             <FiChevronRight />
           </button>
           <button
             className={`${buttonBase} bg-white border border-gray-300 hover:bg-gray-50 text-gray-700`}
             onClick={selectAllOnPage}
-            disabled={pageItems.length === 0}
+            disabled={leads.length === 0}
             title="Select all on this page"
           >
             <FiCheckSquare /> Select all
           </button>
         </div>
       </div>
+
       <div className="mb-3 text-sm text-gray-600">
-        Showing <b>{pageItems.length}</b> of <b>{filtered.length}</b> result(s)
+        Showing <b>{leads.length}</b> of <b>{pagination.total}</b> result(s)
       </div>
 
       {/* Leads Table */}
@@ -395,7 +400,7 @@ export default function TempRawLeadsDashboard() {
         <div className="rounded-2xl border bg-white shadow-sm p-10 text-center text-gray-500">
           Loading leads...
         </div>
-      ) : pageItems.length === 0 ? (
+      ) : leads.length === 0 ? (
         <div className="rounded-2xl border bg-white shadow-sm p-10 text-center text-gray-500 flex items-center justify-center gap-2">
           <FiAlertCircle className="text-xl" />
           No leads found.
@@ -405,14 +410,14 @@ export default function TempRawLeadsDashboard() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3">
                   <input
                     type="checkbox"
                     onChange={(e) => {
                       if (e.target.checked) selectAllOnPage();
                       else clearSelection();
                     }}
-                    checked={pageItems.every((i) => selected.has(i._id))}
+                    checked={leads.every((i) => selected.has(i._id))}
                   />
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -421,7 +426,6 @@ export default function TempRawLeadsDashboard() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Designation
                 </th>
-                
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Location
                 </th>
@@ -437,7 +441,7 @@ export default function TempRawLeadsDashboard() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {pageItems.map((lead) => {
+              {leads.map((lead) => {
                 const id = lead._id;
                 const isBusy = busyIds.has(id);
                 const isSelected = selected.has(id);
@@ -457,7 +461,7 @@ export default function TempRawLeadsDashboard() {
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => toggleSelect(id)}
-  />
+                      />
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-900">
                       {lead.name || "—"}
@@ -465,7 +469,6 @@ export default function TempRawLeadsDashboard() {
                     <td className="px-4 py-3 text-sm text-gray-600">
                       {lead.designation || "—"}
                     </td>
-                    
                     <td className="px-4 py-3 text-sm text-gray-600">
                       {lead.location || "—"}
                     </td>
@@ -487,16 +490,11 @@ export default function TempRawLeadsDashboard() {
                           <FiCheckCircle /> Approve
                         </button>
                         <button
-                          onClick={() => {
-                            // Move this lead to bottom locally
-                            setLeads((prev) => [
-                              ...prev.filter((l) => l._id !== id),
-                              prev.find((l) => l._id === id),
-                            ]);
-                          }}
-                          className={`${buttonBase} bg-gray-400 text-white hover:bg-gray-500`}
+                          onClick={() => markPending(id)}
+                          disabled={isBusy}
+                                                    className={`${buttonBase} bg-gray-400 text-white hover:bg-gray-500`}
                         >
-                          Pending
+                          <FiRefreshCw /> Pending
                         </button>
                       </div>
                     </td>
@@ -510,3 +508,4 @@ export default function TempRawLeadsDashboard() {
     </div>
   );
 }
+
