@@ -421,14 +421,15 @@ export default function TempRawLeadsDashboard() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Designation
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Company
-                </th>
+                
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Location
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Company
                 </th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
@@ -464,9 +465,7 @@ export default function TempRawLeadsDashboard() {
                     <td className="px-4 py-3 text-sm text-gray-600">
                       {lead.designation || "—"}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
-                      {lead.companyName || lead.company?.CompanyName || "—"}
-                    </td>
+                    
                     <td className="px-4 py-3 text-sm text-gray-600">
                       {lead.location || "—"}
                     </td>
@@ -474,6 +473,9 @@ export default function TempRawLeadsDashboard() {
                       <Badge className={statusColorClass}>
                         {lead.status || "pending"}
                       </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {lead.companyName || lead.company?.CompanyName || "—"}
                     </td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center gap-2 justify-center">
