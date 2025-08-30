@@ -145,13 +145,13 @@ useEffect(() => {
   //   glow: 'from-orange-400 to-yellow-500',
   //   tooltip: 'Leads skipped today',
   // },
-  {
-    title: 'Total Skipped Raw Leads',
-    count: counts.skippedTotal,
-    icon: <MdAssignment className="text-red-600 text-4xl" />,
-    glow: 'from-red-400 to-pink-500',
-    tooltip: 'Leads skipped in total',
-  },
+  // {
+  //   title: 'Total Skipped Raw Leads',
+  //   count: counts.skippedTotal,
+  //   icon: <MdAssignment className="text-red-600 text-4xl" />,
+  //   glow: 'from-red-400 to-pink-500',
+  //   tooltip: 'Leads skipped in total',
+  // },
   {
     title: 'Cumulative Leads Generated Personally',
     count: counts.totalLeads,
