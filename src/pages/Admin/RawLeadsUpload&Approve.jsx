@@ -44,7 +44,7 @@ export default function TempRawLeadsDashboard() {
   const [busyIds, setBusyIds] = useState(new Set());
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const pageSize = 25;
+  const pageSize = 50;
 
   const [selected, setSelected] = useState(new Set());
 
@@ -52,6 +52,12 @@ export default function TempRawLeadsDashboard() {
   const [industries, setIndustries] = useState([]);
   const [industryFilter, setIndustryFilter] = useState("");
   const [selectedIndustry, setSelectedIndustry] = useState("");
+  const [globalStats, setGlobalStats] = useState({
+  total: 0,
+  pending: 0,
+  approved: 0,
+  rejected: 0,
+});
 
   // pagination state from backend
   const [pagination, setPagination] = useState({
@@ -67,6 +73,16 @@ export default function TempRawLeadsDashboard() {
     if (data?.leads && Array.isArray(data.leads)) return data.leads;
     return [];
   };
+
+  const fetchStats = async () => {
+  try {
+    const { data } = await axios.get(`${API_BASE}/count`);
+    setGlobalStats(data);
+  } catch (e) {
+    console.error("Failed to fetch global counts", e);
+  }
+};
+
 
   const fetchLeads = async () => {
     try {
@@ -107,6 +123,7 @@ export default function TempRawLeadsDashboard() {
   useEffect(() => {
     fetchLeads();
     fetchIndustries();
+    fetchStats();
   }, [page, search, industryFilter]);
 
   // Actions
@@ -147,6 +164,7 @@ export default function TempRawLeadsDashboard() {
 
     // ✅ Instead of refetching, remove the approved lead from local state
     setLeads((prev) => prev.filter((lead) => lead._id !== id));
+    fetchStats();
   } catch (e) {
     toast.error(e?.response?.data?.message || "Approve failed");
   } finally {
@@ -192,6 +210,7 @@ export default function TempRawLeadsDashboard() {
       toast.dismiss(t);
       toast.success("Approved selected");
       await fetchLeads();
+      fetchStats();
     } catch (e) {
       toast.dismiss(t);
       toast.error(e?.response?.data?.message || "Bulk approve failed");
@@ -264,8 +283,9 @@ export default function TempRawLeadsDashboard() {
             Pending Leads
           </div>
           <div className="text-3xl md:text-4xl font-bold text-yellow-900">
-            {stats.pending}
-          </div>
+  {globalStats.pending}
+</div>
+
           <div className="text-xs mt-1">
             Total pending leads awaiting approval
           </div>

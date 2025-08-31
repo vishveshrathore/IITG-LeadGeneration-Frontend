@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { BsBuildings } from 'react-icons/bs';
+import { BsBuildings, BsPersonCheck } from 'react-icons/bs';
 import { MdBusinessCenter } from 'react-icons/md';
 import { BsPersonLinesFill } from 'react-icons/bs';
 import { FaDatabase } from 'react-icons/fa';
@@ -16,6 +16,13 @@ const AdminDashboard = () => {
   };
 
   const bentoItems = [
+   {
+  title: 'CRE Dashboard',
+  icon: <BsPersonCheck size={30} />,
+  route: '/creDashboard', // ✅ must match route exactly
+  color: 'bg-red-100',
+},
+
     {
       title: 'Manage Leads',
       icon: <BsPersonLinesFill size={30} />,
@@ -49,7 +56,7 @@ const AdminDashboard = () => {
       <div className="pt-20 px-4">
         <h2 className="text-2xl font-semibold mb-6">Welcome, Admin!</h2>
 
-        <div className="grid grid-cols-1 sm:grid-cols-1 gap-6 p-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 p-6">
           {bentoItems.map((item, index) => (
             <motion.div
               key={index}

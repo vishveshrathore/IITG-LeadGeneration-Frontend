@@ -4,10 +4,9 @@ import toast, { Toaster } from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
 import AnimatedLGNavbar from "../../components/LgNavBar";
 import { motion } from "framer-motion";
-import { BASE_URL } from "../../config";  
+import { BASE_URL } from "../../config";
 
-const API =
-  `${BASE_URL}/api/lg/rawlead`;
+const API = `${BASE_URL}/api/lg/rawlead`;
 
 const RawLeads = () => {
   const { authToken } = useAuth();
@@ -15,6 +14,7 @@ const RawLeads = () => {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [formData, setFormData] = useState({});
+  const [industries, setIndustries] = useState([]);
 
   const fields = [
     "name",
@@ -23,7 +23,7 @@ const RawLeads = () => {
     "location",
     "email",
     "mobile",
-    "industryName",
+    "industry",
     "remarks",
     "division",
     "productLine",
@@ -34,21 +34,33 @@ const RawLeads = () => {
   // Flatten nested data (company, industry)
   const flattenData = (data) => {
     const flattened = { ...data };
-
     if (data.company && typeof data.company === "object") {
       flattened.companyName = data.company.CompanyName || "";
       flattened.company = data.company._id || "";
     }
-
     if (data.industry && typeof data.industry === "object") {
-      flattened.industryName = data.industry.name || "";
       flattened.industry = data.industry._id || "";
     }
-
     return flattened;
   };
 
-  // Fetch new lead from API
+  // Fetch industries from backend
+  const fetchIndustries = async () => {
+    try {
+      const res = await axios.get(`${BASE_URL}/api/admin/industries`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+
+      const dataArray = res.data?.industries || [];
+      setIndustries(dataArray);
+    } catch (err) {
+      console.error("Error fetching industries:", err);
+      toast.error("🚫 Failed to load industries");
+      setIndustries([]);
+    }
+  };
+
+  // Fetch new lead
   const fetchLead = async () => {
     setLoading(true);
     try {
@@ -60,12 +72,12 @@ const RawLeads = () => {
         setLead(data);
         setFormData(flattenData(data));
         setMessage("");
-        localStorage.setItem("currentLead", JSON.stringify(data)); // ✅ Persist
+        localStorage.setItem("currentLead", JSON.stringify(data));
         toast.success("🎯 New raw lead assigned");
       } else {
         setLead(null);
         setMessage(data.message || "No leads available");
-        localStorage.removeItem("currentLead"); // ✅ Clear if no lead
+        localStorage.removeItem("currentLead");
         toast("📭 No new leads to assign right now", { icon: "📭" });
       }
     } catch (err) {
@@ -77,35 +89,43 @@ const RawLeads = () => {
     }
   };
 
-  // Handle form input change
+  // Handle input change
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Submit lead as completed
+  // Clean payload to avoid BSON errors
+  const getCleanPayload = (payload, isComplete = false) => {
+    const cleaned = { ...payload };
+    cleaned.mobile = Array.isArray(cleaned.mobile)
+      ? cleaned.mobile
+      : [cleaned.mobile];
+    if (isComplete) cleaned.isComplete = true;
+
+    // Remove empty ObjectId fields
+    if (!cleaned.company) delete cleaned.company;
+    if (!cleaned.industry) delete cleaned.industry;
+
+    // Remove extra fields
+    delete cleaned.companyName;
+
+    return cleaned;
+  };
+
+  // Submit lead
   const handleComplete = async () => {
     if (!formData.name || !formData.mobile) {
       return toast.error("❗ Name and Mobile are required fields");
     }
 
-    const cleanedPayload = {
-      ...formData,
-      mobile: Array.isArray(formData.mobile)
-        ? formData.mobile
-        : [formData.mobile], // Always array
-      isComplete: true,
-    };
-
-    delete cleanedPayload.companyName;
-
     try {
-      await axios.put(`${API}/${lead._id}`, cleanedPayload, {
+      await axios.put(`${API}/${lead._id}`, getCleanPayload(formData, true), {
         headers: { Authorization: `Bearer ${authToken}` },
       });
 
       toast.success("✅ Lead marked as completed!");
-      localStorage.removeItem("currentLead"); // ✅ Clear after complete
+      localStorage.removeItem("currentLead");
       fetchLead();
     } catch (err) {
       const msg =
@@ -116,28 +136,19 @@ const RawLeads = () => {
     }
   };
 
-  // Skip current lead
+  // Skip lead
   const handleNext = async () => {
     if (!lead?._id) return toast.error("❗ No lead to skip");
 
-    const cleanedPayload = {
-      ...formData,
-      mobile: Array.isArray(formData.mobile)
-        ? formData.mobile[0]
-        : formData.mobile,
-    };
-
-    delete cleanedPayload.companyName;
-
     try {
-      toast("⏭️ Skipping current lead...", { icon: "⏭️" });
-
-      await axios.put(`${API}/skip/${lead._id}`, cleanedPayload, {
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
+      await axios.put(
+        `${API}/skip/${lead._id}`,
+        getCleanPayload(formData),
+        { headers: { Authorization: `Bearer ${authToken}` } }
+      );
 
       toast.success("⏩ Lead skipped successfully!");
-      localStorage.removeItem("currentLead"); // ✅ Clear after skip
+      localStorage.removeItem("currentLead");
       fetchLead();
     } catch (err) {
       const msg =
@@ -148,8 +159,10 @@ const RawLeads = () => {
     }
   };
 
-  // On mount → check localStorage first
+  // Load lead and industries on mount
   useEffect(() => {
+    fetchIndustries();
+
     const stored = localStorage.getItem("currentLead");
     if (stored) {
       const parsed = JSON.parse(stored);
@@ -166,7 +179,7 @@ const RawLeads = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-100 to-white px-4 py-6">
       <Toaster position="top-center" />
       <AnimatedLGNavbar />
-
+      
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -176,6 +189,29 @@ const RawLeads = () => {
         <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">
           📋 Assigned Raw Lead
         </h2>
+{/* Progress Bar */}
+<div className="mb-6">
+  <div className="w-full bg-gray-200 h-2 rounded-full">
+    <div
+      className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+      style={{
+        width: `${Math.round(
+          (fields.filter(f => formData[f] && formData[f] !== "").length /
+            fields.length) *
+            100
+        )}%`
+      }}
+    ></div>
+  </div>
+  <p className="text-sm text-gray-600 mt-1 text-right">
+    {Math.round(
+      (fields.filter(f => formData[f] && formData[f] !== "").length /
+        fields.length) *
+        100
+    )}
+    % Completed
+  </p>
+</div>
 
         {loading ? (
           <motion.p
@@ -193,32 +229,61 @@ const RawLeads = () => {
           >
             {message}
           </motion.p>
+          
         ) : (
+          
           <>
             <motion.div
               layout
               className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-8"
             >
-              {fields.map((field) => (
-                <motion.div
-                  key={field}
-                  whileHover={{ scale: 1.02 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">
-                    {field.replace(/([A-Z])/g, " $1")}
-                  </label>
-                  <input
-                    type="text"
-                    name={field}
-                    value={formData[field] || ""}
-                    onChange={handleInputChange}
-                    disabled={field === "companyName"}
-                    className="w-full border border-gray-300 px-4 py-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
-                    placeholder={`Enter ${field}`}
-                  />
-                </motion.div>
-              ))}
+              {fields.map((field) => {
+  const isRequired = field !== "email" && field !== "division" && field !== "remarks";
+
+
+  return (
+    
+    <motion.div
+      key={field}
+      whileHover={{ scale: 1.02 }}
+      transition={{ duration: 0.2 }}
+    >
+      
+
+
+      <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">
+        {field.replace(/([A-Z])/g, " $1")}{" "}
+        {isRequired && <span className="text-red-500">*</span>}
+      </label>
+
+      {field === "industry" ? (
+        <select
+          name="industry"
+          value={formData.industry || ""}
+          onChange={handleInputChange}
+          className="w-full border border-gray-300 px-4 py-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+        >
+          <option value="">Select Industry</option>
+          {industries.map((ind) => (
+            <option key={ind._id} value={ind._id}>
+              {ind.name}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <input
+          type="text"
+          name={field}
+          value={formData[field] || ""}
+          onChange={handleInputChange}
+          disabled={field === "companyName"}
+          className="w-full border border-gray-300 px-4 py-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+          placeholder={`Enter ${field}`}
+        />
+      )}
+    </motion.div>
+  );
+})}
             </motion.div>
 
             <div className="flex flex-col gap-4 items-stretch">
@@ -230,8 +295,7 @@ const RawLeads = () => {
               >
                 ✅ Submit Lead
               </motion.button>
-
-              <motion.div
+                <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4 }}
@@ -253,7 +317,7 @@ const RawLeads = () => {
               >
                 ⏭️ Skip & Next
               </motion.button>
-              <motion.div
+               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4 }}

@@ -116,40 +116,44 @@ const RawLeadManager = () => {
 
   // 🔹 File Upload
   const handleUpload = async () => {
-    if (!file) return toast.error("Please select a file");
-    if (!industry.trim()) return toast.error("Please enter an industry");
+  if (!file) return toast.error("Please select a file");
 
-    const formData = new FormData();
-    formData.append("file", file);
+  const formData = new FormData();
+  formData.append("file", file);
+
+  // ⬇️ Only append industry if user provided it
+  if (industry.trim()) {
     formData.append("industry", industry);
+  }
 
-    setUploading(true);
-    setUploadResult(null);
+  setUploading(true);
+  setUploadResult(null);
 
-    try {
-      const res = await axios.post(
-        `${API_BASE}/admin/leads/bulk/rawlead`,
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-            Authorization: `Bearer ${authToken}`,
-          },
-        }
-      );
+  try {
+    const res = await axios.post(
+      `${API_BASE}/admin/leads/bulk/rawlead`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          Authorization: `Bearer ${authToken}`,
+        },
+      }
+    );
 
-      setUploadResult(res.data);
-      toast.success("Upload complete");
-      fetchLeads();
-      setFile(null);
-      setIndustry("");
-    } catch (err) {
-      console.error("[Upload Failed]", err);
-      toast.error(err?.response?.data?.message || "Upload failed");
-    } finally {
-      setUploading(false);
-    }
-  };
+    setUploadResult(res.data);
+    toast.success("Upload complete");
+    fetchLeads();
+    setFile(null);
+    setIndustry(""); // reset input
+  } catch (err) {
+    console.error("[Upload Failed]", err);
+    toast.error(err?.response?.data?.message || "Upload failed");
+  } finally {
+    setUploading(false);
+  }
+};
+
 
   const totalPages = Math.ceil(totalLeads / leadsPerPage);
 
@@ -217,12 +221,13 @@ const RawLeadManager = () => {
         </div>
 
         <input
-          type="text"
-          placeholder="Enter Industry"
-          value={industry}
-          onChange={(e) => setIndustry(e.target.value)}
-          className="border p-2 rounded w-60"
-        />
+  type="text"
+  placeholder="Enter Industry (optional)"
+  value={industry}
+  onChange={(e) => setIndustry(e.target.value)}
+  className="border p-2 rounded w-60"
+/>
+
 
         {file && (
           <button

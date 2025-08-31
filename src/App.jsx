@@ -17,6 +17,9 @@ import DashboardAddLeads from './pages/LG/DashboardAddLeads.jsx';
 import Profile from './pages/LG/Profile.jsx';
 import RawLeadsDashboard from './pages/Admin/RawLeadsDashboard.jsx';
 import TempRawLeadsDashboard from './pages/Admin/RawLeadsUpload&Approve.jsx';
+import CRELeadsApprovalDashboard from './pages/Admin/CreFinalApproval.jsx';
+
+import CreDashboard from './pages/Admin/CreDashboard.jsx';
 
 function App() {
   const location = useLocation();
@@ -142,6 +145,23 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/admin/CreDashboard"
+          element={
+            <ProtectedRoute role="admin">
+              <CRELeadsApprovalDashboard />
+            </ProtectedRoute>
+          }
+        />
+        
+        <Route
+  path="/creDashboard"
+  element={
+    <ProtectedRoute role="admin">
+      <CreDashboard />
+    </ProtectedRoute>
+  }
+/>
       </Routes>
     </AnimatePresence>
   );
