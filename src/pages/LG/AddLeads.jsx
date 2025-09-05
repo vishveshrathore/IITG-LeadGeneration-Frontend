@@ -296,12 +296,12 @@ const handleSearchHR = async () => {
             </button>
           </div>
 
-          <button
+          {/* <button
             type="submit"
             className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-all duration-200"
           >
             Submit
-          </button>
+          </button> */}
         </form>
 
         {/* RIGHT DISPLAY */}

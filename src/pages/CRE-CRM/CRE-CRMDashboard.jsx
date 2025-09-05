@@ -41,7 +41,7 @@ const actionGrids = [
     title: 'New Leads',
     description: 'Quickly log and manage your fresh leads',
     icon: <FiPhoneCall className="text-indigo-600 text-3xl" />, // smaller icon
-    path: '/cre/addcall',
+    path: '/creassignedlead',
     glow: 'from-indigo-400 to-blue-500',
     tooltip: 'Add a brand-new lead call',
   },

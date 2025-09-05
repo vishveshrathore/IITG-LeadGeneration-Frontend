@@ -21,6 +21,7 @@ import CRELeadsApprovalDashboard from './pages/Admin/CreFinalApproval.jsx';  //A
 import CreDashboard from './pages/Admin/CreDashboard.jsx'; //Admin Side
 
 import CreCrmDashboard from './pages/CRE-CRM/CRE-CRMDashboard.jsx'; //CRE Side
+import LeadAssignment from './pages/CRE-CRM/GetAssignedLeads.jsx'; //CRE Side
 
 function App() {
   const location = useLocation();
@@ -111,7 +112,6 @@ function App() {
           path="/lg/addlead"
           element={
               <AddHrForm />
-            
           }
         />
         <Route
@@ -172,7 +172,17 @@ function App() {
               <CreCrmDashboard />
             </ProtectedRoute>
           }
-        />
+          />
+          <Route
+          path="/creassignedlead"
+          element={
+            <ProtectedRoute role="cre">
+              <LeadAssignment />
+            </ProtectedRoute>
+          }
+          />
+
+        LeadAssignment
       </Routes>
     </AnimatePresence>
   );
