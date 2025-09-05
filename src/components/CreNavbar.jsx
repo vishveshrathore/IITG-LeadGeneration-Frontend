@@ -1,21 +1,19 @@
 import React, { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FiHome, FiLogOut, FiMenu } from 'react-icons/fi';
-import { BsBuildings, BsFillPersonPlusFill } from 'react-icons/bs';
-import { MdBusinessCenter } from 'react-icons/md';
+import { Link, useLocation } from 'react-router-dom';
+import { FiHome, FiUser, FiLogOut, FiMenu } from 'react-icons/fi';
+import { BsFillPersonPlusFill } from 'react-icons/bs';
 import { AnimatePresence, motion } from 'framer-motion';
 
-const adminNavItems = [
-  { name: 'Dashboard', icon: <FiHome />, path: '/adminDashboard' },
-  { name: 'Industries', icon: <BsBuildings />, path: '/admin/industries' },
-  { name: 'Companies', icon: <MdBusinessCenter />, path: '/admin/companies' },
-  { name: 'Leads', icon: <BsFillPersonPlusFill />, path: '/admin/leads' },
+const navItems = [
+  { name: 'Home', icon: <FiHome />, path: '' },
+  { name: 'My Lead', icon: <BsFillPersonPlusFill />, path: '' },
+  { name: 'Profile', icon: <FiUser />, path: '' },
 ];
 
-const AdminNavbar = () => {
+const CRENavbar = () => {
   const location = useLocation();
-  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
   const toggleMenu = () => {
     setIsOpen(!isOpen);
@@ -24,7 +22,7 @@ const AdminNavbar = () => {
   const handleLogout = () => {
     localStorage.clear();
     sessionStorage.clear();
-    navigate('/');
+    window.location.href = '/';
   };
 
   return (
@@ -34,16 +32,20 @@ const AdminNavbar = () => {
       transition={{ type: 'spring', stiffness: 100 }}
       className="fixed top-0 left-0 right-0 z-50 bg-white border-b px-4 md:px-8 py-3 flex items-center justify-between shadow-sm"
     >
+      {/* Logo */}
       <h1 className="text-xl font-bold text-black-600 tracking-tight">IITGJobs.com</h1>
 
       {/* Mobile menu toggle */}
-      <button className="md:hidden text-2xl text-gray-600" onClick={toggleMenu}>
+      <button
+        className="md:hidden text-2xl text-gray-600"
+        onClick={toggleMenu}
+      >
         <FiMenu />
       </button>
 
       {/* Desktop nav */}
       <div className="hidden md:flex gap-6 items-center relative">
-        {adminNavItems.map((item) => {
+        {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           return (
             <motion.div
@@ -72,9 +74,8 @@ const AdminNavbar = () => {
           );
         })}
 
-        {/* Logout */}
         <button
-          onClick={handleLogout}
+          onClick={() => setShowModal(true)}
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-100 rounded-md transition"
         >
           <FiLogOut /> Logout
@@ -90,7 +91,7 @@ const AdminNavbar = () => {
             exit={{ height: 0, opacity: 0 }}
             className="absolute top-full left-0 right-0 bg-white border-b shadow-md flex flex-col md:hidden"
           >
-            {adminNavItems.map((item) => (
+            {navItems.map((item) => (
               <Link
                 key={item.name}
                 to={item.path}
@@ -105,13 +106,57 @@ const AdminNavbar = () => {
               </Link>
             ))}
 
-            {/* Mobile logout */}
+            {/* Mobile Logout */}
             <button
-              onClick={handleLogout}
-              className="flex items-center gap-3 px-6 py-3 border-t text-sm font-medium text-red-600 hover:bg-red-50"
+              onClick={() => {
+                setIsOpen(false);
+                setShowModal(true);
+              }}
+              className="flex items-center gap-3 px-6 py-3 border-t text-sm font-medium text-red-600 hover:bg-red-100"
             >
               <FiLogOut /> Logout
             </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Logout Modal */}
+      <AnimatePresence>
+        {showModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 flex items-center justify-center z-[60]"
+          >
+            <motion.div
+              initial={{ scale: 0.8, y: -20, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.8, y: -20, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+              className="bg-white rounded-xl p-6 shadow-xl w-full max-w-sm border border-gray-200"
+            >
+              <h3 className="text-lg font-semibold mb-4 text-gray-800">
+                Confirm Logout
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to log out?
+              </p>
+              <div className="flex justify-end gap-4">
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="px-4 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700 transition"
+                >
+                  Logout
+                </button>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -119,4 +164,4 @@ const AdminNavbar = () => {
   );
 };
 
-export default AdminNavbar;
+export default CRENavbar;

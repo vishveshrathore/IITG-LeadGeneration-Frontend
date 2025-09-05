@@ -17,9 +17,10 @@ import DashboardAddLeads from './pages/LG/DashboardAddLeads.jsx';
 import Profile from './pages/LG/Profile.jsx';
 import RawLeadsDashboard from './pages/Admin/RawLeadsDashboard.jsx';
 import TempRawLeadsDashboard from './pages/Admin/RawLeadsUpload&Approve.jsx';
-import CRELeadsApprovalDashboard from './pages/Admin/CreFinalApproval.jsx';
+import CRELeadsApprovalDashboard from './pages/Admin/CreFinalApproval.jsx';  //Admin Side
+import CreDashboard from './pages/Admin/CreDashboard.jsx'; //Admin Side
 
-import CreDashboard from './pages/Admin/CreDashboard.jsx';
+import CreCrmDashboard from './pages/CRE-CRM/CRE-CRMDashboard.jsx'; //CRE Side
 
 function App() {
   const location = useLocation();
@@ -162,6 +163,16 @@ function App() {
     </ProtectedRoute>
   }
 />
+
+
+        <Route
+          path="/CRE-CRMDashboard"
+          element={
+            <ProtectedRoute role="cre">
+              <CreCrmDashboard />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </AnimatePresence>
   );

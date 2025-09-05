@@ -3,8 +3,6 @@ import { Link, useLocation } from 'react-router-dom';
 import { FiHome, FiUser, FiLogOut, FiMenu } from 'react-icons/fi';
 import { BsFillPersonPlusFill } from 'react-icons/bs';
 import { AnimatePresence, motion } from 'framer-motion';
-import useSound from 'use-sound';
-import clickSound from '../assets/click.mp3';
 
 const navItems = [
   { name: 'Home', icon: <FiHome />, path: '/lgDashboard' },
@@ -12,16 +10,12 @@ const navItems = [
   { name: 'Profile', icon: <FiUser />, path: '/lg/profile' },
 ];
 
-
-
 const AnimatedLGNavbar = () => {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [playClick] = useSound(clickSound, { volume: 0.3 });
 
   const toggleMenu = () => {
-    playClick();
     setIsOpen(!isOpen);
   };
 
@@ -38,14 +32,9 @@ const AnimatedLGNavbar = () => {
       transition={{ type: 'spring', stiffness: 100 }}
       className="fixed top-0 left-0 right-0 z-50 bg-white border-b px-4 md:px-8 py-3 flex items-center justify-between shadow-sm"
     >
-
       {/* Logo */}
-      
-
       <h1 className="text-xl font-bold text-black-600 tracking-tight">IITGJobs.com</h1>
 
-
-      {/* Logo end */}
       {/* Mobile menu toggle */}
       <button
         className="md:hidden text-2xl text-gray-600"
@@ -67,7 +56,6 @@ const AnimatedLGNavbar = () => {
             >
               <Link
                 to={item.path}
-                onClick={playClick}
                 className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
                   isActive ? 'text-blue-600' : 'text-gray-600 hover:text-blue-500'
                 }`}
@@ -87,10 +75,7 @@ const AnimatedLGNavbar = () => {
         })}
 
         <button
-          onClick={() => {
-            playClick();
-            setShowModal(true);
-          }}
+          onClick={() => setShowModal(true)}
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-100 rounded-md transition"
         >
           <FiLogOut /> Logout
@@ -110,10 +95,7 @@ const AnimatedLGNavbar = () => {
               <Link
                 key={item.name}
                 to={item.path}
-                onClick={() => {
-                  setIsOpen(false);
-                  playClick();
-                }}
+                onClick={() => setIsOpen(false)}
                 className={`flex items-center gap-3 px-6 py-3 border-t text-sm font-medium ${
                   location.pathname === item.path
                     ? 'text-blue-600 bg-blue-50'
@@ -127,7 +109,6 @@ const AnimatedLGNavbar = () => {
             {/* Mobile Logout */}
             <button
               onClick={() => {
-                playClick();
                 setIsOpen(false);
                 setShowModal(true);
               }}

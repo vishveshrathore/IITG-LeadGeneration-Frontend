@@ -59,6 +59,7 @@ const AuthScreen = () => {
         setTimeout(() => {
           if (role.toLowerCase() === 'admin') navigate('/adminDashboard');
           else if (role.toLowerCase() === 'lg') navigate('/lgDashboard');
+          else if (role.toLowerCase() === 'cre') navigate('/CRE-CRMDashboard');
           else toast.error('Unknown role');
         }, 500);
       } else {
@@ -171,6 +172,19 @@ const AuthScreen = () => {
                   }`}
                 >
                   <MdPersonAddAlt1 /> LG
+                  
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedRole('CRE')}
+                  className={`flex items-center gap-1 px-3 py-1 rounded-full border transition ${
+                    selectedRole === 'CRE'
+                      ? 'bg-blue-600 text-white'
+                      : 'border-gray-300 text-gray-600'
+                  }`}
+                >
+                  <MdPersonAddAlt1 /> CRE
+                  
                 </button>
               </div>
             </div>
