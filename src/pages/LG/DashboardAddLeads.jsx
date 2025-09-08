@@ -21,7 +21,7 @@ const DashboardAddLeads = () => {
       description: 'Enter fresh HR lead details and assign them.',
       icon: <FaPlusCircle className="text-4xl text-blue-500" />,
       onClick: () => navigate('/lg/addlead'),
-      disabled: true, // 🔹 Disable this card
+      disabled: false, // 🔹 Disable this card
     },
   ];
 

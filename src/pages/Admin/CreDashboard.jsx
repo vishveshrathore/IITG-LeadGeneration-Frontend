@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FaUsers, FaFileAlt, FaChartLine, FaClipboardCheck, FaRegBell, FaPlusCircle } from 'react-icons/fa';
+import { FaUsers, FaFileAlt, FaChartLine, FaClipboardCheck, FaRegBell, FaPlusCircle, FaPhone, FaPhoneAlt } from 'react-icons/fa';
 import AdminNavbar from '../../components/AdminNavbar';
 
 const bentoCardStyle = `rounded-2xl p-6 shadow-lg border border-gray-200 hover:shadow-2xl transition duration-300 ease-in-out cursor-pointer bg-white dark:bg-gray-800 hover:scale-[1.02]`;
@@ -17,15 +17,15 @@ const CreDashboard = () => {
       onClick: () => navigate('/admin/CreDashboard'),
     },
     {
-      title: 'Create New CRE Account for Mobile App',
+      title: 'Priority Leads Dashboard',
       description: 'Add a new candidate profile to the database.',
       icon: <FaPlusCircle className="text-4xl text-blue-500" />,
-      onClick: () => navigate('/cre/addcandidate'),
+      onClick: () => navigate('/admin/PriorityAssignLeads'),
     },
     {
-      title: 'BD Reports',
+      title: 'CRE Calling Sheet',
       description: 'Check performance and hiring reports.',
-      icon: <FaChartLine className="text-4xl text-yellow-500" />,
+      icon: <FaPhoneAlt className="text-4xl text-blue-500" />,
       onClick: () => navigate('/cre/reports'),
     },
     // {

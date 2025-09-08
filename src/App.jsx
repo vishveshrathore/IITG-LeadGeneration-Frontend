@@ -19,6 +19,7 @@ import RawLeadsDashboard from './pages/Admin/RawLeadsDashboard.jsx';
 import TempRawLeadsDashboard from './pages/Admin/RawLeadsUpload&Approve.jsx';
 import CRELeadsApprovalDashboard from './pages/Admin/CreFinalApproval.jsx';  //Admin Side
 import CreDashboard from './pages/Admin/CreDashboard.jsx'; //Admin Side
+import PriorityAssignLeads from './pages/Admin/Prioritypage.jsx'; //Admin Side
 
 import CreCrmDashboard from './pages/CRE-CRM/CRE-CRMDashboard.jsx'; //CRE Side
 import LeadAssignment from './pages/CRE-CRM/GetAssignedLeads.jsx'; //CRE Side
@@ -95,6 +96,14 @@ function App() {
           element={
             <ProtectedRoute role="admin">
               <TempRawLeadsDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/PriorityAssignLeads"
+          element={
+            <ProtectedRoute role="admin">
+              < PriorityAssignLeads/>
             </ProtectedRoute>
           }
         />
