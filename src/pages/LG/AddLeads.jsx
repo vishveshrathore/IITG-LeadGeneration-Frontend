@@ -32,6 +32,7 @@ const AddLeadScreen = () => {
   const [searchQuery, setSearchQuery] = useState("");
 const [searchResults, setSearchResults] = useState([]);
 const [loadingSearch, setLoadingSearch] = useState(false);
+const [submitting, setSubmitting] = useState(false);
 
 const handleSearchHR = async () => {
   if (!searchQuery.trim()) return;
@@ -137,20 +138,27 @@ const handleSearchHR = async () => {
   
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!authToken) {
-      toast.error("No token found. Please login again.");
-      return;
-    }
+  e.preventDefault();
+  if (submitting) return; // 🚀 Block duplicate clicks
+  setSubmitting(true);
 
+  if (!authToken) {
+    toast.error("No token found. Please login again.");
+    setSubmitting(false);
+    return;
+  }
+
+  try {
     const selectedIndustry = industries.find(
       (ind) => ind.name === formData.industryName
     );
     const selectedCompany = companies.find(
       (comp) => comp.CompanyName === formData.companyName
     );
+
     if (!selectedIndustry || !selectedCompany) {
       toast.error("Invalid Industry or Company selection");
+      setSubmitting(false);
       return;
     }
 
@@ -162,23 +170,24 @@ const handleSearchHR = async () => {
       mobile: cleanedMobile,
     };
 
-    try {
-      const res = await axios.post(`${BASE_URL}/api/lg/addhr`, payload, {
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
+    const res = await axios.post(`${BASE_URL}/api/lg/addhr`, payload, {
+      headers: { Authorization: `Bearer ${authToken}` },
+    });
 
-      toast.success(res.data.message || "✅ HR Lead added successfully");
-      setFormData(initialFormData);
-      fetchHRLeads(payload.industryId, payload.companyId);
-      setHighlightedLeadId(res.data.newLeadId || null);
-    } catch (err) {
-      if (err.response?.status === 409) {
-        toast.error(err.response.data.message || "⚠️ HR Lead already exists");
-      } else {
-        toast.error(err.response?.data?.message || "❌ Something went wrong");
-      }
+    toast.success(res.data.message || "✅ HR Lead added successfully");
+    setFormData(initialFormData);
+    fetchHRLeads(payload.industryId, payload.companyId);
+    setHighlightedLeadId(res.data.newLeadId || null);
+  } catch (err) {
+    if (err.response?.status === 409) {
+      toast.error(err.response.data.message || "⚠️ HR Lead already exists");
+    } else {
+      toast.error(err.response?.data?.message || "❌ Something went wrong");
     }
-  };
+  } finally {
+    setSubmitting(false); // ✅ Unlock for next submission
+  }
+};
   
 
   return (
@@ -297,11 +306,15 @@ const handleSearchHR = async () => {
           </div>
 
           <button
-            type="submit"
-            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-all duration-200"
-          >
-            Submit
-          </button>
+  type="submit"
+  disabled={submitting}
+  className={`w-full py-3 rounded-lg transition-all duration-200 ${
+    submitting ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 text-white font-bold"
+  }`}
+>
+  {submitting ? "Submitting..." : "Submit"}
+</button>
+
         </form>
 
         {/* RIGHT DISPLAY */}

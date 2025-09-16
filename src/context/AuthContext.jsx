@@ -3,47 +3,65 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [authToken, setAuthToken] = useState(null);
-  const [role, setRole] = useState(null);
+  const [authData, setAuthData] = useState({
+    authToken: null, // renamed for clarity
+    role: null,
+    user: null, // Full user object (id, name, email, reportsTo)
+  });
 
   useEffect(() => {
-    const storedToken = localStorage.getItem('token') || sessionStorage.getItem('token');
-    const storedRole = localStorage.getItem('role') || sessionStorage.getItem('role');
+    try {
+      const storedToken =
+        localStorage.getItem('token') || sessionStorage.getItem('token');
+      const storedRole =
+        localStorage.getItem('role') || sessionStorage.getItem('role');
+      const storedUser =
+        JSON.parse(localStorage.getItem('user')) ||
+        JSON.parse(sessionStorage.getItem('user'));
 
-    if (storedToken && storedRole) {
-      setAuthToken(storedToken);
-      setRole(storedRole);
+      if (storedToken && storedRole && storedUser) {
+        setAuthData({
+          authToken: storedToken,
+          role: storedRole,
+          user: storedUser,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to parse stored user data:', error);
+      localStorage.clear();
+      sessionStorage.clear();
     }
   }, []);
 
-  const login = (token, role, remember) => {
+  const login = (token, role, user, remember) => {
+    const userString = JSON.stringify(user);
+
     if (remember) {
       localStorage.setItem('token', token);
       localStorage.setItem('role', role);
+      localStorage.setItem('user', userString);
     } else {
       sessionStorage.setItem('token', token);
       sessionStorage.setItem('role', role);
+      sessionStorage.setItem('user', userString);
     }
 
-    setAuthToken(token);
-    setRole(role);
+    setAuthData({ authToken: token, role, user });
   };
 
   const logout = () => {
     localStorage.clear();
     sessionStorage.clear();
-    setAuthToken(null);
-    setRole(null);
+    setAuthData({ authToken: null, role: null, user: null });
   };
 
   return (
-    <AuthContext.Provider value={{ authToken, role, login, logout }}>
+    <AuthContext.Provider value={{ ...authData, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-// Always define the hook separately
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {

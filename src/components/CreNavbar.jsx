@@ -5,9 +5,9 @@ import { BsFillPersonPlusFill } from 'react-icons/bs';
 import { AnimatePresence, motion } from 'framer-motion';
 
 const navItems = [
-  { name: 'Home', icon: <FiHome />, path: '' },
-  { name: 'My Lead', icon: <BsFillPersonPlusFill />, path: '' },
-  { name: 'Profile', icon: <FiUser />, path: '' },
+  { name: 'Home', icon: <FiHome />, path: '/CRE-CRMDashboard' },
+  { name: 'New Lead', icon: <BsFillPersonPlusFill />, path: '/creassignedlead' },
+  { name: 'Lead Generation', icon: <FiUser />, path: '' },
 ];
 
 const CRENavbar = () => {

@@ -11,6 +11,8 @@ import { Howl } from 'howler';
 import 'react-tooltip/dist/react-tooltip.css';
 import { BASE_URL } from "../../config";   // if inside pages/LG
 import Quotes from "inspirational-quotes";
+import { FaExclamationTriangle } from "react-icons/fa";
+
 
 
 const clickSound = new Howl({
@@ -235,6 +237,12 @@ const hour = now.getHours();
   </p>
   <p className="text-right text-sm text-gray-600">- {quote.author}</p>
 </motion.div>
+ <div className="w-full bg-red-100 border my-5 border-red-400 text-red-800 px-6 py-3 rounded-lg shadow-md flex items-center gap-3 animate-pulse">
+      <FaExclamationTriangle className="text-red-600 text-xl" />
+      <p className="font-semibold">
+        🚨 Sarvesha — Please do not misuse this platform.
+      </p>
+    </div>
 
 
         {/* Action Grids */}

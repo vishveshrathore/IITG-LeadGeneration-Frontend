@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FaUsers, FaFileAlt, FaChartLine, FaClipboardCheck, FaRegBell, FaPlusCircle, FaPhone, FaPhoneAlt } from 'react-icons/fa';
 import AdminNavbar from '../../components/AdminNavbar';
+import { MdManageAccounts } from 'react-icons/md';
 
 const bentoCardStyle = `rounded-2xl p-6 shadow-lg border border-gray-200 hover:shadow-2xl transition duration-300 ease-in-out cursor-pointer bg-white dark:bg-gray-800 hover:scale-[1.02]`;
 
@@ -10,6 +11,12 @@ const CreDashboard = () => {
   const navigate = useNavigate();
 
   const cards = [
+    {
+      title: 'Access Control & User Management',
+      description: 'Check performance and hiring reports.',
+      icon: <MdManageAccounts className="text-4xl text-blue-500" />,
+      onClick: () => navigate('/admin/accountapproval'),
+    },
     {
       title: 'Leads Approval For CRE ',
       description: 'View all leads awaiting approval in the CRE Mobile App.',
@@ -22,12 +29,7 @@ const CreDashboard = () => {
       icon: <FaPlusCircle className="text-4xl text-blue-500" />,
       onClick: () => navigate('/admin/PriorityAssignLeads'),
     },
-    {
-      title: 'CRE Calling Sheet',
-      description: 'Check performance and hiring reports.',
-      icon: <FaPhoneAlt className="text-4xl text-blue-500" />,
-      onClick: () => navigate('/cre/reports'),
-    },
+    
     // {
     //   title: 'Tasks',
     //   description: 'View and manage your assigned tasks.',

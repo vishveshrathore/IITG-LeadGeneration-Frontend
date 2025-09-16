@@ -6,7 +6,7 @@ import { HiOutlineEye, HiOutlineEyeOff } from 'react-icons/hi';
 import { MdAdminPanelSettings, MdPersonAddAlt1 } from 'react-icons/md';
 import { ImSpinner2 } from 'react-icons/im';
 import toast, { Toaster } from 'react-hot-toast';
-import { useAuth } from '../context/AuthContext'; // ✅ Import context
+import { useAuth } from '../context/AuthContext'; 
 import { BASE_URL } from "../config"; 
 
 const AuthScreen = () => {
@@ -23,7 +23,7 @@ const AuthScreen = () => {
   });
 
   const navigate = useNavigate();
-  const { login } = useAuth(); // ✅ Use login from context
+  const { login } = useAuth(); 
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -51,15 +51,20 @@ const AuthScreen = () => {
           password: form.password
         });
 
-        const { token, role } = res.data;
+        // ✅ FIX: Destructure id, name, and reportsTo from the response
+        const { token, role, id, name, reportsTo } = res.data;
+        
+        // ✅ FIX: Create a single user details object
+        const userDetails = { id, name, reportsTo };
 
-        login(token, role, rememberMe); // ✅ update AuthContext
+        // ✅ FIX: Pass the userDetails object to the login function
+        login(token, role, userDetails, rememberMe);
 
         toast.success('Login successful!');
         setTimeout(() => {
           if (role.toLowerCase() === 'admin') navigate('/adminDashboard');
           else if (role.toLowerCase() === 'lg') navigate('/lgDashboard');
-          else if (role.toLowerCase() === 'cre') navigate('/CRE-CRMDashboard');
+          else if (role.toLowerCase() === 'cre-crm') navigate('/cre-crmDashboard');
           else toast.error('Unknown role');
         }, 500);
       } else {
@@ -148,7 +153,7 @@ const AuthScreen = () => {
           {!isLogin && renderInput('Confirm Password', 'confirmPassword', 'password', true)}
 
           {!isLogin && (
-            <div className="flex gap-4 items-center justify-between">
+            <div className="flex gap-3 items-center justify-between">
               <label className="block text-gray-700 text-sm font-medium">Select Role</label>
               <div className="flex gap-2">
                 <button
@@ -172,19 +177,17 @@ const AuthScreen = () => {
                   }`}
                 >
                   <MdPersonAddAlt1 /> LG
-                  
                 </button>
                 <button
                   type="button"
-                  onClick={() => setSelectedRole('CRE')}
+                  onClick={() => setSelectedRole('CRE-CRM')}
                   className={`flex items-center gap-1 px-3 py-1 rounded-full border transition ${
-                    selectedRole === 'CRE'
+                    selectedRole === 'CRE-CRM'
                       ? 'bg-blue-600 text-white'
                       : 'border-gray-300 text-gray-600'
                   }`}
                 >
-                  <MdPersonAddAlt1 /> CRE
-                  
+                  <MdPersonAddAlt1 /> CRE-CRM
                 </button>
               </div>
             </div>

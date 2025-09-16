@@ -1,28 +1,29 @@
-import { Routes, Route, useLocation } from 'react-router-dom';
-import { AnimatePresence } from 'framer-motion';
-import AuthScreen from './pages/auth.jsx';
-import AdminDashboard from './pages/Admin/AdminDashboard.jsx';
-import LGDashboard from './pages/LG/LGDashboard.jsx';
-import OTPScreen from './pages/OTPScreen.jsx';
-import ProtectedRoute from './components/ProtectedRoute';
-import AddHrForm from './pages/LG/AddLeads.jsx';
-import TodayLeadsOfLG from './pages/LG/TodaysLead.jsx';
-import IndustryScreen from './pages/Admin/Industries.jsx';
-import CompanyManagement from './pages/Admin/Companies.jsx';
-import ManageLeads from './pages/Admin/ManageLeads.jsx';
-import ViewLeads from './pages/Admin/ViewLeads.jsx';
-import RawLeadsLG from './pages/LG/RawLeads.jsx';
-import RawLeadManager from './pages/Admin/RawLeads.jsx';
-import DashboardAddLeads from './pages/LG/DashboardAddLeads.jsx';
-import Profile from './pages/LG/Profile.jsx';
-import RawLeadsDashboard from './pages/Admin/RawLeadsDashboard.jsx';
-import TempRawLeadsDashboard from './pages/Admin/RawLeadsUpload&Approve.jsx';
-import CRELeadsApprovalDashboard from './pages/Admin/CreFinalApproval.jsx';  //Admin Side
-import CreDashboard from './pages/Admin/CreDashboard.jsx'; //Admin Side
-import PriorityAssignLeads from './pages/Admin/Prioritypage.jsx'; //Admin Side
+import { Routes, Route, useLocation } from "react-router-dom";
+import { AnimatePresence } from "framer-motion";
+import AuthScreen from "./pages/auth.jsx";
+import AdminDashboard from "./pages/Admin/AdminDashboard.jsx";
+import LGDashboard from "./pages/LG/LGDashboard.jsx";
+import OTPScreen from "./pages/OTPScreen.jsx";
+import ProtectedRoute from "./components/ProtectedRoute";
+import AddHrForm from "./pages/LG/AddLeads.jsx";
+import TodayLeadsOfLG from "./pages/LG/TodaysLead.jsx";
+import IndustryScreen from "./pages/Admin/Industries.jsx";
+import CompanyManagement from "./pages/Admin/Companies.jsx";
+import ManageLeads from "./pages/Admin/ManageLeads.jsx";
+import ViewLeads from "./pages/Admin/ViewLeads.jsx";
+import RawLeadsLG from "./pages/LG/RawLeads.jsx";
+import RawLeadManager from "./pages/Admin/RawLeads.jsx";
+import DashboardAddLeads from "./pages/LG/DashboardAddLeads.jsx";
+import Profile from "./pages/LG/Profile.jsx";
+import RawLeadsDashboard from "./pages/Admin/RawLeadsDashboard.jsx";
+import TempRawLeadsDashboard from "./pages/Admin/RawLeadsUpload&Approve.jsx";
+import AccountsApproval from "./pages/Admin/AccountApproval.jsx"; //Admin Side
+import CRELeadsApprovalDashboard from "./pages/Admin/CreFinalApproval.jsx"; //Admin Side
+import CreDashboard from "./pages/Admin/CreDashboard.jsx"; //Admin Side
+import PriorityAssignLeads from "./pages/Admin/Prioritypage.jsx"; //Admin Side
 
-import CreCrmDashboard from './pages/CRE-CRM/CRE-CRMDashboard.jsx'; //CRE Side
-import LeadAssignment from './pages/CRE-CRM/GetAssignedLeads.jsx'; //CRE Side
+import CreCrmDashboard from "./pages/CRE-CRM/CRE-CRMDashboard.jsx"; //CRE Side
+import LeadAssignment from "./pages/CRE-CRM/GetAssignedLeads.jsx"; //CRE Side
 
 function App() {
   const location = useLocation();
@@ -33,7 +34,6 @@ function App() {
         {/* Public routes */}
         <Route path="/" element={<AuthScreen />} />
         <Route path="/otp" element={<OTPScreen />} />
-
         {/* Admin routes */}
         <Route
           path="/adminDashboard"
@@ -103,11 +103,10 @@ function App() {
           path="/admin/PriorityAssignLeads"
           element={
             <ProtectedRoute role="admin">
-              < PriorityAssignLeads/>
+              <PriorityAssignLeads />
             </ProtectedRoute>
           }
         />
-
         {/* LG routes */}
         <Route
           path="/lgDashboard"
@@ -117,12 +116,7 @@ function App() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/lg/addlead"
-          element={
-              <AddHrForm />
-          }
-        />
+        <Route path="/lg/addlead" element={<AddHrForm />} />
         <Route
           path="/lg/viewtodaysleads"
           element={
@@ -163,34 +157,38 @@ function App() {
             </ProtectedRoute>
           }
         />
-        
         <Route
-  path="/creDashboard"
-  element={
-    <ProtectedRoute role="admin">
-      <CreDashboard />
-    </ProtectedRoute>
-  }
-/>
-
-
+          path="/creDashboard"
+          element={
+            <ProtectedRoute role="admin">
+              <CreDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/accountapproval"
+          element={
+            <ProtectedRoute role="admin">
+              <AccountsApproval />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/CRE-CRMDashboard"
           element={
-            <ProtectedRoute role="cre">
+            <ProtectedRoute role="cre-crm">
               <CreCrmDashboard />
             </ProtectedRoute>
           }
-          />
-          <Route
+        />
+        <Route
           path="/creassignedlead"
           element={
-            <ProtectedRoute role="cre">
+            <ProtectedRoute role="cre-crm">
               <LeadAssignment />
             </ProtectedRoute>
           }
-          />
-
+        />
         LeadAssignment
       </Routes>
     </AnimatePresence>
