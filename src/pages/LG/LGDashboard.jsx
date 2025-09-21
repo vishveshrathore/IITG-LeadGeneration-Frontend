@@ -11,8 +11,6 @@ import { Howl } from 'howler';
 import 'react-tooltip/dist/react-tooltip.css';
 import { BASE_URL } from "../../config";   // if inside pages/LG
 import Quotes from "inspirational-quotes";
-import { FaExclamationTriangle } from "react-icons/fa";
-
 
 
 const clickSound = new Howl({
@@ -30,6 +28,7 @@ const LgDashboard = () => {
   const [quote, setQuote] = useState({ text: "", author: "" });
 
   const [userName, setUserName] = useState('');
+  const [timeString, setTimeString] = useState(() => new Date().toLocaleTimeString());
   const [showModal, setShowModal] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [infoModal, setInfoModal] = useState(false);       //Raw Lead Count
@@ -45,14 +44,18 @@ const LgDashboard = () => {
 });
 
 
-  const { authToken } = useAuth();
+  const { authToken, user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    const nameFromStorage =
-      localStorage.getItem('userName') || sessionStorage.getItem('userName');
-    setUserName(nameFromStorage || 'Lead Generator');
+    setUserName((user && user.name) ? user.name : 'Lead Generator');
     setIsMobile(window.innerWidth < 640);
+  }, [user]);
+
+  // Live clock updater (local device time)
+  useEffect(() => {
+    const t = setInterval(() => setTimeString(new Date().toLocaleTimeString()), 1000);
+    return () => clearInterval(t);
   }, []);
 
   useEffect(() => {
@@ -217,32 +220,73 @@ useEffect(() => {
 const hour = now.getHours();
 
   return (
-    <div>
+    <div className={`min-h-screen w-full bg-slate-50 text-slate-900`}>
+      {/* Top Navigation */}
       <AnimatedLGNavbar onLogout={() => setShowModal(true)} />
-      <div className="pt-20 px-6">
 
-        <h2 className="text-2xl font-semibold mb-2">
-  {`Good ${hour < 12 ? "Morning" : hour < 17 ? "Afternoon" : "Evening"}, ${userName} !`}
-</h2>
-<p className="text-sm text-gray-500">{now.toLocaleTimeString()}</p>
+      {/* Animated background accents */}
+      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div className="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-gradient-to-tr from-indigo-500/30 to-cyan-400/30 blur-3xl animate-pulse" />
+        <div className="absolute bottom-0 right-0 h-80 w-80 rounded-full bg-gradient-to-tr from-fuchsia-500/20 to-rose-400/20 blur-3xl animate-pulse" />
+      </div>
+
+      <div className="pt-20 px-6 w-full">
+
+        {/* Hero Header Banner */}
+        <motion.div
+          className="relative overflow-hidden rounded-2xl p-8 md:p-10 shadow-lg border bg-gradient-to-tr from-indigo-500/10 via-cyan-400/10 to-transparent border-slate-200"
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="relative z-10 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900">
+                {`Good ${hour < 12 ? 'Morning' : hour < 17 ? 'Afternoon' : 'Evening'}, ${userName} !`}
+              </h1>
+              <p className="mt-2 text-sm text-slate-600">Stay focused. Great leads start with great consistency.</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="text-xs px-3 py-1 rounded-full bg-white border border-slate-200 text-slate-700 shadow-sm">
+                  Local time: {timeString}
+                </span>
+                <span className="text-xs px-3 py-1 rounded-full bg-white border border-slate-200 text-slate-700 shadow-sm">
+                  Server window: Submitted RawLeads unlock at 6 PM
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onMouseEnter={() => hoverSound.play()}
+                onClick={() => navigate('/lg/viewtodaysleads')}
+                className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm shadow-md hover:bg-indigo-500 transition"
+              >
+                View Today’s Leads
+              </button>
+              <button
+                onMouseEnter={() => hoverSound.play()}
+                onClick={() => navigate('/lg/dashboard')}
+                className="px-4 py-2 rounded-lg bg-white text-slate-800 border border-slate-200 text-sm shadow-sm hover:bg-slate-50 transition"
+              >
+                Add Lead
+              </button>
+            </div>
+          </div>
+          {/* Decorative shapes */}
+          <div className="pointer-events-none absolute -top-20 -right-14 h-56 w-56 rounded-full bg-gradient-to-tr from-indigo-400/30 to-cyan-400/30 blur-2xl" />
+          <div className="pointer-events-none absolute -bottom-24 -left-20 h-64 w-64 rounded-full bg-gradient-to-tr from-fuchsia-400/20 to-rose-400/20 blur-3xl" />
+        </motion.div>
 
         {/* Motivational Quote */}
 <motion.div
-  className="mt-8 p-6 rounded-xl bg-gradient-to-tr from-white to-indigo-100 shadow-md"
+  className={`mt-8 p-6 rounded-xl shadow-md border bg-gradient-to-tr from-white to-indigo-50 border-slate-200`}
   initial={{ opacity: 0, y: 20 }}
   animate={{ opacity: 1, y: 0 }}
 >
-  <p className="text-lg italic text-gray-800 mb-2">
+  <p className={`text-lg italic mb-2 text-gray-800`}>
     “{quote.text}”
   </p>
-  <p className="text-right text-sm text-gray-600">- {quote.author}</p>
+  <p className={`text-right text-sm text-gray-600`}>- {quote.author}</p>
 </motion.div>
- <div className="w-full bg-red-100 border my-5 border-red-400 text-red-800 px-6 py-3 rounded-lg shadow-md flex items-center gap-3 animate-pulse">
-      <FaExclamationTriangle className="text-red-600 text-xl" />
-      <p className="font-semibold">
-        🚨 Sarvesha — Please do not misuse this platform.
-      </p>
-    </div>
 
 
         {/* Action Grids */}
@@ -250,8 +294,8 @@ const hour = now.getHours();
           {actionGrids.map((item, i) => (
             <motion.div
               key={i}
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
+              whileHover={{ scale: 1.02, y: -2, boxShadow: '0 18px 28px -18px rgba(0,0,0,0.25)' }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => {
                 clickSound.play();
                 navigate(item.path);
@@ -259,21 +303,21 @@ const hour = now.getHours();
               onMouseEnter={() => hoverSound.play()}
               data-tooltip-id={`grid-${i}`}
               data-tooltip-content={item.tooltip}
-              className="relative cursor-pointer overflow-hidden rounded-xl shadow-lg transition"
+              className={`relative cursor-pointer overflow-hidden rounded-xl shadow-lg transition bg-white`}
             >
               <div
                 className={`absolute inset-0 bg-gradient-to-tr ${item.glow} opacity-10 animate-pulse blur-xl`}
               />
-              <div className="relative bg-white p-6 rounded-xl h-full flex flex-col justify-between">
+              <div className={`relative p-6 rounded-xl h-full flex flex-col justify-between bg-white`}>
                 <div className="flex items-center gap-4 mb-4">
                   {item.icon}
                   <div>
-                    <h4 className="text-lg font-bold text-gray-800">
+                    <h4 className={`text-lg font-bold text-gray-800`}>
                       {item.title}
                     </h4>
                   </div>
                 </div>
-                <p className="text-sm text-gray-600">{item.description}</p>
+                <p className={`text-sm text-gray-600`}>{item.description}</p>
               </div>
               {!isMobile && (
                 <Tooltip id={`grid-${i}`} place="top" delayShow={300} />
@@ -283,14 +327,15 @@ const hour = now.getHours();
         </div>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 my-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 my-8">
           {bentoItems.map((item, i) => (
   <motion.div
     key={i}
     initial={{ opacity: 0, y: 30 }}
     animate={{ opacity: 1, y: 0 }}
-    transition={{ delay: i * 0.1 }}
-    className="relative overflow-hidden rounded-xl shadow-md cursor-pointer"
+    transition={{ delay: i * 0.05 }}
+    whileHover={{ y: -3, scale: 1.01, boxShadow: '0 18px 28px -18px rgba(0,0,0,0.25)' }}
+    className={`relative overflow-hidden rounded-xl shadow-md cursor-pointer bg-white`}
     data-tooltip-id={`tooltip-${i}`}
     data-tooltip-content={item.tooltip}
     onMouseEnter={() => hoverSound.play()}
@@ -305,11 +350,11 @@ const hour = now.getHours();
     <div
       className={`absolute inset-0 bg-gradient-to-tr ${item.glow} opacity-10 animate-pulse blur-xl`}
     />
-    <div className="relative bg-white p-6 rounded-xl flex items-center gap-4">
+    <div className={`relative p-6 rounded-xl flex items-center gap-4 bg-white`}>
       {item.icon}
       <div>
-        <h4 className="text-sm text-gray-500">{item.title}</h4>
-        <p className="text-xl font-bold text-gray-800">
+        <h4 className={`text-sm text-gray-500`}>{item.title}</h4>
+        <p className={`text-xl font-bold text-gray-800`}>
   {item.locked ? (
     <span className="text-gray-400 text-sm">Locked until 6 PM</span>
   ) : (
@@ -326,6 +371,32 @@ const hour = now.getHours();
   </motion.div>
 ))}
 
+        </div>
+
+        {/* Performance section removed as requested */}
+
+        {/* Quick Actions */}
+        <div className="mb-14">
+          <h3 className="text-base font-semibold mb-3">Quick actions</h3>
+          <div className="flex flex-wrap gap-3">
+            {[
+              { label: 'Add New Lead', action: () => navigate('/lg/dashboard') },
+              { label: 'Today’s Leads', action: () => navigate('/lg/viewtodaysleads') },
+              { label: 'Refresh Stats', action: () => window.location.reload() },
+            ].map((qa, i) => (
+              <button
+                key={i}
+                onMouseEnter={() => hoverSound.play()}
+                onClick={() => {
+                  clickSound.play();
+                  qa.action();
+                }}
+                className={`text-sm px-4 py-2 rounded-lg border shadow-sm transition bg-white border-slate-200 hover:bg-slate-50`}
+              >
+                {qa.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

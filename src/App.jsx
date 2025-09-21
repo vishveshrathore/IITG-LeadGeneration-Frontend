@@ -24,6 +24,11 @@ import PriorityAssignLeads from "./pages/Admin/Prioritypage.jsx"; //Admin Side
 
 import CreCrmDashboard from "./pages/CRE-CRM/CRE-CRMDashboard.jsx"; //CRE Side
 import LeadAssignment from "./pages/CRE-CRM/GetAssignedLeads.jsx"; //CRE Side
+import TodaysFollowup from "./pages/CRE-CRM/TodaysFollowup.jsx"; //CRE Side
+import PositiveLead from "./pages/CRE-CRM/PositiveLead.jsx"; //CRE Side
+import MyWorksheet from "./pages/CRE-CRM/Worksheet.jsx"; //CRE Side
+
+import ClousureProspects from "./pages/CRE-CRM/ClousureProspects.jsx"; //CRE Side
 
 function App() {
   const location = useLocation();
@@ -189,7 +194,42 @@ function App() {
             </ProtectedRoute>
           }
         />
-        LeadAssignment
+
+        <Route
+          path="/cre/followups"
+          element={
+            <ProtectedRoute role="cre-crm">
+              <TodaysFollowup />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/cre/positiveleads"
+          element={
+            <ProtectedRoute role="cre-crm">
+              <PositiveLead />
+            </ProtectedRoute>
+          }
+        />
+        
+         <Route
+          path="/cre/worksheet"
+          element={
+            <ProtectedRoute role="cre-crm">
+              <MyWorksheet />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/cre/closureprospects"
+          element={
+            <ProtectedRoute role="cre-crm">
+              <ClousureProspects />
+            </ProtectedRoute>
+          }
+        />
+
       </Routes>
     </AnimatePresence>
   );

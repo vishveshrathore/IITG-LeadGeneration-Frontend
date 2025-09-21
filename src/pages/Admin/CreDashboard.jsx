@@ -12,8 +12,8 @@ const CreDashboard = () => {
 
   const cards = [
     {
-      title: 'Access Control & User Management',
-      description: 'Check performance and hiring reports.',
+      title: 'Hierarchy Management and Access Control',
+      description: 'Manage user roles, reporting structure, and lead access.',
       icon: <MdManageAccounts className="text-4xl text-blue-500" />,
       onClick: () => navigate('/admin/accountapproval'),
     },

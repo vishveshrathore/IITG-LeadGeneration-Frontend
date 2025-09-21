@@ -39,6 +39,7 @@
     "react-tooltip": "^5.29.1",
     "socket.io-client": "^4.8.1",
     "sweetalert2": "^11.22.2",
+    "tailwind-merge": "^3.3.1",
     "tailwindcss": "^4.1.11",
     "use-sound": "^5.0.0",
     "xlsx": "^0.18.5",

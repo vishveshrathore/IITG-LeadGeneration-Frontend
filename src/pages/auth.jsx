@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { motion } from 'framer-motion';
@@ -23,7 +23,16 @@ const AuthScreen = () => {
   });
 
   const navigate = useNavigate();
-  const { login } = useAuth(); 
+  const { authToken, login } = useAuth();
+
+  // Set Axios default header whenever authToken changes
+  useEffect(() => {
+    if (authToken) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
+    } else {
+      delete axios.defaults.headers.common['Authorization'];
+    }
+  }, [authToken]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -51,22 +60,21 @@ const AuthScreen = () => {
           password: form.password
         });
 
-        // ✅ FIX: Destructure id, name, and reportsTo from the response
         const { token, role, id, name, reportsTo } = res.data;
-        
-        // ✅ FIX: Create a single user details object
         const userDetails = { id, name, reportsTo };
 
-        // ✅ FIX: Pass the userDetails object to the login function
+        // Store in context
         login(token, role, userDetails, rememberMe);
 
         toast.success('Login successful!');
+
         setTimeout(() => {
           if (role.toLowerCase() === 'admin') navigate('/adminDashboard');
           else if (role.toLowerCase() === 'lg') navigate('/lgDashboard');
           else if (role.toLowerCase() === 'cre-crm') navigate('/cre-crmDashboard');
           else toast.error('Unknown role');
         }, 500);
+
       } else {
         const res = await axios.post(`${BASE_URL}/api/signup`, {
           name: form.name,
@@ -78,6 +86,7 @@ const AuthScreen = () => {
         toast.success(res.data.message);
         navigate('/otp', { state: { email: form.email } });
       }
+
     } catch (error) {
       toast.error(error?.response?.data?.message || 'Error occurred');
     } finally {
@@ -111,6 +120,8 @@ const AuthScreen = () => {
   return (
     <div className="flex flex-col lg:flex-row h-screen font-sans">
       <Toaster position="top-center" reverseOrder={false} />
+
+      {/* Left Banner */}
       <div className="flex-1 bg-gradient-to-br from-[#0E2A47] to-[#041630] text-white flex flex-col justify-center items-center px-10">
         <motion.h1
           initial={{ opacity: 0, y: -20 }}
@@ -130,6 +141,7 @@ const AuthScreen = () => {
         </motion.p>
       </div>
 
+      {/* Form */}
       <div className="flex-1 flex items-center justify-center bg-white px-8 relative overflow-hidden">
         <motion.form
           initial={{ opacity: 0, scale: 0.96 }}

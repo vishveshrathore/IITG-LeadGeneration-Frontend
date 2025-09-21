@@ -1,27 +1,27 @@
-// src/emails/mailer2.js
-export const mailer2Template = `
+export const mailer2Template = ({ recipientName, crmName, crmEmail, crmPhone }) => `
 <!DOCTYPE html>
 <html>
   <head>
     <meta charset="UTF-8" />
     <title>HR Solutions & Recruitment Support</title>
   </head>
-  <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-    <p>Dear {{recipientName}},</p>
+  <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #000000;">
+
+    <p>Dear ${recipientName},</p>
 
     <p>Greetings from <strong>IITGJobs.com</strong>!</p>
 
     <p>
-      I hope you are doing well. I am <strong>Harshika Agnihotri</strong>, your
+      I hope you are doing well. I am <strong>${crmName}</strong>, your
       HR Business Partner at IITGJobs.com. We provide end-to-end recruitment
       solutions and workforce retention strategies designed to optimize your
       talent management process.
     </p>
 
-    <h3>Key Services We Offer:</h3>
+    <h3 style="color:#000000;">Key Services We Offer:</h3>
 
-    <h4>1. Churn Prevention & Employee Retention</h4>
-    <ul>
+    <h4 style="color:#000000;">1. Churn Prevention & Employee Retention</h4>
+    <ul style="color:#000000;">
       <li>
         <strong>Employee Risk Reports:</strong> Bi-monthly actionable reports
         to identify employees who may be exploring other opportunities.
@@ -32,8 +32,8 @@ export const mailer2Template = `
       </li>
     </ul>
 
-    <h4>2. Recruitment Services – Preferred Partner Model (PPM)</h4>
-    <ul>
+    <h4 style="color:#000000;">2. Recruitment Services – Preferred Partner Model (PPM)</h4>
+    <ul style="color:#000000;">
       <li>
         <strong>Cost-Effective Hiring:</strong> 2% of CTC across all hiring levels
         or flat ₹20,000 for positions below ₹10 LPA.
@@ -49,7 +49,7 @@ export const mailer2Template = `
       can maintain a stable workforce and reduce talent gaps effectively.
     </p>
 
-    <h3>Next Steps</h3>
+    <h3 style="color:#000000;">Next Steps</h3>
     <p>
       I would be delighted to schedule a brief call at your convenience to
       discuss a customized approach for your organization. Please find the
@@ -58,15 +58,25 @@ export const mailer2Template = `
 
     <p>Looking forward to your positive response.</p>
 
-    <p>
-      Warm regards,<br />
-      <strong>Harshika Agnihotri</strong><br />
-      HR Business Partner (HRBP)<br />
-      📞 +91 7701007807<br />
-      ✉️ <a href="mailto:harshika.a@iitgjobs.com">harshika.a@iitgjobs.com</a><br />
-      🌐 <a href="https://www.IITGJobs.com">www.IITGJobs.com</a><br />
-      Shiv Hari Complex, Beside Hotel Gulzar, Mahanadda, Jabalpur
-    </p>
+     <p style="margin:0 0 25px; color:#000000;">
+                  Warm regards,<br/>
+                  <strong>${crmName}</strong>
+                </p>
+
+                <!-- Signature -->
+                <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td style="font-size:14px; color:#000000; line-height:1.6;">
+                      <strong>Harshika Aginhotri</strong><br/>
+                      HR Business Partner (HRBP)<br/>
+                      📞 +91 9202960598<br/>
+                      ✉️ <a href="mailto:harshika.a@iitgjobsl.com" style="color:#000000; text-decoration:none;">harshika.a@iitgjobsl.com</a><br/>
+                      🌐 <a href="https://www.IITGJobs.com" style="color:#000000; text-decoration:none;">www.IITGJobs.com</a><br/>
+                      <span style="font-size:13px; color:#000000;">Beside Gulzar Hotel, Mahanadda, Jabalpur</span>
+                    </td>
+                  </tr>
+                </table>
+    
   </body>
 </html>
 `;
