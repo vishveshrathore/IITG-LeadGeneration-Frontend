@@ -1,2 +1,9 @@
-export const BASE_URL = "https://iitgjobs-9jyc3.ondigitalocean.app";
-// export const BASE_URL = "http://localhost:3000";
+// Allow overriding the API base URL via environment variable at build time (Vite)
+// Usage:
+// - Create a .env file with: VITE_API_BASE_URL="https://your-backend.example.com"
+// - Or set it in your deployment environment.
+// Fallback defaults to the current production URL below.
+export const BASE_URL = (import.meta && import.meta.env && import.meta.env.VITE_API_BASE_URL)
+  ? import.meta.env.VITE_API_BASE_URL
+  : "https://iitgjobs-9jyc3.ondigitalocean.app";
+// For local API while developing, you can set: VITE_API_BASE_URL="http://localhost:3000"
