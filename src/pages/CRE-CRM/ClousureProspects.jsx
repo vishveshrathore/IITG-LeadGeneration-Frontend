@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import toast, { Toaster } from "react-hot-toast";
 import { FaWhatsapp, FaEnvelope, FaCalendarAlt } from "react-icons/fa";
-import CRENavbar from "../../components/CRENavbar";
+import CRENavbar from "../../components/CreNavbar";
 import { useAuth } from "../../context/AuthContext";
 import { BASE_URL } from "../../config";
 import { mailer1Template } from "../../emails/mailer1";

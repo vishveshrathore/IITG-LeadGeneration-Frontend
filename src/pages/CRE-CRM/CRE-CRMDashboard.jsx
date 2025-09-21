@@ -6,7 +6,7 @@ import { FiUsers, FiCheckCircle, FiPhoneCall } from 'react-icons/fi';
 import { MdBusiness, MdAssignment } from 'react-icons/md';
 import { Tooltip } from 'react-tooltip';
 import 'react-tooltip/dist/react-tooltip.css';
-import CRENavbar from '../../components/CRENavbar';
+import CRENavbar from '../../components/CreNavbar';
 import Quotes from 'inspirational-quotes';
 import { useAuth } from '../../context/AuthContext';
 import axios from 'axios';

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import toast, { Toaster } from "react-hot-toast";
 import { FaCalendarAlt, FaEdit } from "react-icons/fa";
-import CRENavbar from "../../components/CRENavbar";
+import CRENavbar from "../../components/CreNavbar";
 import { BASE_URL } from "../../config";
 import { useAuth } from "../../context/AuthContext";
 

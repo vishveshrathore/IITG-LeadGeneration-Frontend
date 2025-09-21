@@ -22,7 +22,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import toast, { Toaster } from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
-import CRENavbar from "../../components/CRENavbar";
+import CRENavbar from "../../components/CreNavbar";
 import { BASE_URL } from "../../config";
 import { mailer1Template } from "../../emails/mailer1";
 import { mailer2Template } from "../../emails/mailer2";
