@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { BsBuildings, BsPersonCheck } from 'react-icons/bs';
+import { BsBuildings, BsEnvelopeOpenHeartFill, BsPeople, BsPersonCheck } from 'react-icons/bs';
 import { MdBusinessCenter } from 'react-icons/md';
 import { BsPersonLinesFill } from 'react-icons/bs';
 import { FaDatabase } from 'react-icons/fa';
@@ -46,6 +46,12 @@ const AdminDashboard = () => {
       icon: <MdBusinessCenter size={30} />,
       route: '/admin/companies',
       color: 'bg-green-100',
+    },
+    {
+      title: 'Manage Lead Generators',
+      icon: <BsPersonCheck size={30} />,
+      route: '/admin/lgAccessControl',
+      color: 'bg-pink-100',
     },
     
   ];
