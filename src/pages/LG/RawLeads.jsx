@@ -16,6 +16,7 @@ const RawLeads = () => {
   const [formData, setFormData] = useState({});
   const [industries, setIndustries] = useState([]);
   const [industryQuery, setIndustryQuery] = useState("");
+  const [showIndustryDropdown, setShowIndustryDropdown] = useState(false);
 
   const fields = [
     "name",
@@ -48,12 +49,17 @@ const RawLeads = () => {
   // Fetch industries from backend
   const fetchIndustries = async () => {
     try {
-      const res = await axios.get(`${BASE_URL}/api/admin/industries`, {
+      // Use non-paginated endpoint to fetch all industries
+      const res = await axios.get(`${BASE_URL}/api/admin/industry`, {
         headers: { Authorization: `Bearer ${authToken}` },
       });
 
       const dataArray = res.data?.industries || [];
-      setIndustries(dataArray);
+      // Sort industries alphabetically by name for easier browsing
+      const sorted = [...dataArray].sort((a, b) =>
+        (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base" })
+      );
+      setIndustries(sorted);
     } catch (err) {
       console.error("Error fetching industries:", err);
       toast.error("🚫 Failed to load industries");
@@ -269,33 +275,37 @@ const RawLeads = () => {
       </label>
 
       {field === "industry" ? (
-        <>
+        <div className="relative">
           <input
             type="text"
             name="industrySearch"
-            list="industry-list"
             value={industryQuery}
+            onFocus={() => setShowIndustryDropdown(true)}
             onChange={(e) => {
               const val = e.target.value;
               setIndustryQuery(val);
+              // If exact match, set the id immediately; otherwise clear until user selects
               const matched = industries.find(
-                (ind) => ind.name.toLowerCase() === val.toLowerCase()
+                (ind) => (ind.name || "").toLowerCase() === val.toLowerCase()
               );
               setFormData((prev) => ({
                 ...prev,
                 industry: matched ? matched._id : "",
               }));
+              setShowIndustryDropdown(true);
             }}
             onBlur={() => {
-              // If no exact match selected yet, try to find the best partial match
+              // Delay hiding to allow click selection
+              setTimeout(() => setShowIndustryDropdown(false), 150);
+              // If no selection yet but query exists, try best partial match
               if (!formData.industry && industryQuery) {
                 const lower = industryQuery.toLowerCase();
                 let candidate = industries.find((ind) =>
-                  ind.name.toLowerCase().startsWith(lower)
+                  (ind.name || "").toLowerCase().startsWith(lower)
                 );
                 if (!candidate) {
                   candidate = industries.find((ind) =>
-                    ind.name.toLowerCase().includes(lower)
+                    (ind.name || "").toLowerCase().includes(lower)
                   );
                 }
                 if (candidate) {
@@ -308,12 +318,38 @@ const RawLeads = () => {
             placeholder="Search industry"
             autoComplete="off"
           />
-          <datalist id="industry-list">
-            {industries.map((ind) => (
-              <option key={ind._id} value={ind.name} />
-            ))}
-          </datalist>
-        </>
+          {showIndustryDropdown && (
+            <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-200 bg-white shadow-lg">
+              {industries
+                .filter((ind) =>
+                  (ind.name || "").toLowerCase().includes((industryQuery || "").toLowerCase())
+                )
+                .map((ind) => (
+                  <div
+                    key={ind._id}
+                    onMouseDown={(e) => {
+                      // onMouseDown to prevent input blur before click
+                      e.preventDefault();
+                      setFormData((prev) => ({ ...prev, industry: ind._id }));
+                      setIndustryQuery(ind.name || "");
+                      setShowIndustryDropdown(false);
+                    }}
+                    className={`cursor-pointer px-3 py-2 hover:bg-blue-50 ${
+                      formData.industry === ind._id ? "bg-blue-100" : ""
+                    }`}
+                    title={ind.name}
+                  >
+                    {ind.name}
+                  </div>
+                ))}
+              {industries.filter((ind) =>
+                (ind.name || "").toLowerCase().includes((industryQuery || "").toLowerCase())
+              ).length === 0 && (
+                <div className="px-3 py-2 text-sm text-gray-500">No matches</div>
+              )}
+            </div>
+          )}
+        </div>
       ) : (
         <input
           type="text"
