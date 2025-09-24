@@ -12,8 +12,16 @@ const ProtectedRoute = ({ children, role: requiredRole }) => {
     return <Navigate to="/" />;
   }
 
-  if (requiredRole && role?.toLowerCase() !== requiredRole.toLowerCase()) {
-    return <Navigate to="/" />;
+  if (requiredRole) {
+    const r = (role || '').toLowerCase();
+    const req = requiredRole.toLowerCase();
+    // Role alias mapping: leaders can access CRE-CRM routes
+    const roleAliases = {
+      'cre-crm': new Set(['cre-crm', 'crm-teamlead', 'regionalhead', 'nationalhead']),
+    };
+    const allowed = roleAliases[req];
+    const ok = allowed ? allowed.has(r) : r === req;
+    if (!ok) return <Navigate to="/" />;
   }
 
   return children;

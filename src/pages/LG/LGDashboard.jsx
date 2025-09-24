@@ -7,21 +7,25 @@ import AnimatedLGNavbar from '../../components/LgNavBar';
 import { FiUsers, FiCheckCircle } from 'react-icons/fi';
 import { MdBusiness, MdAssignment } from 'react-icons/md';
 import { Tooltip } from 'react-tooltip';
-import { Howl } from 'howler';
+import { Howl, Howler } from 'howler';
 import 'react-tooltip/dist/react-tooltip.css';
 import { BASE_URL } from "../../config";   // if inside pages/LG
 import Quotes from "inspirational-quotes";
 
-
-const clickSound = new Howl({
-  src: ['/assets/click.mp3'],
-  volume: 0.4,
-});
-
-const hoverSound = new Howl({
-  src: ['/assets/hover.mp3'],
-  volume: 0.2,
-});
+let sounds = null;
+const ensureAudio = () => {
+  try {
+    if (Howler.ctx && Howler.ctx.state === 'suspended') {
+      Howler.ctx.resume();
+    }
+  } catch (_) {}
+  if (!sounds) {
+    sounds = {
+      click: new Howl({ src: ['/assets/click.mp3'], volume: 0.4 }),
+      hover: new Howl({ src: ['/assets/hover.mp3'], volume: 0.2 }),
+    };
+  }
+};
 
 const LgDashboard = () => {
   const [serverHour, setServerHour] = useState(null);
@@ -232,48 +236,51 @@ const hour = now.getHours();
 
       <div className="pt-20 px-6 w-full">
 
-        {/* Hero Header Banner */}
+        {/* Hero Header Banner (White → Greyish) */}
         <motion.div
-          className="relative overflow-hidden rounded-2xl p-8 md:p-10 shadow-lg border bg-gradient-to-tr from-indigo-500/10 via-cyan-400/10 to-transparent border-slate-200"
+          className="relative overflow-hidden rounded-2xl p-8 md:p-10 shadow-xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-slate-100"
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
+          {/* Background accents */}
+          <div className="pointer-events-none absolute inset-0 opacity-20">
+            <div className="absolute -top-24 -right-16 h-72 w-72 rounded-full bg-gradient-to-tr from-slate-200 to-slate-300 blur-3xl" />
+            <div className="absolute -bottom-24 -left-16 h-72 w-72 rounded-full bg-gradient-to-tr from-slate-100 to-slate-300 blur-3xl" />
+          </div>
+
           <div className="relative z-10 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
             <div>
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900">
+              <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">
                 {`Good ${hour < 12 ? 'Morning' : hour < 17 ? 'Afternoon' : 'Evening'}, ${userName} !`}
               </h1>
-              <p className="mt-2 text-sm text-slate-600">Stay focused. Great leads start with great consistency.</p>
+              <p className="mt-2 text-sm text-slate-600">Generate quality leads. Keep your funnel moving.</p>
               <div className="mt-4 flex flex-wrap gap-2">
-                <span className="text-xs px-3 py-1 rounded-full bg-white border border-slate-200 text-slate-700 shadow-sm">
+                <span className="text-xs px-3 py-1 rounded-full bg-white/80 border border-slate-300/60 text-slate-700 backdrop-blur ring-1 ring-slate-300/40">
                   Local time: {timeString}
                 </span>
-                <span className="text-xs px-3 py-1 rounded-full bg-white border border-slate-200 text-slate-700 shadow-sm">
+                <span className="text-xs px-3 py-1 rounded-full bg-white/80 border border-slate-300/60 text-slate-700 backdrop-blur ring-1 ring-slate-300/40">
                   Server window: Submitted RawLeads unlock at 6 PM
                 </span>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <button
-                onMouseEnter={() => hoverSound.play()}
+                onMouseEnter={() => { ensureAudio(); sounds.hover.play(); }}
                 onClick={() => navigate('/lg/viewtodaysleads')}
-                className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm shadow-md hover:bg-indigo-500 transition"
+                className="px-4 py-2 rounded-lg bg-gradient-to-r from-sky-400 to-indigo-500 text-white text-sm shadow-md hover:from-sky-500 hover:to-indigo-600 transition"
               >
                 View Today’s Leads
               </button>
               <button
-                onMouseEnter={() => hoverSound.play()}
+                onMouseEnter={() => { ensureAudio(); sounds.hover.play(); }}
                 onClick={() => navigate('/lg/dashboard')}
-                className="px-4 py-2 rounded-lg bg-white text-slate-800 border border-slate-200 text-sm shadow-sm hover:bg-slate-50 transition"
+                className="px-4 py-2 rounded-lg bg-white/80 text-slate-700 border border-slate-200 text-sm shadow-sm hover:bg-white transition"
               >
                 Add Lead
               </button>
             </div>
           </div>
-          {/* Decorative shapes */}
-          <div className="pointer-events-none absolute -top-20 -right-14 h-56 w-56 rounded-full bg-gradient-to-tr from-indigo-400/30 to-cyan-400/30 blur-2xl" />
-          <div className="pointer-events-none absolute -bottom-24 -left-20 h-64 w-64 rounded-full bg-gradient-to-tr from-fuchsia-400/20 to-rose-400/20 blur-3xl" />
         </motion.div>
 
         {/* Motivational Quote */}
@@ -297,10 +304,11 @@ const hour = now.getHours();
               whileHover={{ scale: 1.02, y: -2, boxShadow: '0 18px 28px -18px rgba(0,0,0,0.25)' }}
               whileTap={{ scale: 0.98 }}
               onClick={() => {
-                clickSound.play();
+                ensureAudio();
+                sounds.click.play();
                 navigate(item.path);
               }}
-              onMouseEnter={() => hoverSound.play()}
+              onMouseEnter={() => { ensureAudio(); sounds.hover.play(); }}
               data-tooltip-id={`grid-${i}`}
               data-tooltip-content={item.tooltip}
               className={`relative cursor-pointer overflow-hidden rounded-xl shadow-lg transition bg-white`}
@@ -338,12 +346,13 @@ const hour = now.getHours();
     className={`relative overflow-hidden rounded-xl shadow-md cursor-pointer bg-white`}
     data-tooltip-id={`tooltip-${i}`}
     data-tooltip-content={item.tooltip}
-    onMouseEnter={() => hoverSound.play()}
+    onMouseEnter={() => { ensureAudio(); sounds.hover.play(); }}
     onClick={() => {
       if (item.locked) {
         setInfoModal(true);
       } else {
-        clickSound.play();
+        ensureAudio();
+        sounds.click.play();
       }
     }}
   >
@@ -386,9 +395,10 @@ const hour = now.getHours();
             ].map((qa, i) => (
               <button
                 key={i}
-                onMouseEnter={() => hoverSound.play()}
+                onMouseEnter={() => { ensureAudio(); sounds.hover.play(); }}
                 onClick={() => {
-                  clickSound.play();
+                  ensureAudio();
+                  sounds.click.play();
                   qa.action();
                 }}
                 className={`text-sm px-4 py-2 rounded-lg border shadow-sm transition bg-white border-slate-200 hover:bg-slate-50`}

@@ -11,13 +11,7 @@ const CreDashboard = () => {
   const navigate = useNavigate();
 
   const cards = [
-    {
-      title: 'Hierarchy Management and Access Control',
-      description: 'Manage user roles, reporting structure, and lead access.',
-      icon: <MdManageAccounts className="text-4xl text-blue-500" />,
-      onClick: () => navigate('/admin/accountapproval'),
-    },
-    {
+     {
       title: 'Leads Approval For CRE ',
       description: 'View all leads awaiting approval in the CRE Mobile App.',
       icon: <FaUsers className="text-4xl text-green-500" />,
@@ -29,6 +23,14 @@ const CreDashboard = () => {
       icon: <FaPlusCircle className="text-4xl text-blue-500" />,
       onClick: () => navigate('/admin/PriorityAssignLeads'),
     },
+    {
+      title: 'Hierarchy Management and Access Control',
+      description: 'Manage user roles, reporting structure, and lead access.',
+      icon: <MdManageAccounts className="text-4xl text-blue-500" />,
+      onClick: () => navigate('/admin/accountapproval'),
+    },
+   
+    
     
     // {
     //   title: 'Tasks',

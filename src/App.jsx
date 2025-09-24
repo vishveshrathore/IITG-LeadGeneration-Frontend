@@ -30,6 +30,9 @@ import PositiveLead from "./pages/CRE-CRM/PositiveLead.jsx"; //CRE Side
 import MyWorksheet from "./pages/CRE-CRM/Worksheet.jsx"; //CRE Side
 
 import ClousureProspects from "./pages/CRE-CRM/ClousureProspects.jsx"; //CRE Side
+import MyTeam from "./pages/CRE-CRM/MyTeam.jsx"; //CRE Side - Team page
+
+import AdminTeamDashboard from "./pages/AdminTeam/AdminTeamDashboard.jsx"; 
 
 function App() {
   const location = useLocation();
@@ -156,13 +159,14 @@ function App() {
           }
         />
         <Route
-          path="/admin/CreDashboard"
-          element={
-            <ProtectedRoute role="admin">
-              <CRELeadsApprovalDashboard />
-            </ProtectedRoute>
-          }
-        />
+  path="/admin/CreDashboard"
+  element={
+    <ProtectedRoute roles={["admin", "adminteam"]}>
+      <CRELeadsApprovalDashboard />
+    </ProtectedRoute>
+  }
+/>
+
         <Route
           path="/creDashboard"
           element={
@@ -193,6 +197,14 @@ function App() {
           element={
             <ProtectedRoute role="cre-crm">
               <CreCrmDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/cre/myteam"
+          element={
+            <ProtectedRoute role="cre-crm">
+              <MyTeam />
             </ProtectedRoute>
           }
         />
@@ -239,7 +251,15 @@ function App() {
             </ProtectedRoute>
           }
         />
-
+        
+        <Route
+          path="/adminteam/dashboard"
+          element={
+            <ProtectedRoute role="adminteam">
+              <AdminTeamDashboard />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </AnimatePresence>
   );

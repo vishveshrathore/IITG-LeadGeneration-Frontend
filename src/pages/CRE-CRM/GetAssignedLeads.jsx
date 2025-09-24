@@ -233,6 +233,7 @@ const LeadAssignmentDashboard = () => {
   }, [fetchReportingManagers]);
 
   const saveRemarks = async () => {
+    const remarksText = typeof remarks === 'string' ? remarks : String(remarks ?? '');
     if (newStatus === '') {
       return toast.error("Please select a status.");
     }
@@ -241,7 +242,7 @@ const LeadAssignmentDashboard = () => {
         return toast.error("Please add follow-up remarks if a date is selected.");
     }
 
-    if (!remarks || !remarks.trim()) {
+    if (!remarksText.trim()) {
       return toast.error("Remarks is required to proceed to next lead.");
     }
 
@@ -251,7 +252,7 @@ const LeadAssignmentDashboard = () => {
     const payload = {
       currentStatus: newStatus,
       ...(selectedReportingManager && { reportingManager: selectedReportingManager }),
-      remarks,
+      remarks: remarksText,
       
       // Only include follow-up if date and remarks are present
       ...(followUpDate && followUpRemarks && { 
@@ -512,7 +513,7 @@ IITGJobs.com`;
               whileTap={{ scale: 0.95 }}
             >
               <FaCommentDots className="text-xl" />
-              <span>{remarksOpen ? "Hide Details" : "Add/Update Details"}</span>
+              <span>{remarksOpen ? "Hide Details" : "Update Details"}</span>
             </motion.button>
           </div>
           {/* Remarks/Assignment Details Card (Updated) */}
@@ -719,8 +720,14 @@ IITGJobs.com`;
                 <div className="mt-8">
                   <motion.button
                     onClick={saveRemarks}
-                    disabled={saving || !remarks?.trim()}
-                    title={!remarks?.trim() ? 'Please add Remarks to proceed to next lead' : ''}
+                    disabled={
+                      saving || !(typeof remarks === 'string' ? remarks.trim() : String(remarks ?? '').trim())
+                    }
+                    title={
+                      (typeof remarks === 'string' ? remarks.trim() : String(remarks ?? '').trim())
+                        ? ''
+                        : 'Please add Remarks to proceed to next lead'
+                    }
                     className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold py-3 px-6 rounded-full shadow-lg hover:from-indigo-600 hover:to-purple-700 transition-all disabled:bg-gray-400 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed"
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}

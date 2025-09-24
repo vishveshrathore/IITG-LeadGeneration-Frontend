@@ -17,7 +17,7 @@ const AdminDashboard = () => {
 
   const bentoItems = [
    {
-  title: 'CRE Dashboard',
+  title: 'Leads Dashboard',
   icon: <BsPersonCheck size={30} />,
   route: '/creDashboard', // ✅ must match route exactly
   color: 'bg-red-100',

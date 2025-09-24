@@ -60,8 +60,10 @@ const AuthScreen = () => {
           password: form.password
         });
 
-        const { token, role, id, name, reportsTo } = res.data;
-        const userDetails = { id, name, reportsTo };
+        const { token, role, id, name, reportsTo, email } = res.data;
+        // Ensure a meaningful name even if backend name is missing
+        const safeName = (name && String(name).trim()) || (email ? String(email).split('@')[0] : 'User');
+        const userDetails = { id, name: safeName, reportsTo, email };
 
         // Store in context
         login(token, role, userDetails, rememberMe);
@@ -69,10 +71,15 @@ const AuthScreen = () => {
         toast.success('Login successful!');
 
         setTimeout(() => {
-          if (role.toLowerCase() === 'admin') navigate('/adminDashboard');
-          else if (role.toLowerCase() === 'lg') navigate('/lgDashboard');
-          else if (role.toLowerCase() === 'cre-crm') navigate('/cre-crmDashboard');
-          else toast.error('Unknown role');
+          const r = (role || '').toLowerCase();
+          if (r === 'admin') navigate('/adminDashboard');
+          else if (r === 'lg') navigate('/lgDashboard');
+          else if (r === 'cre-crm') navigate('/CRE-CRMDashboard');
+          else if (r === 'crm-teamlead') navigate('/CRE-CRMDashboard');
+          else if (r === 'regionalhead') navigate('/CRE-CRMDashboard');
+          else if (r === 'nationalhead') navigate('/CRE-CRMDashboard');
+          else if (r === 'adminteam') navigate('/adminteam/dashboard');
+          else toast.error(`Unknown role: ${role}`);
         }, 500);
 
       } else {
@@ -165,41 +172,52 @@ const AuthScreen = () => {
           {!isLogin && renderInput('Confirm Password', 'confirmPassword', 'password', true)}
 
           {!isLogin && (
-            <div className="flex gap-3 items-center justify-between">
+            <div className="flex gap-3 items-start justify-between">
               <label className="block text-gray-700 text-sm font-medium">Select Role</label>
-              <div className="flex gap-2">
-                <button
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 w-full">
+                {/* <button
                   type="button"
                   onClick={() => setSelectedRole('Admin')}
-                  className={`flex items-center gap-1 px-3 py-1 rounded-full border transition ${
+                  className={`flex items-center gap-1 px-2 py-1 text-xs rounded-full border transition ${
                     selectedRole === 'Admin'
                       ? 'bg-blue-600 text-white'
                       : 'border-gray-300 text-gray-600'
                   }`}
                 >
-                  <MdAdminPanelSettings /> Admin
-                </button>
+                  <MdAdminPanelSettings size={14} /> Admin
+                </button> */}
                 <button
                   type="button"
                   onClick={() => setSelectedRole('LG')}
-                  className={`flex items-center gap-1 px-3 py-1 rounded-full border transition ${
+                  className={`flex items-center gap-1 px-2 py-1 text-xs rounded-full border transition ${
                     selectedRole === 'LG'
                       ? 'bg-blue-600 text-white'
                       : 'border-gray-300 text-gray-600'
                   }`}
                 >
-                  <MdPersonAddAlt1 /> LG
+                  <MdPersonAddAlt1 size={14} /> LG
                 </button>
                 <button
                   type="button"
                   onClick={() => setSelectedRole('CRE-CRM')}
-                  className={`flex items-center gap-1 px-3 py-1 rounded-full border transition ${
+                  className={`flex items-center gap-1 px-2 py-1 text-xs rounded-full border transition ${
                     selectedRole === 'CRE-CRM'
                       ? 'bg-blue-600 text-white'
                       : 'border-gray-300 text-gray-600'
                   }`}
                 >
-                  <MdPersonAddAlt1 /> CRE-CRM
+                  <MdPersonAddAlt1 size={14} /> CRE-CRM
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedRole('AdminTeam')}
+                  className={`flex items-center gap-1 py-1 text-xs rounded-full border transition ${
+                    selectedRole === 'AdminTeam'
+                      ? 'bg-blue-600 text-white'
+                      : 'border-gray-300 text-gray-600'
+                  }`}
+                >
+                  <MdPersonAddAlt1 size={14} /> AdminTeam
                 </button>
               </div>
             </div>

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { BASE_URL } from "../../config";
 import { toast, Toaster } from "react-hot-toast";
 import { motion } from "framer-motion";
 import AdminNavbar from "../../components/AdminNavbar";
@@ -28,6 +29,8 @@ const PriorityAssignLeads = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalLeads, setTotalLeads] = useState(0);
   const leadsPerPage = 25;
+  const [excludeCalled, setExcludeCalled] = useState(true);
+  const [excludeAlreadyAssigned, setExcludeAlreadyAssigned] = useState(false);
 
   const fetchLeads = async () => {
     setLoading(true);
@@ -36,8 +39,8 @@ const PriorityAssignLeads = () => {
         Object.entries(filters).filter(([_, v]) => v && v.trim() !== "")
       );
       const { data } = await axios.get(
-        "http://localhost:3000/api/admin/getApprovedForCallingLeads",
-        { params: { ...cleanFilters, page: currentPage, limit: leadsPerPage } }
+        `${BASE_URL}/api/admin/getApprovedForCallingLeads`,
+        { params: { ...cleanFilters, page: currentPage, limit: leadsPerPage, excludeCalled, excludeAlreadyAssigned } }
       );
       setLeads(data.leads || []);
       setTotalLeads(data.total || 0);
@@ -52,7 +55,7 @@ const PriorityAssignLeads = () => {
   const fetchCREs = async () => {
     try {
       const { data } = await axios.get(
-        "http://localhost:3000/api/admin/getallcre"
+        `${BASE_URL}/api/admin/getallcre`
       );
       setCres(data.cres || []);
     } catch (err) {
@@ -64,7 +67,7 @@ const PriorityAssignLeads = () => {
   useEffect(() => {
     fetchLeads();
     fetchCREs();
-  }, [currentPage]);
+  }, [currentPage, excludeCalled, excludeAlreadyAssigned]);
 
   const handleAssign = async () => {
     if (!selectedCre) return toast.error("Please select a CRE");
@@ -73,7 +76,7 @@ const PriorityAssignLeads = () => {
 
     try {
       await axios.post(
-        "http://localhost:3000/api/admin/assignPriorityLeadsToCRE",
+        `${BASE_URL}/api/admin/assignPriorityLeadsToCRE`,
         { leadIds: selectedLeads, creId: selectedCre }
       );
       toast.success("Leads assigned successfully!");
@@ -140,6 +143,24 @@ const PriorityAssignLeads = () => {
             Reset Filters
           </button>
 
+          {/* Exclude toggles */}
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={excludeCalled}
+              onChange={(e) => { setExcludeCalled(e.target.checked); setCurrentPage(1); }}
+            />
+            Exclude already called (assigned to CRE)
+          </label>
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={excludeAlreadyAssigned}
+              onChange={(e) => { setExcludeAlreadyAssigned(e.target.checked); setCurrentPage(1); }}
+            />
+            Exclude already priority-assigned
+          </label>
+
           {/* CRE Dropdown + Assign Button */}
           <select
             value={selectedCre}
@@ -197,8 +218,9 @@ const PriorityAssignLeads = () => {
           ) : leads.length === 0 ? (
             <p className="p-4 text-gray-400 text-center">No leads found</p>
           ) : (
-            <table className="w-full text-left text-sm table-auto">
-              <thead className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-sm table-auto">
+                <thead className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
                 <tr>
                   <th className="p-3">#</th>
                   <th className="p-3">Name</th>
@@ -211,10 +233,11 @@ const PriorityAssignLeads = () => {
                   <th className="p-3">Employee Strength</th>
                   <th className="p-3">Location</th>
                   <th className="p-3">Status</th>
-                  <th className="p-3">CRE</th>
+                  <th className="p-3">CRE (Priority)</th>
+                  <th className="p-3">Assigned To CRE (Called)</th>
                 </tr>
-              </thead>
-              <tbody>
+                </thead>
+                <tbody>
                 {leads.map((lead, index) => (
                   <tr
                     key={lead._id}
@@ -258,14 +281,16 @@ const PriorityAssignLeads = () => {
                       </span>
                     </td>
                     <td className="p-3">
-                      {cres.find(
-                        (cre) => cre._id === lead.exclusiveToSpecificCRE
-                      )?.name || "-"}
+                      {cres.find((cre) => String(cre._id) === String(lead.exclusiveToSpecificCRE))?.name || "-"}
+                    </td>
+                    <td className="p-3">
+                      {cres.find((cre) => String(cre._id) === String(lead.assignedtocre))?.name || "-"}
                     </td>
                   </tr>
                 ))}
-              </tbody>
-            </table>
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
 
