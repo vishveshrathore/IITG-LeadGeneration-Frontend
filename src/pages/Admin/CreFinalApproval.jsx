@@ -405,7 +405,7 @@ export default function CRELeadsApprovalDashboard() {
         className="border border-gray-300 rounded px-2 py-1 text-sm w-56"
       />
       <select
-        defaultValue={lead.industry || ""}
+        value={lead.industry || ""}
         onChange={async (e) => {
           const newIndustry = e.target.value;
           if (newIndustry === lead.industry) return;
@@ -424,9 +424,17 @@ export default function CRELeadsApprovalDashboard() {
               { industry: newIndustry, type: lead.type }
             );
             toast.success("Industry updated successfully");
-
-            // Refresh to get updated industryName
-            fetchLeads(page);
+            // Update industryName locally to avoid full refetch and row flicker
+            const allIndustryOptions = (industrySearchResults.length > 0 ? industrySearchResults : industries);
+            const selectedIndustryObj = allIndustryOptions.find((ind) => ind._id === newIndustry);
+            const newIndustryName = selectedIndustryObj ? selectedIndustryObj.name : lead.industryName;
+            setLeads((prev) =>
+              prev.map((l) =>
+                l._id === lead._id
+                  ? { ...l, industry: newIndustry, industryName: newIndustryName }
+                  : l
+              )
+            );
           } catch (err) {
             toast.error(err?.response?.data?.message || "Failed to update industry");
           } finally {
