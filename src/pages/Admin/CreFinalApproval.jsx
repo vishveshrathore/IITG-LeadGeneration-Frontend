@@ -42,7 +42,6 @@ export default function CRELeadsApprovalDashboard() {
   const [industryQuery, setIndustryQuery] = useState("");
   const [industrySearchResults, setIndustrySearchResults] = useState([]);
   const [industryLoading, setIndustryLoading] = useState(false);
-  
 
   // Fetch leads
   const fetchLeads = async (page = 1, searchTerm = "") => {
@@ -64,8 +63,6 @@ export default function CRELeadsApprovalDashboard() {
     }
   };
 
-  
-
   // Debounced industry async search (trending UX)
   useEffect(() => {
     let active = true;
@@ -78,7 +75,9 @@ export default function CRELeadsApprovalDashboard() {
           return;
         }
         const { data } = await axios.get(
-          `${BASE_URL}/api/admin/industries/search?query=${encodeURIComponent(industryQuery.trim())}`
+          `${BASE_URL}/api/admin/industries/search?query=${encodeURIComponent(
+            industryQuery.trim()
+          )}`
         );
         if (!active) return;
         setIndustrySearchResults(Array.isArray(data) ? data : []);
@@ -288,7 +287,9 @@ export default function CRELeadsApprovalDashboard() {
             className="border border-gray-300 rounded-lg px-2 py-1 text-sm"
           >
             {[5, 10, 20, 50].map((n) => (
-              <option key={n} value={n}>{n}</option>
+              <option key={n} value={n}>
+                {n}
+              </option>
             ))}
           </select>
         </div>
@@ -298,7 +299,9 @@ export default function CRELeadsApprovalDashboard() {
       {selected.size > 0 && (
         <div className="mb-4 text-sm text-blue-800 bg-blue-50 border border-blue-200 px-3 py-2 rounded-lg inline-flex items-center gap-3">
           <span className="font-medium">{selected.size} selected</span>
-          <button onClick={clearSelection} className="underline">Clear</button>
+          <button onClick={clearSelection} className="underline">
+            Clear
+          </button>
         </div>
       )}
 
@@ -346,7 +349,10 @@ export default function CRELeadsApprovalDashboard() {
                 </th>
                 {[
                   "Name",
+                  "Company",
+                  "Industry",
                   "Designation",
+                  "Actions",
                   "Mobile",
                   "Email",
                   "Location",
@@ -355,9 +361,6 @@ export default function CRELeadsApprovalDashboard() {
                   "Product Line",
                   "Turnover",
                   "Employee Strength",
-                  "Industry",
-                  "Company",
-                  "Actions",
                 ].map((header) => (
                   <th
                     key={header}
@@ -370,149 +373,205 @@ export default function CRELeadsApprovalDashboard() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {leads.map((lead) => {
-                  const id = lead._id;
-                  const isBusy = busyIds.has(id);
-                  const isSelected = selected.has(id);
-                  return (
-                    <tr key={id} className={`${isSelected ? "bg-blue-50" : "hover:bg-gray-50"}`}>
-                      <td className="px-4 py-3">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleSelect(id)}
-                        />
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">{lead.name}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{lead.designation}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{lead.mobile.join(", ")}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{lead.email || "—"}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{lead.location || "—"}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{lead.remarks || "—"}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{lead.division || "—"}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{lead.productLine || "—"}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{lead.turnOver || "—"}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{lead.employeeStrength || "—"}</td>
+                const id = lead._id;
+                const isBusy = busyIds.has(id);
+                const isSelected = selected.has(id);
+                return (
+                  <tr
+                    key={id}
+                    className={`${
+                      isSelected ? "bg-blue-50" : "hover:bg-gray-50"
+                    }`}
+                  >
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelect(id)}
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-900">
+                      {lead.name}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {lead.companyName || "—"}
+                    </td>
+                    {/* Industry Dropdown */}
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {lead.isEditingIndustry ? (
+                        <div className="flex flex-col gap-2">
+                          <input
+                            type="text"
+                            value={industryQuery}
+                            onChange={(e) => setIndustryQuery(e.target.value)}
+                            placeholder="Search industry..."
+                            className="border border-gray-300 rounded px-2 py-1 text-sm w-56"
+                          />
+                          <select
+                            value={lead.industry || ""}
+                            onChange={async (e) => {
+                              const newIndustry = e.target.value;
+                              if (newIndustry === lead.industry) return;
 
-                      {/* Industry Dropdown */}
-              <td className="px-4 py-3 text-sm text-gray-600">
-  {lead.isEditingIndustry ? (
-    <div className="flex flex-col gap-2">
-      <input
-        type="text"
-        value={industryQuery}
-        onChange={(e) => setIndustryQuery(e.target.value)}
-        placeholder="Search industry..."
-        className="border border-gray-300 rounded px-2 py-1 text-sm w-56"
-      />
-      <select
-        value={lead.industry || ""}
-        onChange={async (e) => {
-          const newIndustry = e.target.value;
-          if (newIndustry === lead.industry) return;
+                              // Update local state immediately
+                              setLeads((prev) =>
+                                prev.map((l) =>
+                                  l._id === lead._id
+                                    ? { ...l, industry: newIndustry }
+                                    : l
+                                )
+                              );
 
-          // Update local state immediately
-          setLeads((prev) =>
-            prev.map((l) =>
-              l._id === lead._id ? { ...l, industry: newIndustry } : l
-            )
-          );
-
-          try {
-            // Send type to backend
-            await axios.put(
-              `${BASE_URL}/api/admin/leads/industry/update/${lead._id}`,
-              { industry: newIndustry, type: lead.type }
-            );
-            toast.success("Industry updated successfully");
-            // Update industryName locally to avoid full refetch and row flicker
-            const allIndustryOptions = (industrySearchResults.length > 0 ? industrySearchResults : industries);
-            const selectedIndustryObj = allIndustryOptions.find((ind) => ind._id === newIndustry);
-            const newIndustryName = selectedIndustryObj ? selectedIndustryObj.name : lead.industryName;
-            setLeads((prev) =>
-              prev.map((l) =>
-                l._id === lead._id
-                  ? { ...l, industry: newIndustry, industryName: newIndustryName }
-                  : l
-              )
-            );
-          } catch (err) {
-            toast.error(err?.response?.data?.message || "Failed to update industry");
-          } finally {
-            // Exit edit mode and clear search
-            setIndustryQuery("");
-            setLeads((prev) =>
-              prev.map((l) =>
-                l._id === lead._id ? { ...l, isEditingIndustry: false } : l
-              )
-            );
-          }
-        }}
-        className="border border-gray-300 rounded px-2 py-1 text-sm w-56"
-      >
-        <option value="">Select Industry</option>
-        {(industrySearchResults.length > 0 ? industrySearchResults : industries)
-          .map((ind) => (
-            <option key={ind._id} value={ind._id}>
-              {ind.name}
-            </option>
-          ))}
-      </select>
-      {industryLoading && (
-        <span className="text-xs text-gray-500">Searching…</span>
-      )}
-    </div>
-  ) : (
-    <span
-      className="cursor-pointer"
-      onClick={() => {
-        setIndustryQuery("");
-        setLeads((prev) =>
-          prev.map((l) =>
-            l._id === lead._id ? { ...l, isEditingIndustry: true } : l
-          )
-        );
-      }}
-    >
-      {lead.industryName || "—"} {/* Show stored industry name */}
-    </span>
-  )}
-</td>
-
-
-
-                      <td className="px-4 py-3 text-sm text-gray-600">{lead.companyName || "—"}</td>
-
-                      
-
-                      <td className="px-4 py-3 text-center">
-                        <div className="flex gap-2 justify-center items-center">
-                          {lead.status === "approved for calling" ? (
-                            <Badge className="bg-green-100 text-green-700">Approved for calling</Badge>
-                          ) : (
-                            <>
-                              <button
-                                onClick={() => approveLead(lead)}
-                                disabled={isBusy}
-                                className={`${buttonBase} bg-green-600 text-white hover:bg-green-700`}
-                                title="Approve for calling"
-                              >
-                                <FiCheckCircle /> Approve
-                              </button>
-                              <button
-                                onClick={() => markPending(lead)}
-                                disabled={isBusy}
-                                className={`${buttonBase} bg-gray-400 text-white hover:bg-gray-500`}
-                                title="Move to bottom of pending"
-                              >
-                                <FiRefreshCw /> Pending
-                              </button>
-                            </>
+                              try {
+                                // Send type to backend
+                                await axios.put(
+                                  `${BASE_URL}/api/admin/leads/industry/update/${lead._id}`,
+                                  { industry: newIndustry, type: lead.type }
+                                );
+                                toast.success("Industry updated successfully");
+                                // Update industryName locally to avoid full refetch and row flicker
+                                const allIndustryOptions =
+                                  industrySearchResults.length > 0
+                                    ? industrySearchResults
+                                    : industries;
+                                const selectedIndustryObj =
+                                  allIndustryOptions.find(
+                                    (ind) => ind._id === newIndustry
+                                  );
+                                const newIndustryName = selectedIndustryObj
+                                  ? selectedIndustryObj.name
+                                  : lead.industryName;
+                                setLeads((prev) =>
+                                  prev.map((l) =>
+                                    l._id === lead._id
+                                      ? {
+                                          ...l,
+                                          industry: newIndustry,
+                                          industryName: newIndustryName,
+                                        }
+                                      : l
+                                  )
+                                );
+                              } catch (err) {
+                                toast.error(
+                                  err?.response?.data?.message ||
+                                    "Failed to update industry"
+                                );
+                              } finally {
+                                // Exit edit mode and clear search
+                                setIndustryQuery("");
+                                setLeads((prev) =>
+                                  prev.map((l) =>
+                                    l._id === lead._id
+                                      ? { ...l, isEditingIndustry: false }
+                                      : l
+                                  )
+                                );
+                              }
+                            }}
+                            className="border border-gray-300 rounded px-2 py-1 text-sm w-56"
+                          >
+                            <option value="">Select Industry</option>
+                            {(industrySearchResults.length > 0
+                              ? industrySearchResults
+                              : industries
+                            ).map((ind) => (
+                              <option key={ind._id} value={ind._id}>
+                                {ind.name}
+                              </option>
+                            ))}
+                          </select>
+                          {industryLoading && (
+                            <span className="text-xs text-gray-500">
+                              Searching…
+                            </span>
                           )}
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+                      ) : (
+                        <span
+                          className="cursor-pointer"
+                          onClick={() => {
+                            setIndustryQuery("");
+                            setLeads((prev) =>
+                              prev.map((l) =>
+                                l._id === lead._id
+                                  ? { ...l, isEditingIndustry: true }
+                                  : l
+                              )
+                            );
+                          }}
+                        >
+                          {lead.industryName || "—"}{" "}
+                          {/* Show stored industry name */}
+                        </span>
+                      )}
+                    </td>
+
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {lead.designation}
+                    </td>
+                      <td className="px-4 py-3 text-center">
+                      <div className="flex gap-2 justify-center items-center">
+                        {lead.status === "approved for calling" ? (
+                          <Badge className="bg-green-100 text-green-700">
+                            Approved for calling
+                          </Badge>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => approveLead(lead)}
+                              disabled={isBusy}
+                              className={`${buttonBase} bg-green-600 text-white hover:bg-green-700`}
+                              title="Approve for calling"
+                            >
+                              <FiCheckCircle /> Approve
+                            </button>
+                            <button
+                              onClick={() => markPending(lead)}
+                              disabled={isBusy}
+                              className={`${buttonBase} bg-gray-400 text-white hover:bg-gray-500`}
+                              title="Move to bottom of pending"
+                            >
+                              <FiRefreshCw /> Pending
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {lead.mobile.join(", ")}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {lead.email || "—"}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {lead.location || "—"}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {lead.remarks || "—"}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {lead.division || "—"}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {lead.productLine || "—"}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {lead.turnOver || "—"}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {lead.employeeStrength || "—"}
+                    </td>
+
+                    
+
+                    
+
+                    
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -522,7 +581,8 @@ export default function CRELeadsApprovalDashboard() {
       {totalPages > 1 && (
         <div className="flex flex-col md:flex-row justify-center md:justify-between items-center gap-3 mt-6">
           <div className="text-sm text-gray-600">
-            Showing {Math.min((page - 1) * limit + 1, globalStats.total)}–{Math.min(page * limit, globalStats.total)} of {globalStats.total}
+            Showing {Math.min((page - 1) * limit + 1, globalStats.total)}–
+            {Math.min(page * limit, globalStats.total)} of {globalStats.total}
           </div>
           <button
             onClick={handlePrevPage}
