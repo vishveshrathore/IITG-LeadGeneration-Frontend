@@ -15,6 +15,7 @@ const RawLeads = () => {
   const [message, setMessage] = useState("");
   const [formData, setFormData] = useState({});
   const [industries, setIndustries] = useState([]);
+  const [industryQuery, setIndustryQuery] = useState("");
 
   const fields = [
     "name",
@@ -175,6 +176,17 @@ const RawLeads = () => {
     }
   }, []);
 
+  // Keep the visible industry text in sync with the selected industry id
+  useEffect(() => {
+    const selected = industries.find(
+      (ind) => ind._id === (formData.industry || "")
+    );
+    if (selected) {
+      setIndustryQuery(selected.name);
+    }
+    // If no selected industry, we leave whatever the user typed
+  }, [industries, formData.industry]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-100 to-white px-4 py-6">
       <Toaster position="top-center" />
@@ -257,19 +269,51 @@ const RawLeads = () => {
       </label>
 
       {field === "industry" ? (
-        <select
-          name="industry"
-          value={formData.industry || ""}
-          onChange={handleInputChange}
-          className="w-full border border-gray-300 px-4 py-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
-        >
-          <option value="">Select Industry</option>
-          {industries.map((ind) => (
-            <option key={ind._id} value={ind._id}>
-              {ind.name}
-            </option>
-          ))}
-        </select>
+        <>
+          <input
+            type="text"
+            name="industrySearch"
+            list="industry-list"
+            value={industryQuery}
+            onChange={(e) => {
+              const val = e.target.value;
+              setIndustryQuery(val);
+              const matched = industries.find(
+                (ind) => ind.name.toLowerCase() === val.toLowerCase()
+              );
+              setFormData((prev) => ({
+                ...prev,
+                industry: matched ? matched._id : "",
+              }));
+            }}
+            onBlur={() => {
+              // If no exact match selected yet, try to find the best partial match
+              if (!formData.industry && industryQuery) {
+                const lower = industryQuery.toLowerCase();
+                let candidate = industries.find((ind) =>
+                  ind.name.toLowerCase().startsWith(lower)
+                );
+                if (!candidate) {
+                  candidate = industries.find((ind) =>
+                    ind.name.toLowerCase().includes(lower)
+                  );
+                }
+                if (candidate) {
+                  setFormData((prev) => ({ ...prev, industry: candidate._id }));
+                  setIndustryQuery(candidate.name);
+                }
+              }
+            }}
+            className="w-full border border-gray-300 px-4 py-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+            placeholder="Search industry"
+            autoComplete="off"
+          />
+          <datalist id="industry-list">
+            {industries.map((ind) => (
+              <option key={ind._id} value={ind.name} />
+            ))}
+          </datalist>
+        </>
       ) : (
         <input
           type="text"
