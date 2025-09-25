@@ -23,7 +23,7 @@ const AuthScreen = () => {
   });
 
   const navigate = useNavigate();
-  const { authToken, login } = useAuth();
+  const { authToken, login } = useAuth(); 
 
   // Set Axios default header whenever authToken changes
   useEffect(() => {
@@ -123,6 +123,46 @@ const AuthScreen = () => {
       )}
     </div>
   );
+
+  // Change Password state
+  const [showChangePwd, setShowChangePwd] = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
+  const [cpLoading, setCpLoading] = useState(false);
+  const [cpForm, setCpForm] = useState({ oldPassword: '', newPassword: '', confirmNewPassword: '' });
+
+  const handleCpChange = (e) => setCpForm({ ...cpForm, [e.target.name]: e.target.value });
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    if (!authToken) {
+      toast.error('Please login first to change password');
+      return;
+    }
+    const { oldPassword, newPassword, confirmNewPassword } = cpForm;
+    if (!oldPassword || !newPassword || !confirmNewPassword) {
+      toast.error('Please fill all change password fields');
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error('New password must be at least 6 characters');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      toast.error('New passwords do not match');
+      return;
+    }
+    try {
+      setCpLoading(true);
+      await axios.put(`${BASE_URL}/api/change-password`, { oldPassword, newPassword });
+      toast.success('Password changed successfully');
+      setCpForm({ oldPassword: '', newPassword: '', confirmNewPassword: '' });
+      setShowChangePwd(false);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to change password');
+    } finally {
+      setCpLoading(false);
+    }
+  };
 
   return (
     <div className="flex flex-col lg:flex-row h-screen font-sans">
@@ -224,14 +264,32 @@ const AuthScreen = () => {
           )}
 
           {isLogin && (
-            <div className="flex items-center text-sm">
-              <input
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                className="mr-2"
-              />
-              <label>Remember Me</label>
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="mr-2"
+                />
+                <label>Remember Me</label>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowForgot((s) => !s)}
+                  className="text-blue-600 hover:underline"
+                >
+                  Forgot Password?
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowChangePwd((s) => !s)}
+                  className="text-blue-600 hover:underline"
+                >
+                  Change Password
+                </button>
+              </div>
             </div>
           )}
 
@@ -254,7 +312,187 @@ const AuthScreen = () => {
             </button>
           </div>
         </motion.form>
+        {isLogin && <ForgotPasswordModal show={showForgot} setShow={setShowForgot} />}
+        {isLogin && showChangePwd && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/40" onClick={() => setShowChangePwd(false)} />
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="relative bg-white w-full max-w-md mx-4 rounded-2xl shadow-2xl border p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-800">Change Password</h3>
+                <button onClick={() => setShowChangePwd(false)} className="text-gray-500 hover:text-gray-700">✕</button>
+              </div>
+              <form onSubmit={handleChangePassword} className="space-y-4">
+                <div>
+                  <label className="block text-gray-700 mb-1 text-sm font-medium">Old Password</label>
+                  <input
+                    type="password"
+                    name="oldPassword"
+                    value={cpForm.oldPassword}
+                    onChange={handleCpChange}
+                    className="mt-1 w-full px-4 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-700 mb-1 text-sm font-medium">New Password</label>
+                  <input
+                    type="password"
+                    name="newPassword"
+                    value={cpForm.newPassword}
+                    onChange={handleCpChange}
+                    className="mt-1 w-full px-4 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-700 mb-1 text-sm font-medium">Confirm New Password</label>
+                  <input
+                    type="password"
+                    name="confirmNewPassword"
+                    value={cpForm.confirmNewPassword}
+                    onChange={handleCpChange}
+                    className="mt-1 w-full px-4 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={cpLoading}
+                  className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-2"
+                >
+                  {cpLoading ? <ImSpinner2 className="animate-spin" /> : 'Update Password'}
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
       </div>
+    </div>
+  );
+};
+
+// Modal: Forgot Password
+const ForgotPasswordModal = (props) => {
+  const isControlled = typeof props?.show === 'boolean' && typeof props?.setShow === 'function';
+  const [internalShow, setInternalShow] = useState(false);
+  const show = isControlled ? props.show : internalShow;
+  const setShow = isControlled ? props.setShow : setInternalShow;
+  const [isSending, setIsSending] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [email, setEmail] = useState('');
+  const [otp, setOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+
+  const sendOtp = async (e) => {
+    e.preventDefault();
+    if (!email) return toast.error('Please enter your email');
+    try {
+      setIsSending(true);
+      await axios.post(`${BASE_URL}/api/forgot-password`, { email });
+      toast.success('OTP sent to your email');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to send OTP');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const resetPassword = async (e) => {
+    e.preventDefault();
+    if (!email || !otp || !newPassword || !confirmNewPassword) {
+      return toast.error('Please fill all reset password fields');
+    }
+    if (newPassword.length < 6) return toast.error('New password too short');
+    if (newPassword !== confirmNewPassword) return toast.error('New passwords do not match');
+    try {
+      setIsResetting(true);
+      await axios.post(`${BASE_URL}/api/reset-password`, { email, otp, newPassword });
+      toast.success('Password reset successfully. Please login.');
+      setOtp(''); setNewPassword(''); setConfirmNewPassword('');
+      setShow(false);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to reset password');
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
+  if (!show) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/40" onClick={() => setShow(false)} />
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="relative bg-white w-full max-w-3xl mx-4 rounded-2xl shadow-2xl border p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-800">Forgot Password</h3>
+          <button onClick={() => setShow(false)} className="text-gray-500 hover:text-gray-700">✕</button>
+        </div>
+        <div className="grid md:grid-cols-2 gap-6">
+          <form onSubmit={sendOtp} className="bg-white p-0 rounded-xl space-y-3">
+            <h4 className="font-semibold text-gray-800 text-sm">Send OTP</h4>
+            <div>
+              <label className="block text-gray-700 mb-1 text-sm font-medium">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="mt-1 w-full px-3 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={isSending}
+              className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2"
+            >
+              {isSending ? <ImSpinner2 className="animate-spin" /> : 'Send OTP'}
+            </button>
+          </form>
+          <form onSubmit={resetPassword} className="bg-white p-0 rounded-xl space-y-3">
+            <h4 className="font-semibold text-gray-800 text-sm">Reset Password</h4>
+            <div>
+              <label className="block text-gray-700 mb-1 text-sm font-medium">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="mt-1 w-full px-3 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-gray-700 mb-1 text-sm font-medium">OTP</label>
+              <input
+                type="text"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                className="mt-1 w-full px-3 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-gray-700 mb-1 text-sm font-medium">New Password</label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="mt-1 w-full px-3 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-gray-700 mb-1 text-sm font-medium">Confirm New Password</label>
+              <input
+                type="password"
+                value={confirmNewPassword}
+                onChange={(e) => setConfirmNewPassword(e.target.value)}
+                className="mt-1 w-full px-3 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={isResetting}
+              className="w-full py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2"
+            >
+              {isResetting ? <ImSpinner2 className="animate-spin" /> : 'Reset Password'}
+            </button>
+          </form>
+        </div>
+      </motion.div>
     </div>
   );
 };

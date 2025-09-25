@@ -32,6 +32,30 @@ const PriorityAssignLeads = () => {
   const [excludeCalled, setExcludeCalled] = useState(true);
   const [excludeAlreadyAssigned, setExcludeAlreadyAssigned] = useState(false);
 
+  const updateLeadInState = (updated) => {
+    setLeads((prev) => prev.map((l) => (l._id === updated._id ? { ...l, ...updated } : l)));
+  };
+
+  const toggleBlockStatus = async (lead) => {
+    try {
+      const nextStatus = lead.blockStatus === 'block' ? 'unblock' : 'block';
+      const { data } = await axios.put(`${BASE_URL}/api/admin/leads/block-status`, {
+        leadId: lead._id,
+        leadType: lead.leadType,
+        blockStatus: nextStatus,
+      });
+      if (data?.success && data?.data) {
+        updateLeadInState({ ...lead, blockStatus: nextStatus });
+        toast.success(`Lead ${nextStatus}ed`);
+      } else {
+        toast.error('Failed to update block status');
+      }
+    } catch (err) {
+      console.error('Error updating block status:', err);
+      toast.error('Error updating block status');
+    }
+  };
+
   const fetchLeads = async () => {
     setLoading(true);
     try {
@@ -120,7 +144,7 @@ const PriorityAssignLeads = () => {
       <Toaster position="top-right" />
 
       <motion.div
-        className="p-6 max-w-7xl mx-auto w-full"
+        className="p-6 w-full mx-auto"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
       >
@@ -218,23 +242,24 @@ const PriorityAssignLeads = () => {
           ) : leads.length === 0 ? (
             <p className="p-4 text-gray-400 text-center">No leads found</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-left text-sm table-auto">
+            <div className="w-full">
+              <table className="min-w-full w-full table-auto text-left text-xs md:text-sm">
                 <thead className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
                 <tr>
-                  <th className="p-3">#</th>
-                  <th className="p-3">Name</th>
-                  <th className="p-3">Designation</th>
-                  <th className="p-3">Mobile</th>
-                  <th className="p-3">Email</th>
-                  <th className="p-3">Company</th>
-                  <th className="p-3">Industry</th>
-                  <th className="p-3">Product Line</th>
-                  <th className="p-3">Employee Strength</th>
-                  <th className="p-3">Location</th>
-                  <th className="p-3">Status</th>
-                  <th className="p-3">CRE (Priority)</th>
-                  <th className="p-3">Assigned To CRE (Called)</th>
+                  <th className="p-3 whitespace-normal break-words">#</th>
+                  <th className="p-3 whitespace-normal break-words">Name</th>
+                  <th className="p-3 whitespace-normal break-words">Designation</th>
+                  <th className="p-3 whitespace-normal break-words">Mobile</th>
+                  <th className="p-3 whitespace-normal break-words">Email</th>
+                  <th className="p-3 whitespace-normal break-words">Company</th>
+                  <th className="p-3 whitespace-normal break-words">Industry</th>
+                  <th className="p-3 whitespace-normal break-words">Product Line</th>
+                  <th className="p-3 whitespace-normal break-words">Employee Strength</th>
+                  <th className="p-3 whitespace-normal break-words">Location</th>
+                  <th className="p-3 whitespace-normal break-words">Status</th>
+                  <th className="p-3 whitespace-normal break-words">CRE (Priority)</th>
+                  <th className="p-3 whitespace-normal break-words">Called By CRE</th>
+                  <th className="p-3 whitespace-normal break-words">Block Status</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -243,7 +268,7 @@ const PriorityAssignLeads = () => {
                     key={lead._id}
                     className={`${
                       index % 2 === 0 ? "bg-gray-50" : "bg-white"
-                    } hover:bg-blue-50 transition cursor-pointer ${
+                    } ${lead.blockStatus === 'block' ? 'bg-red-50' : ''} hover:bg-blue-50 transition cursor-pointer ${
                       selectedLeads.includes(lead._id)
                         ? "bg-blue-100 border-l-4 border-blue-500"
                         : ""
@@ -258,15 +283,15 @@ const PriorityAssignLeads = () => {
                         className="h-4 w-4 text-blue-600 rounded border-gray-300"
                       />
                     </td>
-                    <td className="p-3">{lead.name}</td>
-                    <td className="p-3">{lead.designation}</td>
-                    <td className="p-3">{lead.mobile?.join(", ") || "-"}</td>
-                    <td className="p-3">{lead.email || "-"}</td>
-                    <td className="p-3">{lead.company?.CompanyName || "-"}</td>
-                    <td className="p-3">{lead.industry?.name || "-"}</td>
-                    <td className="p-3">{lead.productLine || "-"}</td>
-                    <td className="p-3">{lead.employeeStrength || "-"}</td>
-                    <td className="p-3">{lead.location || "-"}</td>
+                    <td className="p-3 whitespace-normal break-words">{lead.name}</td>
+                    <td className="p-3 whitespace-normal break-words">{lead.designation}</td>
+                    <td className="p-3 whitespace-normal break-words">{lead.mobile?.join(", ") || "-"}</td>
+                    <td className="p-3 whitespace-normal break-words">{lead.email || "-"}</td>
+                    <td className="p-3 whitespace-normal break-words">{lead.company?.CompanyName || "-"}</td>
+                    <td className="p-3 whitespace-normal break-words">{lead.industry?.name || "-"}</td>
+                    <td className="p-3 whitespace-normal break-words">{lead.productLine || "-"}</td>
+                    <td className="p-3 whitespace-normal break-words">{lead.employeeStrength || "-"}</td>
+                    <td className="p-3 whitespace-normal break-words">{lead.location || "-"}</td>
                     <td className="p-3">
                       <span
                         className={`px-2 py-1 rounded-full text-xs font-semibold ${
@@ -280,11 +305,26 @@ const PriorityAssignLeads = () => {
                         {lead.status || "N/A"}
                       </span>
                     </td>
-                    <td className="p-3">
-                      {cres.find((cre) => String(cre._id) === String(lead.exclusiveToSpecificCRE))?.name || "-"}
+                    <td className="p-3 whitespace-normal break-words">
+                      {lead.exclusiveToSpecificCRE?.name ||
+                        cres.find((cre) => String(cre._id) === String(lead.exclusiveToSpecificCRE?._id || lead.exclusiveToSpecificCRE))?.name ||
+                        "-"}
                     </td>
-                    <td className="p-3">
-                      {cres.find((cre) => String(cre._id) === String(lead.assignedtocre))?.name || "-"}
+                    <td className="p-3 whitespace-normal break-words">{lead.calledByCre?.name || "-"}</td>
+                    <td className="p-3 whitespace-normal break-words">
+                      <span className={`inline-block px-2 py-1 rounded text-xs font-semibold mr-2 ${
+                        lead.blockStatus === 'block' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                      }`}>
+                        {lead.blockStatus || 'unblock'}
+                      </span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); toggleBlockStatus(lead); }}
+                        className={`px-3 py-1 rounded text-white text-xs ${
+                          lead.blockStatus === 'block' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'
+                        }`}
+                      >
+                        {lead.blockStatus === 'block' ? 'Unblock' : 'Block'}
+                      </button>
                     </td>
                   </tr>
                 ))}
