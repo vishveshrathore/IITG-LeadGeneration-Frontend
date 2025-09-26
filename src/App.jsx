@@ -25,6 +25,7 @@ import LGAccessControl from "./pages/Admin/LGAccessControl.jsx"; //Admin Side
 import AdminDashboard from "./pages/Admin/AdminDashboard.jsx"; //Admin Side - New Dashboard
 import ToolsDashboard from "./pages/Admin/Tools/ToolsDashboard.jsx"; //Tools Dashboard
 import NaukriParser from "./components/NaukriParser.jsx"; //Naukri Parser Component
+import LinkedInPParser from "./components/LinkedInPParser.jsx"; //LinkedIn Parser Component
 
 import CreCrmDashboard from "./pages/CRE-CRM/CRE-CRMDashboard.jsx"; //CRE Side
 import LeadAssignment from "./pages/CRE-CRM/GetAssignedLeads.jsx"; //CRE Side
@@ -292,6 +293,15 @@ function App() {
           }
         />
 
+
+        <Route
+          path="/linkedin-parser"
+          element={
+            <ProtectedRoute role="admin">
+              <LinkedInPParser />
+            </ProtectedRoute>
+          }
+        />
         
       </Routes>
     </AnimatePresence>

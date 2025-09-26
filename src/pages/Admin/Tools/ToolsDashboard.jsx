@@ -11,13 +11,15 @@ const DASHBOARD_TOOLS = [
     title: "Naukri Parser", 
     description: "Automate extraction from Naukri",
     path: "/naukri-parser", 
-    icon: <FaFileCsv size={36} className="text-indigo-600" /> 
+    icon: <FaFileCsv size={30} className="text-indigo-700" />,
+    color: "bg-indigo-100",
   },
   { 
     title: "LinkedIn Parser ", 
-    description: "Access core application tools and run system health checks.",
-    path: "/tools", 
-    icon: <FaFileCsv size={36} className="text-green-600" /> 
+    description: "Parse LinkedIn list results",
+    path: "/linkedin-parser", 
+    icon: <FaFileCsv size={30} className="text-emerald-700" />,
+    color: "bg-emerald-100",
   },
 ];
 
@@ -43,15 +45,15 @@ const ToolsDashboard = () => {
         {/* Header Section */}
         <header className="mb-10 border-b pb-4 my-10">
           <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight ">
-            Tool Panel
+            Tools
           </h1>
           <p className="mt-2 text-lg text-gray-500">
             Select a module to perform administrative tools and manage application utilities.
           </p>
         </header>
 
-        {/* Dashboard Grid */}
-        <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Dashboard Grid - Bento style (2 columns on small screens) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 p-6">
           {DASHBOARD_TOOLS.map((item, index) => (
             <motion.div
               key={index}
@@ -59,17 +61,15 @@ const ToolsDashboard = () => {
               role="button" // Improve accessibility (A11y)
               aria-label={`Go to ${item.title}`} // A11y
               tabIndex={0} // Make div focusable
-              className="group bg-white rounded-xl border border-gray-200 shadow-lg p-6 flex flex-col items-start text-left cursor-pointer transition duration-300 ease-in-out hover:shadow-2xl hover:border-indigo-400"
-              whileHover={{ y: -5, boxShadow: "0 10px 20px rgba(0,0,0,0.08)" }}
-              whileTap={{ scale: 0.98 }}
+              className={`cursor-pointer rounded-2xl shadow-md p-6 flex flex-col justify-center items-start transition-all duration-300 ${item.color || 'bg-gray-50'}`}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.97 }}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: index * 0.05 }}
             >
-              <div className="mb-4 p-3 bg-gray-100 rounded-full transition-colors group-hover:bg-indigo-50">
-                {item.icon}
-              </div>
-              <h2 className="text-xl font-bold text-gray-800 mb-2 group-hover:text-indigo-700 transition-colors">
+              <div className="mb-4 text-blue-800">{item.icon}</div>
+              <h2 className="text-lg font-semibold text-gray-800">
                 {item.title}
               </h2>
               <p className="text-sm text-gray-500">

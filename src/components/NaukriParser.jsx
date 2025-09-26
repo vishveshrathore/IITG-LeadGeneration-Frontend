@@ -2,6 +2,7 @@ import React, { useState, useEffect, createContext, useContext } from "react";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import { BASE_URL } from "../config";
+import AdminNavbar from "./AdminNavbar.jsx";
 
 // --- Auth Context ---
 const AuthContext = createContext();
@@ -162,7 +163,7 @@ const NaukriParser = () => {
 
       <div className="min-h-screen bg-white font-sans">
         <AdminNavbar />
-        <main className="w-full mx-auto p-4">
+        <main className="w-full mx-auto p-4 my-15">
           <header className="mb-4">
             <h1 className="text-lg font-semibold text-gray-900">Naukri Profile Parser</h1>
             <p className="text-xs text-gray-600">Paste recruiter data below to extract structured profile information.</p>
