@@ -11,20 +11,7 @@ const AuthProvider = ({ children }) => {
   return <AuthContext.Provider value={{ user }}>{children}</AuthContext.Provider>;
 };
 
-// --- Admin Navbar ---
-const AdminNavbar = () => {
-  const { user } = useAuth();
-  return (
-    <nav className="bg-white border-b border-gray-200 px-3 py-2 flex justify-between items-center">
-      <h1 className="text-sm font-semibold text-gray-800">Admin Dashboard</h1>
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-gray-600">
-          Signed in as: <span className="font-medium">{user.name}</span>
-        </span>
-      </div>
-    </nav>
-  );
-};
+
 
 // (Removed copy to clipboard utility)
 
