@@ -1,7 +1,7 @@
 import { Routes, Route, useLocation } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import AuthScreen from "./pages/auth.jsx";
-import AdminDashboard from "./pages/Admin/AdminDashboard.jsx";
+import BDDashboard from "./pages/Admin/BD-Dashboard.jsx";
 import LGDashboard from "./pages/LG/LGDashboard.jsx";
 import OTPScreen from "./pages/OTPScreen.jsx";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -22,6 +22,9 @@ import CRELeadsApprovalDashboard from "./pages/Admin/CreFinalApproval.jsx"; //Ad
 import CreDashboard from "./pages/Admin/CreDashboard.jsx"; //Admin Side
 import PriorityAssignLeads from "./pages/Admin/Prioritypage.jsx"; //Admin Side
 import LGAccessControl from "./pages/Admin/LGAccessControl.jsx"; //Admin Side
+import AdminDashboard from "./pages/Admin/AdminDashboard.jsx"; //Admin Side - New Dashboard
+import ToolsDashboard from "./pages/Admin/Tools/ToolsDashboard.jsx"; //Tools Dashboard
+import NaukriParser from "./components/NaukriParser.jsx"; //Naukri Parser Component
 
 import CreCrmDashboard from "./pages/CRE-CRM/CRE-CRMDashboard.jsx"; //CRE Side
 import LeadAssignment from "./pages/CRE-CRM/GetAssignedLeads.jsx"; //CRE Side
@@ -43,12 +46,23 @@ function App() {
         {/* Public routes */}
         <Route path="/" element={<AuthScreen />} />
         <Route path="/otp" element={<OTPScreen />} />
-        {/* Admin routes */}
+
         <Route
           path="/adminDashboard"
           element={
             <ProtectedRoute role="admin">
               <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+
+        {/* Admin routes */}
+        <Route
+          path="/BD-Dashboard"
+          element={
+            <ProtectedRoute role="admin">
+              <BDDashboard />
             </ProtectedRoute>
           }
         />
@@ -260,6 +274,25 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/tools/dashboard"
+          element={
+            <ProtectedRoute role="admin">
+              <ToolsDashboard />
+            </ProtectedRoute>
+          }
+        />
+        
+        <Route
+          path="/naukri-parser"
+          element={
+            <ProtectedRoute role="admin">
+              <NaukriParser />
+            </ProtectedRoute>
+          }
+        />
+
+        
       </Routes>
     </AnimatePresence>
   );
