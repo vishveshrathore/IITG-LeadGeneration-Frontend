@@ -33,18 +33,18 @@ const DASHBOARD_ITEMS = [
     icon: <BsTools className="text-3xl text-purple-600" />,
     path: "/tools/dashboard",
   },
-  {
-    title: "Reports & Analytics",
-    description: "Track KPIs and generate performance reports.",
-    icon: <BsClipboardData className="text-3xl text-indigo-600" />,
-    path: "/admin/reports",
-  },
-  {
-    title: "Policies & Documents",
-    description: "Manage internal policies and official documents.",
-    icon: <BsFileEarmarkText className="text-3xl text-orange-600" />,
-    path: "/admin/documents",
-  },
+  // {
+  //   title: "Reports & Analytics",
+  //   description: "Track KPIs and generate performance reports.",
+  //   icon: <BsClipboardData className="text-3xl text-indigo-600" />,
+  //   path: "/admin/reports",
+  // },
+  // {
+  //   title: "Policies & Documents",
+  //   description: "Manage internal policies and official documents.",
+  //   icon: <BsFileEarmarkText className="text-3xl text-orange-600" />,
+  //   path: "/admin/documents",
+  // },
 ];
 
 const AdminDashboard = () => {
