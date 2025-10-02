@@ -13,11 +13,30 @@ const AuthProvider = ({ children }) => {
 };
 
 const LinkedInPParser = () => {
+  // Read params passed from CorporateAccountApproval
+  const searchParams = new URLSearchParams(window.location.search);
+  const companyFromUrl = searchParams.get('company');
+  const fromCorporate = searchParams.get('fromCorporate') === 'true';
+
   const [rawData, setRawData] = useState("");
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState({ visible: false, message: "", type: "success" });
   const [query, setQuery] = useState("");
+  // Upload/selection states
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [companies, setCompanies] = useState([]);
+  const [companiesLoading, setCompaniesLoading] = useState(false);
+  // Must be a company _id for upload
+  const [selectedCompany, setSelectedCompany] = useState("");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [lastUpload, setLastUpload] = useState(null); // { count, source, companyId, ts }
+  // Add company inline form
+  const [showAddCompany, setShowAddCompany] = useState(false);
+  const [newCompanyName, setNewCompanyName] = useState("");
+  const [newIndustry, setNewIndustry] = useState("");
+  const [addingCompany, setAddingCompany] = useState(false);
 
   const STORAGE_KEY = "linkedin_profiles_v1";
 
@@ -93,6 +112,33 @@ const LinkedInPParser = () => {
     }
   }, [profiles]);
 
+  // Fetch companies for dropdown
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      setCompaniesLoading(true);
+      try {
+        const { data } = await axios.get(`${BASE_URL}/api/recruitment/getCompanies/all`);
+        const list = Array.isArray(data?.data) ? data.data : [];
+        setCompanies(list);
+      } catch (e) {
+        console.error(e);
+        showToast("Failed to load companies", "error");
+      } finally {
+        setCompaniesLoading(false);
+      }
+    };
+    fetchCompanies();
+  }, []);
+
+  // When landed from Corporate, map company NAME in URL to actual company _id
+  useEffect(() => {
+    if (!fromCorporate || !companyFromUrl || !companies.length) return;
+    const byName = companies.find(c => (c.companyName || c.name || '').toLowerCase() === companyFromUrl.toLowerCase());
+    if (byName?._id) {
+      setSelectedCompany(byName._id);
+    }
+  }, [companies, fromCorporate, companyFromUrl]);
+
   const handleParse = async () => {
     if (!rawData.trim()) return showToast("Please paste LinkedIn data first.", "error");
 
@@ -161,7 +207,7 @@ const LinkedInPParser = () => {
         <AdminNavbar />
         <main className="w-full mx-auto p-4 my-15">
           <header className="mb-4">
-            <h1 className="text-lg font-semibold text-gray-900">LinkedIn Profile Parser</h1>
+            <h1 className="text-lg font-semibold text-gray-900">Table 12</h1>
             <p className="text-xs text-gray-600">Paste LinkedIn Recruiter results to extract structured profile information.</p>
           </header>
 
@@ -206,6 +252,134 @@ const LinkedInPParser = () => {
             </div>
           </div>
 
+          {/* Upload/Save Section */}
+          {profiles.length > 0 && (
+            <div className="mt-4 p-3 border border-gray-200 bg-white rounded">
+              <h3 className="text-sm font-semibold text-gray-800 mb-2">Upload Parsed Profiles</h3>
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  onClick={() => setSelectedIds(profiles.map((_, idx) => idx))}
+                  className="py-1 px-2 rounded border border-gray-300 bg-blue-600 text-white text-xs hover:bg-blue-700"
+                >
+                  Select All
+                </button>
+                <button
+                  onClick={() => setSelectedIds([])}
+                  className="py-1 px-2 rounded border border-gray-300 bg-gray-200 text-gray-800 text-xs hover:bg-gray-300"
+                >
+                  Clear Selection
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-gray-700">Company:</label>
+                  <select
+                    value={selectedCompany}
+                    onChange={(e) => setSelectedCompany(e.target.value)}
+                    className={`text-xs px-2 py-1 border border-gray-300 rounded min-w-[220px] ${fromCorporate && selectedCompany ? 'bg-gray-100' : ''}`}
+                    disabled={companiesLoading || !companies.length || (fromCorporate && !!selectedCompany)}
+                  >
+                    {fromCorporate && selectedCompany ? (
+                      <option value={selectedCompany}>
+                        {companies.find((c) => c._id === selectedCompany)?.companyName || companyFromUrl || 'Selected Company'}
+                      </option>
+                    ) : (
+                      <>
+                        <option value="" disabled>
+                          {companiesLoading ? "Loading companies..." : "Select company"}
+                        </option>
+                        {companies.map((c) => (
+                          <option key={c._id} value={c._id}>
+                            {c.companyName || c.name || "Unnamed Company"}
+                          </option>
+                        ))}
+                      </>
+                    )}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddCompany((s) => !s)}
+                    className="text-xs px-2 py-1 border border-gray-300 rounded bg-white hover:bg-gray-50"
+                  >
+                    {showAddCompany ? 'Close' : 'Add Company'}
+                  </button>
+                </div>
+
+                {showAddCompany && (
+                  <div className="w-full flex flex-wrap items-center gap-2">
+                    <input
+                      type="text"
+                      value={newCompanyName}
+                      onChange={(e) => setNewCompanyName(e.target.value)}
+                      placeholder="Company Name"
+                      className="text-xs px-2 py-1 border border-gray-300 rounded flex-1 min-w-[200px]"
+                    />
+                    <input
+                      type="text"
+                      value={newIndustry}
+                      onChange={(e) => setNewIndustry(e.target.value)}
+                      placeholder="Industry"
+                      className="text-xs px-2 py-1 border border-gray-300 rounded flex-1 min-w-[200px]"
+                    />
+                    <button
+                      type="button"
+                      disabled={addingCompany || !newCompanyName.trim() || !newIndustry.trim()}
+                      onClick={async () => {
+                        try {
+                          if (!newCompanyName.trim() || !newIndustry.trim()) return;
+                          setAddingCompany(true);
+                          const res = await axios.post(`${BASE_URL}/api/recruitment/add/company`, {
+                            companyName: newCompanyName.trim(),
+                            industry: newIndustry.trim(),
+                          });
+                          if (res?.data?.success && res?.data?.data?._id) {
+                            showToast('Company added');
+                            // Refresh companies
+                            const { data } = await axios.get(`${BASE_URL}/api/recruitment/getCompanies/all`);
+                            const list = Array.isArray(data?.data) ? data.data : [];
+                            setCompanies(list);
+                            setSelectedCompany(res.data.data._id);
+                            setShowAddCompany(false);
+                            setNewCompanyName("");
+                            setNewIndustry("");
+                          } else {
+                            const msg = res?.data?.message || 'Failed to add company';
+                            showToast(msg, 'error');
+                          }
+                        } catch (e) {
+                          console.error('[Add Company] error', e);
+                          const msg = e?.response?.data?.message || e?.message || 'Failed to add company';
+                          showToast(msg, 'error');
+                        } finally {
+                          setAddingCompany(false);
+                        }
+                      }}
+                      className={`text-xs px-2 py-1 rounded ${addingCompany || !newCompanyName.trim() || !newIndustry.trim() ? 'bg-emerald-600/60 cursor-not-allowed text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}`}
+                    >
+                      {addingCompany ? 'Adding…' : 'Save Company'}
+                    </button>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!selectedIds.length) return showToast("Please select at least one profile", "error");
+                    if (!selectedCompany) return showToast("Please select a company", "error");
+                    setConfirmOpen(true);
+                  }}
+                  disabled={!selectedIds.length || !selectedCompany || uploading}
+                  className={`py-1 px-2 rounded border border-gray-300 text-white text-xs ${(!selectedIds.length || !selectedCompany || uploading) ? 'bg-emerald-600/60 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+                >
+                  {uploading ? 'Uploading...' : 'Submit Selected'}
+                </button>
+
+                <span className="text-[11px] bg-gray-100 border border-gray-200 text-gray-700 px-2 py-0.5 rounded">
+                  Selected: {selectedIds.length}
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Profile Table */}
           {profiles.length > 0 && (
             <div className="mt-4 bg-white p-0.5">
@@ -227,6 +401,7 @@ const LinkedInPParser = () => {
                   <thead className="bg-gray-50 sticky top-0 z-10">
                     <tr>
                       <th className="px-2 py-1 text-left font-medium text-gray-600 border-b border-gray-200 sticky left-0 bg-gray-50 z-10">S. No.</th>
+                      <th className="px-2 py-1 text-left font-medium text-gray-600 border-b border-gray-200">Select</th>
                       {columns.slice(1).map((key) => (
                         <th
                           key={key}
@@ -277,6 +452,19 @@ const LinkedInPParser = () => {
                         return (
                           <tr key={i} className="odd:bg-white even:bg-gray-50 hover:bg-indigo-50">
                             <td className="px-2 py-1 align-top text-gray-800 border-b border-gray-100 sticky left-0 bg-white">{i + 1}</td>
+                            <td className="px-2 py-1 align-top text-gray-800 border-b border-gray-100">
+                              <input
+                                type="checkbox"
+                                className="cursor-pointer"
+                                checked={selectedIds.includes(i)}
+                                onChange={(e) => {
+                                  setSelectedIds((prev) => {
+                                    if (e.target.checked) return Array.from(new Set([...prev, i]));
+                                    return prev.filter((id) => id !== i);
+                                  });
+                                }}
+                              />
+                            </td>
                             {columns.slice(1).map((key) => {
                               // Special readable render for Experience and Education
                               if (key === 'Experience') {
@@ -352,6 +540,72 @@ const LinkedInPParser = () => {
               </div>
             </div>
           )}
+        {/* Confirmation Modal */}
+        {confirmOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-4">
+              <h4 className="text-base font-semibold text-gray-900 mb-2">Confirm Upload</h4>
+              <p className="text-sm text-gray-700 mb-4">
+                You are about to upload <span className="font-semibold">{selectedIds.length}</span> profile(s)
+                to company:
+                <br />
+                <span className="font-medium">
+                  {companies.find((c) => c._id === selectedCompany)?.companyName ||
+                    companies.find((c) => c._id === selectedCompany)?.name ||
+                    "Selected Company"}
+                </span>
+              </p>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setConfirmOpen(false)}
+                  className="px-3 py-1.5 rounded border border-gray-300 text-sm text-gray-800 bg-gray-100 hover:bg-gray-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      setUploading(true);
+                      const toUpload = selectedIds.map((idx) => profiles[idx]);
+                      const payload = {
+                        companyId: selectedCompany,
+                        source: 'linkedin',
+                        profiles: toUpload,
+                      };
+                      console.log('[LinkedIn] Upload payload', payload);
+                      const res = await axios.post(`${BASE_URL}/api/recruitment/save/parsed-profiles`, payload);
+                      console.log('[LinkedIn] Upload response', res?.data);
+                      if (res?.data?.success) {
+                        showToast(`Profiles uploaded successfully (saved: ${res.data.count})`);
+                        setLastUpload({ count: res.data.count, source: 'linkedin', companyId: selectedCompany, ts: Date.now() });
+                        setConfirmOpen(false);
+                        setSelectedIds([]);
+                      } else {
+                        const msg = res?.data?.message || 'Failed to upload profiles';
+                        showToast(msg, 'error');
+                      }
+                    } catch (e) {
+                      console.error('[LinkedIn] Upload error', e);
+                      const msg = e?.response?.data?.message || e?.message || 'Failed to upload profiles';
+                      showToast(msg, 'error');
+                    } finally {
+                      setUploading(false);
+                    }
+                  }}
+                  disabled={uploading}
+                  className={`px-3 py-1.5 rounded border border-gray-300 text-sm text-white ${uploading ? 'bg-emerald-600/60 cursor-wait' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+                >
+                  {uploading ? 'Uploading…' : 'Confirm'}
+                </button>
+              </div>
+              {lastUpload && (
+                <div className="mt-2 text-xs px-3 py-2 rounded border border-emerald-200 bg-emerald-50 text-emerald-800">
+                  Uploaded {lastUpload.count} profile(s) successfully.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
         </main>
       </div>
     </AuthProvider>

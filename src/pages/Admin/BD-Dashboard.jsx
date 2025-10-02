@@ -53,6 +53,12 @@ const BDDashboard = () => {
       route: '/admin/lgAccessControl',
       color: 'bg-pink-100',
     },
+    {
+      title: 'Corporate Account Approval',
+      icon: <BsPersonCheck size={30} />,
+      route: '/admin/corporate-account-approval',
+      color: 'bg-pink-100',
+    },
     
   ];
 

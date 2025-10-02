@@ -8,15 +8,15 @@ import { motion } from "framer-motion";
 // --- Configuration for Dashboard Items ---
 const DASHBOARD_TOOLS = [
   { 
-    title: "Naukri Parser", 
-    description: "Automate extraction from Naukri",
+    title: "Table 14", 
+    description: "Automate extraction",
     path: "/naukri-parser", 
     icon: <FaFileCsv size={30} className="text-indigo-700" />,
     color: "bg-indigo-100",
   },
   { 
-    title: "LinkedIn Parser ", 
-    description: "Parse LinkedIn list results",
+    title: "Table 12", 
+    description: "Automate extraction",
     path: "/linkedin-parser", 
     icon: <FaFileCsv size={30} className="text-emerald-700" />,
     color: "bg-emerald-100",

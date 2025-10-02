@@ -26,6 +26,7 @@ import AdminDashboard from "./pages/Admin/AdminDashboard.jsx"; //Admin Side - Ne
 import ToolsDashboard from "./pages/Admin/Tools/ToolsDashboard.jsx"; //Tools Dashboard
 import NaukriParser from "./components/NaukriParser.jsx"; //Naukri Parser Component
 import LinkedInPParser from "./components/LinkedInPParser.jsx"; //LinkedIn Parser Component
+import CorporateAccountApproval from "./pages/Admin/CorporateAccountApproval.jsx"; //Admin Side
 
 import CreCrmDashboard from "./pages/CRE-CRM/CRE-CRMDashboard.jsx"; //CRE Side
 import LeadAssignment from "./pages/CRE-CRM/GetAssignedLeads.jsx"; //CRE Side
@@ -302,7 +303,15 @@ function App() {
             </ProtectedRoute>
           }
         />
-        
+        CorporateAccountApproval
+        <Route
+          path="/admin/corporate-account-approval"
+          element={
+            <ProtectedRoute role="admin">
+              <CorporateAccountApproval />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </AnimatePresence>
   );
