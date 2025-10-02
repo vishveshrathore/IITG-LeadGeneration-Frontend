@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaUserShield } from "react-icons/fa";
+import { FaUserShield } from "react-icons/fa";   
 
 const OrgChartNode = ({ node }) => {
   // Hide Admin node in the hierarchy tree
