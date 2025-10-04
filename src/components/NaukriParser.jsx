@@ -107,7 +107,7 @@ const NaukriParser = () => {
   // When landed from Corporate, map company name in URL to actual company _id
   useEffect(() => {
     if (!fromCorporate || !companyFromUrl || !companies.length) return;
-    const byName = companies.find(c => (c.companyName || c.name || '').toLowerCase() === companyFromUrl.toLowerCase());
+    const byName = companies.find(c => (c.CompanyName || c.companyName || c.name || '').toLowerCase() === companyFromUrl.toLowerCase());
     if (byName?._id) {
       setSelectedCompany(byName._id);
     }
@@ -288,7 +288,9 @@ const NaukriParser = () => {
                   >
                     {fromCorporate && selectedCompany ? (
                       <option value={selectedCompany}>
-                        {companies.find((c) => c._id === selectedCompany)?.companyName || companyFromUrl || 'Selected Company'}
+                        {companies.find((c) => c._id === selectedCompany)?.CompanyName ||
+                          companies.find((c) => c._id === selectedCompany)?.companyName ||
+                          companyFromUrl || 'Selected Company'}
                       </option>
                     ) : (
                       <>
@@ -297,7 +299,7 @@ const NaukriParser = () => {
                         </option>
                         {companies.map((c) => (
                           <option key={c._id} value={c._id}>
-                            {c.companyName || c.name || "Unnamed Company"}
+                            {c.CompanyName || c.companyName || c.name || "Unnamed Company"}
                           </option>
                         ))}
                       </>
@@ -520,7 +522,8 @@ const NaukriParser = () => {
                   to company:
                   <br />
                   <span className="font-medium">
-                    {companies.find((c) => c._id === selectedCompany)?.companyName ||
+                    {companies.find((c) => c._id === selectedCompany)?.CompanyName ||
+                      companies.find((c) => c._id === selectedCompany)?.companyName ||
                       companies.find((c) => c._id === selectedCompany)?.name ||
                       "Selected Company"}
                   </span>

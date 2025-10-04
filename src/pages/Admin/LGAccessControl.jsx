@@ -59,6 +59,17 @@ export default function LGAccessControl() {
     fetchAll();
   }, []);
 
+  const updateRole = async (id, role) => {
+    try {
+      await axios.put(`${BASE_URL}/api/role/${id}`, { role });
+      toast.success('Role updated');
+      fetchAll();
+    } catch (e) {
+      const msg = e?.response?.data?.message || e?.message || 'Failed to update role';
+      toast.error(msg);
+    }
+  };
+
   const onToggle = async (item) => {
     const id = item?._id || item?.id;
     if (!id) return;
@@ -114,7 +125,7 @@ export default function LGAccessControl() {
       <div style={{ padding: 16, marginTop: 64 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
           <div>
-            <h2 style={{ margin: 10 }}>LG Access Control</h2>
+            <h2 style={{ margin: 10 }}>Access Control</h2>
             <p style={{ marginTop: 4, color: "#666" }}>Manage access for Local Guides. Use the toggle to enable/disable accounts.</p>
           </div>
           <button onClick={fetchAll} disabled={loading} style={{ padding: "8px 12px", display: "flex", alignItems: "center", gap: 8 }}>
@@ -133,6 +144,16 @@ export default function LGAccessControl() {
               <tr style={{ textAlign: "left", borderBottom: "1px solid #eee" }}>
                 <th style={{ padding: "10px 8px", fontWeight: 600, fontSize: 13, color: "#444" }}>Name</th>
                 <th style={{ padding: "10px 8px", fontWeight: 600, fontSize: 13, color: "#444" }}>Email</th>
+                <th style={{ padding: "10px 8px", fontWeight: 600, fontSize: 13, color: "#444" }}>Employee ID</th>
+                <th style={{ padding: "10px 8px", fontWeight: 600, fontSize: 13, color: "#444" }}>Mobile</th>
+                <th style={{ padding: "10px 8px", fontWeight: 600, fontSize: 13, color: "#444" }}>Alt Mobile</th>
+                <th style={{ padding: "10px 8px", fontWeight: 600, fontSize: 13, color: "#444" }}>Role</th>
+                <th style={{ padding: "10px 8px", fontWeight: 600, fontSize: 13, color: "#444" }}>Lead Quota</th>
+                <th style={{ padding: "10px 8px", fontWeight: 600, fontSize: 13, color: "#444" }}>Current Address</th>
+                <th style={{ padding: "10px 8px", fontWeight: 600, fontSize: 13, color: "#444" }}>Permanent Address</th>
+                <th style={{ padding: "10px 8px", fontWeight: 600, fontSize: 13, color: "#444" }}>Photo</th>
+                <th style={{ padding: "10px 8px", fontWeight: 600, fontSize: 13, color: "#444" }}>Nominee 1</th>
+                <th style={{ padding: "10px 8px", fontWeight: 600, fontSize: 13, color: "#444" }}>Nominee 2</th>
                 <th style={{ padding: "10px 8px", fontWeight: 600, fontSize: 13, color: "#444" }}>Status</th>
                 <th style={{ padding: "10px 8px", fontWeight: 600, fontSize: 13, color: "#444" }}>Actions</th>
               </tr>
@@ -140,11 +161,11 @@ export default function LGAccessControl() {
             <tbody>
               {loading && items.length === 0 ? (
                 <tr>
-                  <td colSpan={4} style={{ padding: 16, color: "#666" }}>Loading LG accounts...</td>
+                  <td colSpan={14} style={{ padding: 16, color: "#666" }}>Loading accounts...</td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={4} style={{ padding: 16, color: "#666" }}>No LG accounts found.</td>
+                  <td colSpan={14} style={{ padding: 16, color: "#666" }}>No accounts found.</td>
                 </tr>
               ) : (
                 items.map((r) => {
@@ -155,6 +176,55 @@ export default function LGAccessControl() {
                     <motion.tr key={id} style={{ borderBottom: "1px solid #f3f3f3" }} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
                       <td style={{ padding: "10px 8px", fontSize: 14 }}>{r?.name || r?.fullName || "-"}</td>
                       <td style={{ padding: "10px 8px", fontSize: 14 }}>{r?.email || "-"}</td>
+                      <td style={{ padding: "10px 8px", fontSize: 14 }}>{r?.employeeId || ""}</td>
+                      <td style={{ padding: "10px 8px", fontSize: 14 }}>{r?.mobile || ""}</td>
+                      <td style={{ padding: "10px 8px", fontSize: 14 }}>{r?.altMobile || ""}</td>
+                      <td style={{ padding: "10px 8px", fontSize: 14 }}>
+                        <select
+                          value={r?.role || ''}
+                          onChange={(e) => updateRole(id, e.target.value)}
+                          style={{ padding: '4px 6px', borderRadius: 6, border: '1px solid #ccc' }}
+                        >
+                          <option value="">Select role...</option>
+                          {['LG','AdminTeam','CRE-CRM','CRM-TeamLead','RegionalHead','NationalHead'].map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td style={{ padding: "10px 8px", fontSize: 14 }}>{r?.leadQuota ?? 0}</td>
+                      <td style={{ padding: "10px 8px", fontSize: 14, maxWidth: 220, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r?.currentAddress || r?.address || ""}</td>
+                      <td style={{ padding: "10px 8px", fontSize: 14, maxWidth: 220, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r?.permanentAddress || ""}</td>
+                      <td style={{ padding: "10px 8px", fontSize: 14 }}>
+                        {r?.profilePic ? (
+                          <img src={r.profilePic} alt="profile" style={{ width: 36, height: 36, borderRadius: 6, objectFit: 'cover', border: '1px solid #eee' }} />
+                        ) : (
+                          <span style={{ color: '#999' }}>—</span>
+                        )}
+                      </td>
+                      <td style={{ padding: "10px 8px", fontSize: 12, lineHeight: 1.3 }}>
+                        {r?.nominee1 ? (
+                          <div>
+                            <div><strong>{r.nominee1.name || ''}</strong></div>
+                            <div>{r.nominee1.email || ''}</div>
+                            <div>{r.nominee1.mobile || ''}</div>
+                            <div>{r.nominee1.relation || ''}</div>
+                          </div>
+                        ) : (
+                          <span style={{ color: '#999' }}>—</span>
+                        )}
+                      </td>
+                      <td style={{ padding: "10px 8px", fontSize: 12, lineHeight: 1.3 }}>
+                        {r?.nominee2 ? (
+                          <div>
+                            <div><strong>{r.nominee2.name || ''}</strong></div>
+                            <div>{r.nominee2.email || ''}</div>
+                            <div>{r.nominee2.mobile || ''}</div>
+                            <div>{r.nominee2.relation || ''}</div>
+                          </div>
+                        ) : (
+                          <span style={{ color: '#999' }}>—</span>
+                        )}
+                      </td>
                       <td style={{ padding: "10px 8px", fontSize: 14 }}>
                         <span
                           style={{
@@ -187,11 +257,13 @@ export default function LGAccessControl() {
                             display: "inline-flex",
                             alignItems: "center",
                             gap: 8,
+                            marginRight: 6,
                           }}
                         >
                           <FiCheckSquare />
                           {busy ? "Updating..." : enabled ? "Disable" : "Enable"}
                         </button>
+                        {/* Role editing is now inline via the Role select */}
                       </td>
                     </motion.tr>
                   );
@@ -204,4 +276,3 @@ export default function LGAccessControl() {
     </div>
   );
 }
-

@@ -28,7 +28,7 @@ export default function CorporateAccountApproval() {
           uniqueNames.map(async (name) => {
             try {
               const resp = await axios.get(`${API_BASE}/parsed-profiles/count`, {
-                params: { companyName: name },
+                params: { companyName: name, t: Date.now() },
               });
               return { name, count: resp?.data?.count || 0 };
             } catch {
@@ -149,15 +149,17 @@ export default function CorporateAccountApproval() {
               <tbody>
                 {accounts.map((acc) => (
                   <tr key={acc._id} className="border-b hover:bg-gray-50">
+                    {/* Company */}
                     <td className="px-4 py-3 font-medium">{acc.companyName || "-"}</td>
-                    <td className="px-4 py-3">{acc.industryType || '-'}</td>
-                    <td className="px-4 py-3">{acc.location || '-'}</td>
-                    <td className="px-4 py-3">{acc.productLine || '-'}</td>
-                    <td className="px-4 py-3">{acc.employeeStrength ?? '-'}</td>
-                    <td className="px-4 py-3">{acc.hrName || "-"}</td>
+                    {/* HR Name */}
+                    <td className="px-4 py-3">{acc.hrName || '-'}</td>
+                    {/* Designation */}
                     <td className="px-4 py-3">{acc.designation || '-'}</td>
+                    {/* Email */}
                     <td className="px-4 py-3">{acc.email || "-"}</td>
+                    {/* Mobile */}
                     <td className="px-4 py-3">{acc.mobile || "-"}</td>
+                    {/* Email Verified */}
                     <td className="px-4 py-3">
                       <span
                         className={`px-2 py-1 rounded-lg font-medium ${acc.emailVerified ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}
@@ -165,6 +167,7 @@ export default function CorporateAccountApproval() {
                         {acc.emailVerified ? "Verified" : "Pending"}
                       </span>
                     </td>
+                    {/* Approved */}
                     <td className="px-4 py-3">
                       <span
                         className={`px-2 py-1 rounded-lg font-medium ${acc.isApproved ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
@@ -172,6 +175,7 @@ export default function CorporateAccountApproval() {
                         {acc.isApproved ? "Approved" : "Not Approved"}
                       </span>
                     </td>
+                    {/* Data Count */}
                     <td className="px-4 py-3">{counts[acc.companyName] ?? '—'}</td>
                     <td className="px-4 py-3 text-center space-x-2">
                       <button
@@ -249,7 +253,7 @@ export default function CorporateAccountApproval() {
                             );
                             // refresh count for this company
                             try {
-                              const resp = await axios.get(`${API_BASE}/parsed-profiles/count`, { params: { companyName: acc.companyName } });
+                              const resp = await axios.get(`${API_BASE}/parsed-profiles/count`, { params: { companyName: acc.companyName, t: Date.now() } });
                               setCounts((prev) => ({ ...prev, [acc.companyName]: resp?.data?.count || 0 }));
                             } catch {}
                           } catch (e) {

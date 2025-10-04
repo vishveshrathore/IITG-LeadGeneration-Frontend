@@ -27,6 +27,8 @@ import ToolsDashboard from "./pages/Admin/Tools/ToolsDashboard.jsx"; //Tools Das
 import NaukriParser from "./components/NaukriParser.jsx"; //Naukri Parser Component
 import LinkedInPParser from "./components/LinkedInPParser.jsx"; //LinkedIn Parser Component
 import CorporateAccountApproval from "./pages/Admin/CorporateAccountApproval.jsx"; //Admin Side
+import RecruitersIndustries from "./pages/Admin/RecruitersIndustries.jsx"; // Admin - BDE & Recruitment Industries
+import RecruitersCompanies from "./pages/Admin/RecruitersCompanies.jsx"; // Admin - BDE & Recruitment Companies
 
 import CreCrmDashboard from "./pages/CRE-CRM/CRE-CRMDashboard.jsx"; //CRE Side
 import LeadAssignment from "./pages/CRE-CRM/GetAssignedLeads.jsx"; //CRE Side
@@ -73,6 +75,22 @@ function App() {
           element={
             <ProtectedRoute role="admin">
               <IndustryScreen />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/recruiters/industries"
+          element={
+            <ProtectedRoute role="admin">
+              <RecruitersIndustries />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/recruiters/companies"
+          element={
+            <ProtectedRoute role="admin">
+              <RecruitersCompanies />
             </ProtectedRoute>
           }
         />
@@ -303,7 +321,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-        CorporateAccountApproval
         <Route
           path="/admin/corporate-account-approval"
           element={

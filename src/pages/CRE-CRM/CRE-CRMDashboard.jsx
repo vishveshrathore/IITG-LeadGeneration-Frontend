@@ -318,7 +318,7 @@ const CreCrmDashboard = () => {
         </motion.div>
 
         {/* Metrics Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mt-8">
           {[{
             title: 'My Leads', value: metrics.myLeads, color: 'from-blue-500 to-indigo-600', icon: <FiUsers className="text-white" />
           },{
@@ -364,7 +364,7 @@ const CreCrmDashboard = () => {
       </div>
 
       {/* Compact Action Grids */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-8 mb-14">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mt-8 mb-14">
         {actionGrids.map((item, i) => (
           <motion.div
             key={i}

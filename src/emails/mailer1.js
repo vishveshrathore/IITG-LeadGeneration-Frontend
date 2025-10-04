@@ -29,7 +29,7 @@ export const mailer1Template = ({ recipientName, crmName }) => `
                 </p>
 
                 <p style="margin:0 0 25px; font-size:15px; line-height:1.6; color:#000000;">
-                  We specialize in delivering <strong>innovative, tech-driven solutions</strong> that minimize organizational leakage 
+                  We are specialize in delivering <strong>innovative, tech-driven solutions</strong> that minimize organizational leakage 
                   and bridge critical talent gaps, ensuring stronger workforce stability.
                 </p>
 
@@ -82,7 +82,7 @@ export const mailer1Template = ({ recipientName, crmName }) => `
             <!-- Footer -->
             <tr>
               <td align="center" style="background:#f4f6f8; padding:15px; font-size:12px; color:#000000;">
-                © ${new Date().getFullYear()} IITGJobs.com. All Rights Reserved.
+                © ${new Date().getFullYear()} IITGJobs.com Pvt.Ltd. All Rights Reserved.
               </td>
             </tr>
 

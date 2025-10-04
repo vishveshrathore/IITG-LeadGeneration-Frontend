@@ -128,6 +128,8 @@ export default function AccountsApproval() {
             className="border px-3 py-2 rounded-lg"
           >
             <option value="All">All Roles</option>
+            <option value="LG">LG</option>
+            <option value="AdminTeam">AdminTeam</option>
             <option value="CRE-CRM">CRE-CRM</option>
             <option value="CRM-TeamLead">CRM-TeamLead</option>
             <option value="RegionalHead">RegionalHead</option>

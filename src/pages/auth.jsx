@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { motion } from 'framer-motion';
 import { HiOutlineEye, HiOutlineEyeOff } from 'react-icons/hi';
-import { MdAdminPanelSettings, MdPersonAddAlt1 } from 'react-icons/md';
 import { ImSpinner2 } from 'react-icons/im';
 import toast, { Toaster } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext'; 
@@ -11,15 +10,28 @@ import { BASE_URL } from "../config";
 
 const AuthScreen = () => {
   const [isLogin, setIsLogin] = useState(true);
-  const [selectedRole, setSelectedRole] = useState('LG');
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [form, setForm] = useState({
     name: '',
     email: '',
+    employeeId: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    mobile: '',
+    altMobile: '',
+    photo: null,
+    currentAddress: '',
+    permanentAddress: '',
+    nominee1Name: '',
+    nominee1Email: '',
+    nominee1Mobile: '',
+    nominee1Relation: '',
+    nominee2Name: '',
+    nominee2Email: '',
+    nominee2Mobile: '',
+    nominee2Relation: ''
   });
 
   const navigate = useNavigate();
@@ -36,6 +48,36 @@ const AuthScreen = () => {
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  // Register segmented form state
+  const [registerSegment, setRegisterSegment] = useState('basic'); // basic | contact | nominee1 | nominee2
+  const segmentOrder = ['basic', 'contact', 'nominee1', 'nominee2'];
+  const nextSegment = () => {
+    const idx = segmentOrder.indexOf(registerSegment);
+    if (idx < segmentOrder.length - 1) setRegisterSegment(segmentOrder[idx + 1]);
+  };
+  const prevSegment = () => {
+    const idx = segmentOrder.indexOf(registerSegment);
+    if (idx > 0) setRegisterSegment(segmentOrder[idx - 1]);
+  };
+  const canProceed = () => {
+    if (registerSegment === 'basic') {
+      if (!form.name || !form.email || !form.password || !form.confirmPassword) {
+        toast.error('Please complete Basic details');
+        return false;
+      }
+      if (form.password !== form.confirmPassword) {
+        toast.error('Passwords do not match.');
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+    setForm({ ...form, [e.target.name]: file });
   };
 
   const handleSubmit = async (e) => {
@@ -83,12 +125,29 @@ const AuthScreen = () => {
         }, 500);
 
       } else {
-        const res = await axios.post(`${BASE_URL}/api/signup`, {
-          name: form.name,
-          email: form.email,
-          password: form.password,
-          role: selectedRole
-        });
+        const fd = new FormData();
+        fd.append('name', form.name);
+        fd.append('email', form.email);
+        fd.append('password', form.password);
+        if (form.employeeId) fd.append('employeeId', form.employeeId);
+        if (form.mobile) fd.append('mobile', form.mobile);
+        if (form.altMobile) fd.append('altMobile', form.altMobile);
+        if (form.currentAddress) fd.append('address', form.currentAddress);
+        if (form.currentAddress) fd.append('currentAddress', form.currentAddress);
+        if (form.permanentAddress) fd.append('permanentAddress', form.permanentAddress);
+        // Nominee 1
+        if (form.nominee1Name) fd.append('nominee1Name', form.nominee1Name);
+        if (form.nominee1Email) fd.append('nominee1Email', form.nominee1Email);
+        if (form.nominee1Mobile) fd.append('nominee1Mobile', form.nominee1Mobile);
+        if (form.nominee1Relation) fd.append('nominee1Relation', form.nominee1Relation);
+        // Nominee 2
+        if (form.nominee2Name) fd.append('nominee2Name', form.nominee2Name);
+        if (form.nominee2Email) fd.append('nominee2Email', form.nominee2Email);
+        if (form.nominee2Mobile) fd.append('nominee2Mobile', form.nominee2Mobile);
+        if (form.nominee2Relation) fd.append('nominee2Relation', form.nominee2Relation);
+        if (form.photo) fd.append('photo', form.photo);
+
+        const res = await axios.post(`${BASE_URL}/api/signup`, fd);
 
         toast.success(res.data.message);
         navigate('/otp', { state: { email: form.email } });
@@ -101,25 +160,79 @@ const AuthScreen = () => {
     }
   };
 
-  const renderInput = (label, name, type = 'text', showToggle = false) => (
-    <div className="relative">
-      <label className="block text-gray-700 mb-1 text-sm font-medium">{label}</label>
-      <input
-        type={showToggle ? (showPassword ? 'text' : 'password') : type}
+  const renderInput = (label, name, type = 'text', showToggle = false, compact = false) => {
+    const mobileField = ['mobile', 'altMobile', 'nominee1Mobile', 'nominee2Mobile'].includes(name);
+    const placeholders = {
+      name: '',
+      email: '',
+      employeeId: '',
+      password: '',
+      confirmPassword: '',
+      mobile: '',
+      altMobile: '',
+      nominee1Name: '',
+      nominee1Email: '',
+      nominee1Mobile: '',
+      nominee1Relation: '',
+      nominee2Name: '',
+      nominee2Email: '',
+      nominee2Mobile: '',
+      nominee2Relation: '',
+    };
+    return (
+      <div className="relative">
+        <label className={`block text-gray-700 mb-1 ${compact ? 'text-xs' : 'text-sm'} font-medium`}>{label}</label>
+        <input
+          type={showToggle ? (showPassword ? 'text' : 'password') : type}
+          name={name}
+          autoComplete="off"
+          value={form[name]}
+          onChange={handleChange}
+          placeholder={placeholders[name] || ''}
+          inputMode={mobileField ? 'numeric' : undefined}
+          pattern={mobileField ? '[0-9]*' : undefined}
+          maxLength={mobileField ? 10 : undefined}
+          className={`mt-1 w-full ${compact ? 'px-3 py-2 text-sm rounded-lg' : 'px-4 py-2 rounded-xl'} border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition`}
+        />
+        {showToggle && (
+          <span
+            className={`absolute ${compact ? 'right-3 top-8' : 'right-4 top-9'} cursor-pointer text-gray-500`}
+            title={showPassword ? 'Hide password' : 'Show password'}
+            onClick={() => setShowPassword(!showPassword)}
+          >
+            {showPassword ? <HiOutlineEyeOff size={20} /> : <HiOutlineEye size={20} />}
+          </span>
+        )}
+      </div>
+    );
+  };
+
+  const renderTextarea = (label, name, rows = 3, compact = false) => (
+    <div>
+      <label className={`block text-gray-700 mb-1 ${compact ? 'text-xs' : 'text-sm'} font-medium`}>{label}</label>
+      <textarea
         name={name}
-        autoComplete="off"
+        rows={rows}
         value={form[name]}
         onChange={handleChange}
-        className="mt-1 w-full px-4 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+        placeholder={name.includes('Address') ? 'House No, Street, City, State, PIN' : ''}
+        className={`mt-1 w-full ${compact ? 'px-3 py-2 text-sm rounded-lg' : 'px-4 py-2 rounded-xl'} border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition`}
       />
-      {showToggle && (
-        <span
-          className="absolute right-4 top-9 cursor-pointer text-gray-500"
-          title={showPassword ? 'Hide password' : 'Show password'}
-          onClick={() => setShowPassword(!showPassword)}
-        >
-          {showPassword ? <HiOutlineEyeOff size={20} /> : <HiOutlineEye size={20} />}
-        </span>
+    </div>
+  );
+
+  const renderFile = (label, name, accept = 'image/*', compact = false) => (
+    <div>
+      <label className={`block text-gray-700 mb-1 ${compact ? 'text-xs' : 'text-sm'} font-medium`}>{label}</label>
+      <input
+        type="file"
+        name={name}
+        accept={accept}
+        onChange={handleFileChange}
+        className={`mt-1 w-full ${compact ? 'px-3 py-2 text-sm rounded-lg' : 'px-4 py-2 rounded-xl'} border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition`}
+      />
+      {form[name] && typeof form[name] !== 'string' && (
+        <p className="text-xs text-gray-500 mt-1">Selected: {form[name]?.name} (max ~2MB)</p>
       )}
     </div>
   );
@@ -176,7 +289,7 @@ const AuthScreen = () => {
           transition={{ duration: 0.6 }}
           className="text-5xl font-bold text-center leading-tight"
         >
-          IITGJobs.com
+          IITGJobs.com Pvt. Ltd.
         </motion.h1>
         <motion.p
           initial={{ opacity: 0, y: 20 }}
@@ -189,77 +302,87 @@ const AuthScreen = () => {
       </div>
 
       {/* Form */}
-      <div className="flex-1 flex items-center justify-center bg-white px-8 relative overflow-hidden">
+      <div className="flex-1 flex items-center justify-center bg-white px-8 relative overflow-auto">
         <motion.form
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5 }}
           onSubmit={handleSubmit}
-          className="w-full max-w-md space-y-5 bg-white p-10 rounded-2xl shadow-xl border border-gray-100"
+          className={`w-full max-w-md ${!isLogin ? 'space-y-3 p-6' : 'space-y-4 p-10'} bg-white rounded-2xl shadow-xl border border-gray-100`}
         >
-          <h2 className="text-3xl font-bold text-gray-800">
-            {isLogin ? 'Welcome Back' : 'Join IITGJobs.com'}
+          <h2 className={`font-bold text-gray-800 ${!isLogin ? 'text-2xl' : 'text-3xl'}`}>
+            {isLogin ? 'Welcome Back' : 'Register'}
           </h2>
-          <p className="text-sm text-gray-600">
+          <p className={`${!isLogin ? 'text-xs' : 'text-sm'} text-gray-600`}>
             {isLogin
               ? 'Please log in to access your dashboard.'
               : 'Create your account to get started.'}
           </p>
 
-          {!isLogin && renderInput('Full Name', 'name')}
-          {renderInput('Email Address', 'email', 'email')}
-          {renderInput('Password', 'password', 'password', true)}
-          {!isLogin && renderInput('Confirm Password', 'confirmPassword', 'password', true)}
+          {isLogin && (
+            <>
+              {renderInput('Email Address', 'email', 'email')}
+              {renderInput('Password', 'password', 'password', true)}
+            </>
+          )}
 
+          
+
+          {/* Segmented Register Form (only for Register) */}
           {!isLogin && (
-            <div className="flex gap-3 items-start justify-between">
-              <label className="block text-gray-700 text-sm font-medium">Select Role</label>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 w-full">
-                {/* <button
-                  type="button"
-                  onClick={() => setSelectedRole('Admin')}
-                  className={`flex items-center gap-1 px-2 py-1 text-xs rounded-full border transition ${
-                    selectedRole === 'Admin'
-                      ? 'bg-blue-600 text-white'
-                      : 'border-gray-300 text-gray-600'
-                  }`}
-                >
-                  <MdAdminPanelSettings size={14} /> Admin
-                </button> */}
-                <button
-                  type="button"
-                  onClick={() => setSelectedRole('LG')}
-                  className={`flex items-center gap-1 px-2 py-1 text-xs rounded-full border transition ${
-                    selectedRole === 'LG'
-                      ? 'bg-blue-600 text-white'
-                      : 'border-gray-300 text-gray-600'
-                  }`}
-                >
-                  <MdPersonAddAlt1 size={14} /> LG
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedRole('CRE-CRM')}
-                  className={`flex items-center gap-1 px-2 py-1 text-xs rounded-full border transition ${
-                    selectedRole === 'CRE-CRM'
-                      ? 'bg-blue-600 text-white'
-                      : 'border-gray-300 text-gray-600'
-                  }`}
-                >
-                  <MdPersonAddAlt1 size={14} /> CRE-CRM
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedRole('AdminTeam')}
-                  className={`flex items-center gap-1 py-1 text-xs rounded-full border transition ${
-                    selectedRole === 'AdminTeam'
-                      ? 'bg-blue-600 text-white'
-                      : 'border-gray-300 text-gray-600'
-                  }`}
-                >
-                  <MdPersonAddAlt1 size={14} /> AdminTeam
-                </button>
+            <div className="space-y-3 text-sm">
+              <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1">
+                <button type="button" onClick={() => setRegisterSegment('basic')} className={`px-3 py-1.5 rounded-full text-xs font-medium border ${registerSegment==='basic' ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 text-gray-700'}`}>Basic</button>
+                <button type="button" onClick={() => setRegisterSegment('contact')} className={`px-3 py-1.5 rounded-full text-xs font-medium border ${registerSegment==='contact' ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 text-gray-700'}`}>Contact & Address</button>
+                <button type="button" onClick={() => setRegisterSegment('nominee1')} className={`px-3 py-1.5 rounded-full text-xs font-medium border ${registerSegment==='nominee1' ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 text-gray-700'}`}>Nominee 1</button>
+                <button type="button" onClick={() => setRegisterSegment('nominee2')} className={`px-3 py-1.5 rounded-full text-xs font-medium border ${registerSegment==='nominee2' ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 text-gray-700'}`}>Nominee 2</button>
               </div>
+              <div className="text-xs text-gray-600">Step {segmentOrder.indexOf(registerSegment)+1} of {segmentOrder.length}</div>
+              <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-blue-600 rounded-full transition-all duration-500"
+                  style={{ width: `${((segmentOrder.indexOf(registerSegment)+1)/segmentOrder.length)*100}%` }}
+                />
+              </div>
+              <motion.div key={registerSegment} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+                {registerSegment === 'basic' && (
+                  <div className="grid grid-cols-1 gap-3 border rounded-xl p-3">
+                    {renderInput('Full Name', 'name', 'text', false, true)}
+                    {renderInput('Employee ID', 'employeeId', 'text', false, true)}
+                    {renderInput('Email Address', 'email', 'email', false, true)}
+                    {renderInput('Password', 'password', 'password', true, true)}
+                    {renderInput('Confirm Password', 'confirmPassword', 'password', true, true)}
+                  </div>
+                )}
+
+                {registerSegment === 'contact' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border rounded-xl p-3">
+                    {renderInput('Mobile', 'mobile', 'tel', false, true)}
+                    {renderInput('Alternate Mobile', 'altMobile', 'tel', false, true)}
+                    <div className="md:col-span-2">{renderFile('Photo', 'photo', 'image/*', true)}</div>
+                    <div className="md:col-span-2">{renderTextarea('Current Address', 'currentAddress', 3, true)}</div>
+                    <div className="md:col-span-2">{renderTextarea('Permanent Address', 'permanentAddress', 3, true)}</div>
+                  </div>
+                )}
+
+                {registerSegment === 'nominee1' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border rounded-xl p-3">
+                    {renderInput('Nominee 1 Name', 'nominee1Name', 'text', false, true)}
+                    {renderInput('Nominee 1 Email', 'nominee1Email', 'email', false, true)}
+                    {renderInput('Nominee 1 Mobile', 'nominee1Mobile', 'tel', false, true)}
+                    {renderInput('Nominee 1 Relation', 'nominee1Relation', 'text', false, true)}
+                  </div>
+                )}
+
+                {registerSegment === 'nominee2' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border rounded-xl p-3">
+                    {renderInput('Nominee 2 Name', 'nominee2Name', 'text', false, true)}
+                    {renderInput('Nominee 2 Email', 'nominee2Email', 'email', false, true)}
+                    {renderInput('Nominee 2 Mobile', 'nominee2Mobile', 'tel', false, true)}
+                    {renderInput('Nominee 2 Relation', 'nominee2Relation', 'text', false, true)}
+                  </div>
+                )}
+              </motion.div>
             </div>
           )}
 
@@ -293,13 +416,46 @@ const AuthScreen = () => {
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-lg font-semibold transition duration-300 shadow-md flex items-center justify-center gap-2"
-          >
-            {isLoading ? <ImSpinner2 className="animate-spin" /> : isLogin ? 'Login' : 'Sign Up'}
-          </button>
+          {isLogin ? (
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-lg font-semibold transition duration-300 shadow-md flex items-center justify-center gap-2"
+            >
+              {isLoading ? <ImSpinner2 className="animate-spin" /> : 'Login'}
+            </button>
+          ) : (
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={prevSegment}
+                disabled={segmentOrder.indexOf(registerSegment) === 0 || isLoading}
+                className={`w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-semibold border transition ${segmentOrder.indexOf(registerSegment) === 0 ? 'opacity-50 cursor-not-allowed' : 'border-gray-300 text-gray-700 hover:bg-gray-50 hover:shadow-sm'}`}
+              >
+                Prev
+              </button>
+              {segmentOrder.indexOf(registerSegment) < segmentOrder.length - 1 ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (canProceed()) nextSegment();
+                  }}
+                  disabled={isLoading}
+                  className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg text-sm font-semibold transition shadow-md hover:shadow-lg"
+                >
+                  Next
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-lg text-sm font-semibold transition shadow-md hover:shadow-lg"
+                >
+                  {isLoading ? <ImSpinner2 className="animate-spin" /> : 'Sign Up'}
+                </button>
+              )}
+            </div>
+          )}
 
           <div className="text-center text-gray-600 text-sm">
             {isLogin ? "Don't have an account?" : "Already have an account?"}{' '}

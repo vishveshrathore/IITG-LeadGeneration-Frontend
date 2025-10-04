@@ -36,19 +36,19 @@ const BDDashboard = () => {
       color: 'bg-purple-100',
     },
     {
-      title: 'Manage Industries',
+      title: 'Manage Industries for LG',
       icon: <BsBuildings size={30} />,
       route: '/admin/industries',
       color: 'bg-blue-100',
     },
     {
-      title: 'Manage Companies',
+      title: 'Manage Companies for LG',
       icon: <MdBusinessCenter size={30} />,
       route: '/admin/companies',
       color: 'bg-green-100',
     },
     {
-      title: 'Manage Lead Generators',
+      title: 'Manage Access and Roles & all',
       icon: <BsPersonCheck size={30} />,
       route: '/admin/lgAccessControl',
       color: 'bg-pink-100',
@@ -57,6 +57,18 @@ const BDDashboard = () => {
       title: 'Corporate Account Approval',
       icon: <BsPersonCheck size={30} />,
       route: '/admin/corporate-account-approval',
+      color: 'bg-pink-100',
+    },
+    {
+      title: 'Manage Companies for BDE & Recuitment',
+      icon: <BsPersonCheck size={30} />,
+      route: '/admin/recruiters/companies',
+      color: 'bg-pink-100',
+    },
+    {
+      title: 'Manage Industries for BDE & Recuitment',
+      icon: <BsPersonCheck size={30} />,
+      route: '/admin/recruiters/industries',
       color: 'bg-pink-100',
     },
     
