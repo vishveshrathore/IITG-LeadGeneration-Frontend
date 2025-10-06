@@ -131,7 +131,16 @@ const LeadAssignmentDashboard = () => {
       }
     } catch (err) {
       console.error("Fetch reporting managers failed:", err);
-      toast.error(err.response?.data?.message || "Failed to fetch reporting managers.");
+      const status = err?.response?.status;
+      const msg = err?.response?.data?.message || '';
+      // If backend indicates none (e.g., 404 or explicit 'no reporting manager' message), don't show an error toast
+      const isNoManagers =
+        status === 404 || (typeof msg === 'string' && msg.toLowerCase().includes('no reporting manager'));
+      if (isNoManagers) {
+        setReportingManagers([]);
+        return; // silent
+      }
+      toast.error(msg || "Failed to fetch reporting managers.");
       setReportingManagers([]);
     }
   }, [token, lead]);

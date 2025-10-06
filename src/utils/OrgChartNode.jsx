@@ -3,6 +3,7 @@ import { FaUserShield } from "react-icons/fa";
 
 const OrgChartNode = ({ node }) => {
   // Hide Admin node in the hierarchy tree
+  if (node.role === "") return null;
   if (node.role === "Admin") return null;
   if (node.role === "LG") return null;
   if (node.role === "AdminTeam") return null;

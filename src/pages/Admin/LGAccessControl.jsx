@@ -13,6 +13,7 @@ export default function LGAccessControl() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [toggling, setToggling] = useState({}); // { [id]: boolean }
+  const ROLE_OPTIONS = ['LG','AdminTeam','CRE-CRM','CRM-TeamLead','RegionalHead','NationalHead'];
 
   const fetchAll = async () => {
     setLoading(true);
@@ -180,16 +181,25 @@ export default function LGAccessControl() {
                       <td style={{ padding: "10px 8px", fontSize: 14 }}>{r?.mobile || ""}</td>
                       <td style={{ padding: "10px 8px", fontSize: 14 }}>{r?.altMobile || ""}</td>
                       <td style={{ padding: "10px 8px", fontSize: 14 }}>
-                        <select
-                          value={r?.role || ''}
-                          onChange={(e) => updateRole(id, e.target.value)}
-                          style={{ padding: '4px 6px', borderRadius: 6, border: '1px solid #ccc' }}
-                        >
-                          <option value="">Select role...</option>
-                          {['LG','AdminTeam','CRE-CRM','CRM-TeamLead','RegionalHead','NationalHead'].map(opt => (
-                            <option key={opt} value={opt}>{opt}</option>
-                          ))}
-                        </select>
+                        {(() => {
+                          const currentRole = r?.role || '';
+                          const hasCurrentInList = currentRole && ROLE_OPTIONS.includes(currentRole);
+                          return (
+                            <select
+                              value={currentRole}
+                              onChange={(e) => updateRole(id, e.target.value)}
+                              style={{ padding: '4px 6px', borderRadius: 6, border: '1px solid #ccc' }}
+                            >
+                              <option value="">Select role...</option>
+                              {!hasCurrentInList && currentRole && (
+                                <option value={currentRole}>{currentRole}</option>
+                              )}
+                              {ROLE_OPTIONS.map(opt => (
+                                <option key={opt} value={opt}>{opt}</option>
+                              ))}
+                            </select>
+                          );
+                        })()}
                       </td>
                       <td style={{ padding: "10px 8px", fontSize: 14 }}>{r?.leadQuota ?? 0}</td>
                       <td style={{ padding: "10px 8px", fontSize: 14, maxWidth: 220, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r?.currentAddress || r?.address || ""}</td>

@@ -50,7 +50,7 @@ const CreDashboard = () => {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
        < AdminNavbar />
       <h1 className="text-3xl font-bold mb-4 text-gray-700 my-13">
-        CRE Mobile App Dashboard for Lead Management and Analysis.
+        CRE Dashboard for Lead Management and Analysis.
       </h1>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto py-8">

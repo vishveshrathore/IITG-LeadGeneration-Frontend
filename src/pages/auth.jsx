@@ -81,7 +81,13 @@ const AuthScreen = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
+
+    // Prevent accidental submits during multi-step registration
+    // Only allow submit on the final step (nominee2)
+    if (!isLogin && registerSegment !== 'nominee2') {
+      return;
+    }
 
     if (!form.email || !form.password || (!isLogin && (!form.name || !form.confirmPassword))) {
       toast.error('Please fill all required fields.');
@@ -307,7 +313,8 @@ const AuthScreen = () => {
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5 }}
-          onSubmit={handleSubmit}
+          onSubmit={(e) => { if (isLogin) handleSubmit(e); else e.preventDefault(); }}
+          onKeyDown={(e) => { if (!isLogin && e.key === 'Enter') { e.preventDefault(); } }}
           className={`w-full max-w-md ${!isLogin ? 'space-y-3 p-6' : 'space-y-4 p-10'} bg-white rounded-2xl shadow-xl border border-gray-100`}
         >
           <h2 className={`font-bold text-gray-800 ${!isLogin ? 'text-2xl' : 'text-3xl'}`}>
@@ -447,9 +454,10 @@ const AuthScreen = () => {
                 </button>
               ) : (
                 <button
-                  type="submit"
+                  type="button"
                   disabled={isLoading}
                   className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-lg text-sm font-semibold transition shadow-md hover:shadow-lg"
+                  onClick={() => handleSubmit()}
                 >
                   {isLoading ? <ImSpinner2 className="animate-spin" /> : 'Sign Up'}
                 </button>

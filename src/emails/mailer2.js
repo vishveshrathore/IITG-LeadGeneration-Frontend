@@ -9,11 +9,11 @@ export const mailer2Template = ({ recipientName, crmName, crmEmail, crmPhone }) 
 
     <p>Dear ${recipientName},</p>
 
-    <p>Greetings from <strong>IITGJobs.com</strong>!</p>
+    <p>Greetings from <strong>IITGJobs.com Pvt.Ltd.</strong>!</p>
 
     <p>
       I hope you are doing well. I am <strong>${crmName}</strong>, your
-      HR Business Partner at IITGJobs.com. We provide end-to-end recruitment
+      HR Business Partner at IITGJobs.com. Pvt.Ltd. We provide end-to-end recruitment
       solutions and workforce retention strategies designed to optimize your
       talent management process.
     </p>
@@ -71,7 +71,7 @@ export const mailer2Template = ({ recipientName, crmName, crmEmail, crmPhone }) 
                       HR Business Partner (HRBP)<br/>
                       📞 +91 9202960598<br/>
                       ✉️ <a href="mailto:harshika.a@iitgjobsl.com" style="color:#000000; text-decoration:none;">harshika.a@iitgjobsl.com</a><br/>
-                      🌐 <a href="https://www.IITGJobs.com" style="color:#000000; text-decoration:none;">www.IITGJobs.com</a><br/>
+                      🌐 <a href="https://iitgindianjobs.com" style="color:#000000; text-decoration:none;">iitgindianjobs.com</a><br/>
                       <span style="font-size:13px; color:#000000;">Beside Gulzar Hotel, Mahanadda, Jabalpur</span>
                     </td>
                   </tr>
