@@ -3,7 +3,8 @@ import axios from "axios";
 import { motion } from "framer-motion";
 import { toast, Toaster } from "react-hot-toast";
 import AdminNavbar from "../../components/AdminNavbar";
-import { FiCheckCircle, FiRefreshCw, FiCheckSquare } from "react-icons/fi";
+import { FiCheckCircle, FiRefreshCw, FiCheckSquare, FiMail, FiPhone, FiSmartphone, FiHome, FiUser } from "react-icons/fi";
+import { FaIdCard } from "react-icons/fa";
 import { BASE_URL } from "../../config";
 
 
@@ -13,7 +14,19 @@ export default function LGAccessControl() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [toggling, setToggling] = useState({}); // { [id]: boolean }
-  const ROLE_OPTIONS = ['LG','AdminTeam','CRE-CRM','CRM-TeamLead','RegionalHead','NationalHead'];
+  const [detailItem, setDetailItem] = useState(null); // modal data
+  const ROLE_OPTIONS = ['LG','AdminTeam','CRE-CRM','CRM-TeamLead','DeputyCRMTeamLead','RegionalHead','DeputyRegionalHead','NationalHead','DeputyNationalHead'];
+
+  // Helper: initials for avatar fallback
+  const getInitials = (name) => {
+    if (!name || typeof name !== 'string') return '?';
+    const parts = name.trim().split(/\s+/).slice(0, 2);
+    return parts.map(p => p[0]?.toUpperCase() || '').join('') || '?';
+  };
+
+  const copyToClipboard = async (text) => {
+    try { await navigator.clipboard.writeText(text || ''); toast.success('Copied'); } catch { toast.error('Copy failed'); }
+  };
 
   const fetchAll = async () => {
     setLoading(true);
@@ -145,28 +158,20 @@ export default function LGAccessControl() {
               <tr style={{ textAlign: "left", borderBottom: "1px solid #eee" }}>
                 <th style={{ padding: "10px 8px", fontWeight: 600, fontSize: 13, color: "#444" }}>Name</th>
                 <th style={{ padding: "10px 8px", fontWeight: 600, fontSize: 13, color: "#444" }}>Email</th>
-                <th style={{ padding: "10px 8px", fontWeight: 600, fontSize: 13, color: "#444" }}>Employee ID</th>
                 <th style={{ padding: "10px 8px", fontWeight: 600, fontSize: 13, color: "#444" }}>Mobile</th>
-                <th style={{ padding: "10px 8px", fontWeight: 600, fontSize: 13, color: "#444" }}>Alt Mobile</th>
                 <th style={{ padding: "10px 8px", fontWeight: 600, fontSize: 13, color: "#444" }}>Role</th>
-                <th style={{ padding: "10px 8px", fontWeight: 600, fontSize: 13, color: "#444" }}>Lead Quota</th>
-                <th style={{ padding: "10px 8px", fontWeight: 600, fontSize: 13, color: "#444" }}>Current Address</th>
-                <th style={{ padding: "10px 8px", fontWeight: 600, fontSize: 13, color: "#444" }}>Permanent Address</th>
-                <th style={{ padding: "10px 8px", fontWeight: 600, fontSize: 13, color: "#444" }}>Photo</th>
-                <th style={{ padding: "10px 8px", fontWeight: 600, fontSize: 13, color: "#444" }}>Nominee 1</th>
-                <th style={{ padding: "10px 8px", fontWeight: 600, fontSize: 13, color: "#444" }}>Nominee 2</th>
                 <th style={{ padding: "10px 8px", fontWeight: 600, fontSize: 13, color: "#444" }}>Status</th>
-                <th style={{ padding: "10px 8px", fontWeight: 600, fontSize: 13, color: "#444" }}>Actions</th>
+                <th style={{ padding: "10px 8px", fontWeight: 600, fontSize: 13, color: "#444" }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {loading && items.length === 0 ? (
                 <tr>
-                  <td colSpan={14} style={{ padding: 16, color: "#666" }}>Loading accounts...</td>
+                  <td colSpan={7} style={{ padding: 16, color: "#666" }}>Loading accounts...</td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={14} style={{ padding: 16, color: "#666" }}>No accounts found.</td>
+                  <td colSpan={7} style={{ padding: 16, color: "#666" }}>No accounts found.</td>
                 </tr>
               ) : (
                 items.map((r) => {
@@ -177,9 +182,7 @@ export default function LGAccessControl() {
                     <motion.tr key={id} style={{ borderBottom: "1px solid #f3f3f3" }} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
                       <td style={{ padding: "10px 8px", fontSize: 14 }}>{r?.name || r?.fullName || "-"}</td>
                       <td style={{ padding: "10px 8px", fontSize: 14 }}>{r?.email || "-"}</td>
-                      <td style={{ padding: "10px 8px", fontSize: 14 }}>{r?.employeeId || ""}</td>
                       <td style={{ padding: "10px 8px", fontSize: 14 }}>{r?.mobile || ""}</td>
-                      <td style={{ padding: "10px 8px", fontSize: 14 }}>{r?.altMobile || ""}</td>
                       <td style={{ padding: "10px 8px", fontSize: 14 }}>
                         {(() => {
                           const currentRole = r?.role || '';
@@ -200,40 +203,6 @@ export default function LGAccessControl() {
                             </select>
                           );
                         })()}
-                      </td>
-                      <td style={{ padding: "10px 8px", fontSize: 14 }}>{r?.leadQuota ?? 0}</td>
-                      <td style={{ padding: "10px 8px", fontSize: 14, maxWidth: 220, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r?.currentAddress || r?.address || ""}</td>
-                      <td style={{ padding: "10px 8px", fontSize: 14, maxWidth: 220, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r?.permanentAddress || ""}</td>
-                      <td style={{ padding: "10px 8px", fontSize: 14 }}>
-                        {r?.profilePic ? (
-                          <img src={r.profilePic} alt="profile" style={{ width: 36, height: 36, borderRadius: 6, objectFit: 'cover', border: '1px solid #eee' }} />
-                        ) : (
-                          <span style={{ color: '#999' }}>—</span>
-                        )}
-                      </td>
-                      <td style={{ padding: "10px 8px", fontSize: 12, lineHeight: 1.3 }}>
-                        {r?.nominee1 ? (
-                          <div>
-                            <div><strong>{r.nominee1.name || ''}</strong></div>
-                            <div>{r.nominee1.email || ''}</div>
-                            <div>{r.nominee1.mobile || ''}</div>
-                            <div>{r.nominee1.relation || ''}</div>
-                          </div>
-                        ) : (
-                          <span style={{ color: '#999' }}>—</span>
-                        )}
-                      </td>
-                      <td style={{ padding: "10px 8px", fontSize: 12, lineHeight: 1.3 }}>
-                        {r?.nominee2 ? (
-                          <div>
-                            <div><strong>{r.nominee2.name || ''}</strong></div>
-                            <div>{r.nominee2.email || ''}</div>
-                            <div>{r.nominee2.mobile || ''}</div>
-                            <div>{r.nominee2.relation || ''}</div>
-                          </div>
-                        ) : (
-                          <span style={{ color: '#999' }}>—</span>
-                        )}
                       </td>
                       <td style={{ padding: "10px 8px", fontSize: 14 }}>
                         <span
@@ -273,6 +242,22 @@ export default function LGAccessControl() {
                           <FiCheckSquare />
                           {busy ? "Updating..." : enabled ? "Disable" : "Enable"}
                         </button>
+                        <button
+                          onClick={() => setDetailItem(r)}
+                          style={{
+                            padding: "6px 10px",
+                            borderRadius: 6,
+                            border: "1px solid #ccc",
+                            background: "#f8fafc",
+                            color: "#0f172a",
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 8,
+                          }}
+                        >
+                          View Details
+                        </button>
                         {/* Role editing is now inline via the Role select */}
                       </td>
                     </motion.tr>
@@ -282,6 +267,117 @@ export default function LGAccessControl() {
             </tbody>
           </table>
         </div>
+        {/* Details Modal */}
+        {detailItem && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ background: '#fff', width: 'min(980px, 96vw)', maxHeight: '92vh', overflowY: 'auto', borderRadius: 16, boxShadow: '0 24px 64px rgba(0,0,0,0.25)' }}>
+              {/* Header */}
+              <div style={{ position: 'sticky', top: 0, background: '#fff', zIndex: 5, padding: 18, borderBottom: '1px solid #eef2f7', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  {/* Passport-size image / avatar */}
+                  <div style={{ width: 150, height: 150, borderRadius: 12, overflow: 'hidden', background: '#f1f5f9', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {detailItem?.profilePic ? (
+                      <img src={detailItem.profilePic} alt="profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <div style={{ fontWeight: 700, fontSize: 22, color: '#334155' }}>{getInitials(detailItem?.name || detailItem?.fullName)}</div>
+                    )}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: 20, color: '#0f172a' }}>{detailItem?.name || detailItem?.fullName || '-'}</div>
+                    <div style={{ fontSize: 13, color: '#475569', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <FiMail />
+                      <span>{detailItem?.email || '-'}</span>
+                      {detailItem?.email && (
+                        <button onClick={() => copyToClipboard(detailItem.email)} style={{ fontSize: 11, border: '1px solid #cbd5e1', padding: '2px 6px', borderRadius: 999, background: '#f8fafc' }}>Copy</button>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 12, padding: '4px 8px', borderRadius: 999, background: '#eef2ff', color: '#3730a3', border: '1px solid #c7d2fe' }}>{detailItem?.role || '-'}</span>
+                      <span style={{ fontSize: 12, padding: '4px 8px', borderRadius: 999, background: (detailItem?.status === 'enable' || detailItem?.enabled) ? '#dcfce7' : '#fee2e2', color: (detailItem?.status === 'enable' || detailItem?.enabled) ? '#166534' : '#991b1b', border: '1px solid #bbf7d0' }}>
+                        {(detailItem?.status || (detailItem?.enabled ? 'enable' : 'disable'))}
+                      </span>
+                      {detailItem?.employeeId && (
+                        <span style={{ fontSize: 12, padding: '4px 8px', borderRadius: 999, background: '#fafaf9', color: '#1f2937', border: '1px solid #e5e7eb' }}>Employee ID: {detailItem.employeeId}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => window.print()} style={{ padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 8, background: '#f8fafc', color: '#0f172a' }}>Print</button>
+                  <button onClick={() => setDetailItem(null)} style={{ padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 8, background: '#0ea5e9', color: '#fff' }}>Close</button>
+                </div>
+              </div>
+
+              {/* Body */}
+              <div style={{ padding: 18 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                  {/* Basic Info Card */}
+                  <div style={{ border: '1px solid #eef2f7', borderRadius: 12, padding: 14, background: '#ffffff' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, marginBottom: 8, color: '#0f172a' }}><FiUser /> Basic Info</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', rowGap: 6, columnGap: 8, fontSize: 14 }}>
+                      <div style={{ color: '#64748b' }}>Email</div><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><FiMail /> {detailItem?.email || '-'} {detailItem?.email && (<button onClick={() => copyToClipboard(detailItem.email)} style={{ fontSize: 11, border: '1px solid #cbd5e1', padding: '2px 6px', borderRadius: 999, background: '#f8fafc' }}>Copy</button>)}</div>
+                      <div style={{ color: '#64748b' }}>Mobile</div><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><FiPhone /> {detailItem?.mobile || '-'} {detailItem?.mobile && (<button onClick={() => copyToClipboard(detailItem.mobile)} style={{ fontSize: 11, border: '1px solid #cbd5e1', padding: '2px 6px', borderRadius: 999, background: '#f8fafc' }}>Copy</button>)}</div>
+                      <div style={{ color: '#64748b' }}>Alt Mobile</div><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><FiSmartphone /> {detailItem?.altMobile || '-'}</div>
+                      <div style={{ color: '#64748b' }}>Lead Quota</div><div>{detailItem?.leadQuota ?? 0}</div>
+                    </div>
+                  </div>
+
+                  {/* IDs Card */}
+                  <div style={{ border: '1px solid #eef2f7', borderRadius: 12, padding: 14, background: '#ffffff' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, marginBottom: 8, color: '#0f172a' }}><FaIdCard /> Company / IDs</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', rowGap: 6, columnGap: 8, fontSize: 14 }}>
+                      <div style={{ color: '#64748b' }}>Employee ID</div><div>{detailItem?.employeeId || '-'}</div>
+                    </div>
+                  </div>
+
+                  {/* Addresses Card */}
+                  <div style={{ border: '1px solid #eef2f7', borderRadius: 12, padding: 14, background: '#ffffff' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, marginBottom: 8, color: '#0f172a' }}><FiHome /> Addresses</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', rowGap: 6, columnGap: 8, fontSize: 14 }}>
+                      <div style={{ color: '#64748b' }}>Current</div><div>{detailItem?.currentAddress || detailItem?.address || '-'}</div>
+                      <div style={{ color: '#64748b' }}>Permanent</div><div>{detailItem?.permanentAddress || '-'}</div>
+                    </div>
+                  </div>
+
+                  {/* Nominees Card */}
+                  <div style={{ border: '1px solid #eef2f7', borderRadius: 12, padding: 14, background: '#ffffff' }}>
+                    <div style={{ fontWeight: 700, marginBottom: 8, color: '#0f172a' }}>Nominees</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      {/* Nominee 1 */}
+                      <div style={{ border: '1px dashed #e5e7eb', borderRadius: 10, padding: 10 }}>
+                        <div style={{ fontSize: 13, color: '#475569', marginBottom: 6 }}>Nominee 1</div>
+                        {detailItem?.nominee1 ? (
+                          <ul style={{ marginLeft: 14, lineHeight: 1.6 }}>
+                            <li><strong>Name:</strong> {detailItem.nominee1.name || '-'}</li>
+                            <li><strong>Email:</strong> {detailItem.nominee1.email || '-'}</li>
+                            <li><strong>Mobile:</strong> {detailItem.nominee1.mobile || '-'}</li>
+                            <li><strong>Relation:</strong> {detailItem.nominee1.relation || '-'}</li>
+                          </ul>
+                        ) : (
+                          <div style={{ color: '#94a3b8' }}>—</div>
+                        )}
+                      </div>
+                      {/* Nominee 2 */}
+                      <div style={{ border: '1px dashed #e5e7eb', borderRadius: 10, padding: 10 }}>
+                        <div style={{ fontSize: 13, color: '#475569', marginBottom: 6 }}>Nominee 2</div>
+                        {detailItem?.nominee2 ? (
+                          <ul style={{ marginLeft: 14, lineHeight: 1.6 }}>
+                            <li><strong>Name:</strong> {detailItem.nominee2.name || '-'}</li>
+                            <li><strong>Email:</strong> {detailItem.nominee2.email || '-'}</li>
+                            <li><strong>Mobile:</strong> {detailItem.nominee2.mobile || '-'}</li>
+                            <li><strong>Relation:</strong> {detailItem.nominee2.relation || '-'}</li>
+                          </ul>
+                        ) : (
+                          <div style={{ color: '#94a3b8' }}>—</div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

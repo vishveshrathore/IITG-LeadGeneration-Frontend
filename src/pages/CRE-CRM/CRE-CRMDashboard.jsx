@@ -64,7 +64,7 @@ const CreCrmDashboard = () => {
           axios.get(`${BASE_URL}/api/cre/closure-prospects`, { headers }),
         ];
         // Conditionally fetch team leads only for leader roles
-        const isLeader = ["CRM-TeamLead", "RegionalHead", "NationalHead"].includes(role || user?.role);
+        const isLeader = ["CRM-TeamLead", "DeputyCRMTeamLead", "RegionalHead", "DeputyRegionalHead", "NationalHead", "DeputyNationalHead"].includes(role || user?.role);
         const teamReq = isLeader ? axios.get(`${BASE_URL}/api/cre/team/leads`, { headers }) : null;
 
         const [myLeadsRes, todaysRes, positiveRes, closureRes, teamRes] = await Promise.allSettled(
@@ -90,7 +90,7 @@ const CreCrmDashboard = () => {
 
   // Fetch full team leads data for leader roles to render TeamGrid
   useEffect(() => {
-    const isLeader = ["CRM-TeamLead", "RegionalHead", "NationalHead"].includes(role || user?.role);
+    const isLeader = ["CRM-TeamLead", "DeputyCRMTeamLead", "RegionalHead", "NationalHead"].includes(role || user?.role);
     if (!token || !isLeader) { setTeamLeadsData([]); return; }
     const run = async () => {
       try {
@@ -156,7 +156,7 @@ const CreCrmDashboard = () => {
   }, [filteredTeamData, currentPage, pageSize]);
 
   // Build action grid cards dynamically so we can attach live counts
-  const isLeaderUI = ["CRM-TeamLead", "RegionalHead", "NationalHead"].includes(role || user?.role);
+  const isLeaderUI = ["CRM-TeamLead", "DeputyCRMTeamLead", "RegionalHead", "DeputyRegionalHead", "NationalHead", "DeputyNationalHead"].includes(role || user?.role);
   const actionGrids = [
     {
       title: 'Closures Till Date',
@@ -295,7 +295,7 @@ const CreCrmDashboard = () => {
                   <span className="text-xs px-3 py-1 rounded-full bg-white/80 border border-slate-300/60 text-slate-700 backdrop-blur ring-1 ring-slate-300/40">
                     SLA: Follow-up within 24 hours
                   </span>
-                  {(["CRM-TeamLead", "RegionalHead", "NationalHead"].includes(role || user?.role)) && (
+                  {(["CRM-TeamLead", "DeputyCRMTeamLead", "RegionalHead", "DeputyRegionalHead", "NationalHead", "DeputyNationalHead"].includes(role || user?.role)) && (
                     <span className="text-xs px-3 py-1 rounded-full bg-white/80 border border-slate-300/60 text-slate-700 backdrop-blur ring-1 ring-slate-300/40">Leadership Mode</span>
                   )}
                 </div>
@@ -320,7 +320,7 @@ const CreCrmDashboard = () => {
               >
                 Go to Worksheet
               </motion.button>
-              {(["CRM-TeamLead", "RegionalHead", "NationalHead"].includes(role || user?.role)) && (
+              {(["CRM-TeamLead", "DeputyCRMTeamLead", "RegionalHead", "NationalHead"].includes(role || user?.role)) && (
                 <motion.button
                   whileHover={{ scale: 1.03, boxShadow: '0 12px 30px -12px rgba(56,189,248,0.45)' }}
                   whileTap={{ scale: 0.98 }}
@@ -396,7 +396,7 @@ const CreCrmDashboard = () => {
           </div>
 
           {/* Team Leads (only for leader roles) */}
-          {(["CRM-TeamLead", "RegionalHead", "NationalHead"].includes(role || user?.role)) && (
+          {(["CRM-TeamLead", "DeputyCRMTeamLead", "RegionalHead", "NationalHead"].includes(role || user?.role)) && (
             <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white/80 px-4 py-3 shadow-sm">
               <div className="flex items-center gap-2 text-slate-600">
                 <FiUsers className="text-cyan-600" />
@@ -408,7 +408,6 @@ const CreCrmDashboard = () => {
             </div>
           )}
         </motion.div>
-
       {/* Quick Actions
       <div className="mt-6 flex flex-wrap gap-3">
         <button onClick={() => navigate('/creassignedlead')} className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm">Get Next Lead</button>

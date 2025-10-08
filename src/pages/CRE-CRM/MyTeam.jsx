@@ -8,7 +8,7 @@ import { BASE_URL } from '../../config';
 const MyTeam = () => {
   const { role, user, authToken } = useAuth();
   const token = authToken || localStorage.getItem('token');
-  const isLeader = ["CRM-TeamLead", "RegionalHead", "NationalHead"].includes(role || user?.role);
+  const isLeader = ["CRM-TeamLead", "DeputyCRMTeamLead", "RegionalHead", "DeputyRegionalHead", "NationalHead", "DeputyNationalHead"].includes(role || user?.role);
 
   const [teamMembers, setTeamMembers] = useState([]);
   const [loadingMembers, setLoadingMembers] = useState(false);

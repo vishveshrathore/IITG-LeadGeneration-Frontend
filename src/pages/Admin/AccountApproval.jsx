@@ -148,8 +148,11 @@ export default function AccountsApproval() {
   const roleLevels = {
     "CRE-CRM": 1,
     "CRM-TeamLead": 2,
+    "DeputyCRMTeamLead": 2,
     "RegionalHead": 3,
+    "DeputyRegionalHead": 3,
     "NationalHead": 4,
+    "DeputyNationalHead": 4,
   };
 
   const fetchAccounts = async () => {
@@ -314,8 +317,11 @@ export default function AccountsApproval() {
             <option value="All">All Roles</option>
             <option value="CRE-CRM">CRE-CRM</option>
             <option value="CRM-TeamLead">CRM-TeamLead</option>
+            <option value="DeputyCRMTeamLead">DeputyCRMTeamLead</option>
             <option value="RegionalHead">RegionalHead</option>
+            <option value="DeputyRegionalHead">DeputyRegionalHead</option>
             <option value="NationalHead">NationalHead</option>
+            <option value="DeputyNationalHead">DeputyNationalHead</option>
           </select>
 
           <select
@@ -384,7 +390,7 @@ export default function AccountsApproval() {
                         className="border rounded-lg px-2 py-1 text-sm w-full"
                       >
                         <option value="">Select role...</option>
-                        {["CRE-CRM", "CRM-TeamLead", "RegionalHead", "NationalHead"].map((r) => (
+                        {["CRE-CRM", "CRM-TeamLead", "DeputyCRMTeamLead", "RegionalHead", "DeputyRegionalHead", "NationalHead", "DeputyNationalHead"].map((r) => (
                           <option key={r} value={r}>{r}</option>
                         ))}
                       </select>

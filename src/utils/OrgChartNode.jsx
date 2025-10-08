@@ -13,8 +13,20 @@ const OrgChartNode = ({ node }) => {
     ? node.reportsTo
     : (node.reportsTo ? [node.reportsTo] : []);
 
+  // Leader roles, treating Deputies same as their heads
+  const leaderRoles = [
+    "CRM-TeamLead",
+    "DeputyCRMTeamLead",
+    "RegionalHead",
+    "DeputyRegionalHead",
+    "NationalHead",
+    "DeputyNationalHead",
+  ];
+  const isLeader = leaderRoles.includes(node.role);
+
   const [expanded, setExpanded] = React.useState(true);
-  const [linksOn, setLinksOn] = React.useState(false);
+  // Auto-show links when there is more than one manager to make hierarchy obvious
+  const [linksOn, setLinksOn] = React.useState(() => (Array.isArray(node.managerRefs) && node.managerRefs.length > 1));
   const connectorsRef = React.useRef([]);
 
   // Draw a temporary dashed connector between two nodes (this -> manager)
@@ -110,30 +122,40 @@ const OrgChartNode = ({ node }) => {
     };
   }, [linksOn, node._id, Array.isArray(node.managerRefs) ? node.managerRefs.map(m=>String(m._id)).join(',') : '']);
 
+  // Dynamic card class for leaders vs others
+  const cardClass = `flex flex-col items-center gap-1 p-3 rounded-xl border-2 ${isLeader ? 'border-indigo-400' : 'border-blue-200'} bg-white shadow-xl transition-all duration-300 w-36 md:w-48 lg:w-56 transform hover:scale-105 hover:shadow-2xl`;
+
   return (
     <div id={`node-${node._id}`} className="flex flex-col items-center relative z-10 p-2 md:p-4">
       {/* Node Card - Responsive and Enhanced */}
-      <div className="flex flex-col items-center gap-1 p-3 rounded-xl border-2 border-blue-200 bg-white shadow-xl transition-all duration-300 w-36 md:w-48 lg:w-56 transform hover:scale-105 hover:shadow-2xl">
+      <div className={cardClass}>
         <div className="bg-gradient-to-br from-indigo-500 to-purple-700 rounded-full p-2 md:p-3 shadow-lg ring-1 ring-blue-300 ring-opacity-80">
           <FaUserShield className="text-xl md:text-2xl text-white" />
         </div>
         <div className="text-center">
           <p className="font-bold text-gray-900 text-sm md:text-base">{node.name}</p>
-          <p className="text-xs md:text-sm text-blue-700 font-semibold">{node.role}</p>
+          <p className="text-xs md:text-sm text-blue-700 font-semibold flex items-center justify-center gap-1">
+            {node.role}
+            {isLeader && (
+              <span className="text-[9px] md:text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                Leader
+              </span>
+            )}
+          </p>
           <p className="text-[10px] md:text-xs text-gray-500 mt-0.5">{node.email}</p>
           {/* Reports-to chips (link to managers) */}
           {Array.isArray(node.managerRefs) && node.managerRefs.length > 0 && (
             <div className="mt-2 flex flex-wrap items-center justify-center gap-1">
               <span className="text-[10px] md:text-[11px] text-gray-600">Reports to:</span>
-              {node.managerRefs.map(m => (
+              {node.managerRefs.map((m, idx) => (
                 <button
                   key={String(m._id)}
                   type="button"
                   onClick={() => linkToManager(m._id)}
-                  className="text-[10px] md:text-[11px] px-2 py-0.5 rounded-full border bg-white hover:bg-gray-50 text-gray-700"
-                  title={`${m.name} · ${m.role}`}
+                  className={`text-[10px] md:text-[11px] px-2 py-0.5 rounded-full border ${idx===0 ? 'bg-yellow-50 border-yellow-300 text-yellow-900' : 'bg-white hover:bg-gray-50 text-gray-700'}`}
+                  title={`${m.name} · ${m.role}${idx===0 ? ' (Primary)' : ''}`}
                 >
-                  {m.name} ({m.role})
+                  {idx===0 ? '★ ' : ''}{m.name} ({m.role})
                 </button>
               ))}
             </div>
@@ -152,14 +174,14 @@ const OrgChartNode = ({ node }) => {
               {expanded ? 'Hide Team' : 'Show Team'}
             </button>
           )}
-          {/* Show links to all managers */}
+          {/* Show links toggle (default ON if multiple managers) */}
           {Array.isArray(node.managerRefs) && node.managerRefs.length > 0 && (
             <button
               type="button"
               onClick={() => setLinksOn(v => !v)}
               className={`text-[11px] px-2 py-0.5 rounded border transition ${linksOn ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 hover:bg-gray-100'}`}
             >
-              {linksOn ? 'Hide Links' : 'Show Links'}
+              {linksOn ? 'Hide Manager Links' : 'Show Manager Links'}
             </button>
           )}
         </div>

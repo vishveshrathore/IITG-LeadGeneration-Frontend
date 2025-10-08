@@ -23,6 +23,7 @@ import CreDashboard from "./pages/Admin/CreDashboard.jsx"; //Admin Side
 import PriorityAssignLeads from "./pages/Admin/Prioritypage.jsx"; //Admin Side
 import LGAccessControl from "./pages/Admin/LGAccessControl.jsx"; //Admin Side
 import AdminDashboard from "./pages/Admin/AdminDashboard.jsx"; //Admin Side - New Dashboard
+import AccessAndRolesHub from "./pages/Admin/AccessAndRolesHub.jsx";
 import ToolsDashboard from "./pages/Admin/Tools/ToolsDashboard.jsx"; //Tools Dashboard
 import NaukriParser from "./components/NaukriParser.jsx"; //Naukri Parser Component
 import LinkedInPParser from "./components/LinkedInPParser.jsx"; //LinkedIn Parser Component
@@ -224,6 +225,14 @@ function App() {
           element={
             <ProtectedRoute role="admin">
               <LGAccessControl />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/access-and-roles"
+          element={
+            <ProtectedRoute role="admin">
+              <AccessAndRolesHub />
             </ProtectedRoute>
           }
         />

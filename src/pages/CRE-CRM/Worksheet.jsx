@@ -52,8 +52,11 @@ const MyWorksheet = () => {
   const [newFUDate, setNewFUDate] = useState("");
   const [newFURemarks, setNewFURemarks] = useState("");
   const [editReportingManager, setEditReportingManager] = useState("");
+  const [editReportingManagers, setEditReportingManagers] = useState([]); // multi-select
   const [editMeetings, setEditMeetings] = useState([]);
   const [newMeeting, setNewMeeting] = useState({ link: "", date: "", time: "", notes: "" });
+  const [closureStatus, setClosureStatus] = useState("In Progress");
+  const [completed, setCompleted] = useState(false);
 
   // Email modal states (Mailer)
   const [emailModalOpen, setEmailModalOpen] = useState(false);
@@ -67,6 +70,45 @@ const MyWorksheet = () => {
   const [emailMailersSnapshot, setEmailMailersSnapshot] = useState([]);
 
   const statusOptions = ["Pending", "Positive", "Negative", "Closure Prospects"];
+  const closureStatusOptions = ["Closed", "In Progress", "Pending"];
+
+  // Consistent status resolver: prefer currentStatus; fallback to last statusHistory
+  const getCurrentStatus = (assignment) => {
+    if (!assignment) return "Pending";
+    if (assignment.currentStatus) return assignment.currentStatus;
+    const hist = Array.isArray(assignment.statusHistory) ? assignment.statusHistory : [];
+    return hist.length > 0 ? hist[hist.length - 1].status || "Pending" : "Pending";
+  };
+
+  // Normalize mixed model shapes into a consistent record for UI
+  const normalize = (a) => {
+    const l = a?.lead || {};
+    const company = l.company || {};
+    const industry = company.industry || l.industry || {}; // support both nested and flat
+    const leadName = l.name || l.fullName || 'N/A';
+    const designation = l.designation || l.title || 'N/A';
+    const companyName = company.CompanyName || company.name || 'N/A';
+    const industryName = industry.name || 'N/A';
+    const location = l.location || l.city || l.address || 'N/A';
+    const mobile = Array.isArray(l.mobile) ? l.mobile.join(', ') : (l.mobile || 'N/A');
+    const email = l.email || 'N/A';
+    const productLine = l.productLine || 'N/A';
+    const turnover = l.turnover || 'N/A';
+    const followUps = Array.isArray(a?.followUps) ? a.followUps : [];
+    const followUpsCount = followUps.length;
+    const meeting = Array.isArray(a?.meeting) ? a.meeting : [];
+    const meetingDisplay = meeting.length > 0
+      ? meeting.map(m => `Link: ${m?.link || 'N/A'}, Date: ${m?.date ? new Date(m.date).toLocaleDateString() : 'N/A'}`).join('; ')
+      : 'N/A';
+    return {
+      leadName, designation, companyName, industryName, location, mobile, email, productLine, turnover,
+      currentStatus: getCurrentStatus(a),
+      closureStatus: a?.closureStatus || 'In Progress',
+      completed: !!a?.completed,
+      followUpsCount,
+      meetingDisplay,
+    };
+  };
 
   const fetchLeads = async () => {
     if (!authToken) return;
@@ -136,14 +178,17 @@ const MyWorksheet = () => {
   const handleSelectLead = (lead) => {
     setSelectedLead(lead);
     setRemarks(lead.remarks || "");
-    setStatus(lead.currentStatus || "Pending");
+    setStatus(getCurrentStatus(lead));
     const m1 = (lead?.mailers || []).find(m => m.type === 'mailer1')?.sent || false;
     const m2 = (lead?.mailers || []).find(m => m.type === 'mailer2')?.sent || false;
     setEditMailers({ mailer1: m1, mailer2: m2 });
     setEditWhatsapp(!!lead?.whatsapp?.sent);
     setEditFollowUps(Array.isArray(lead?.followUps) ? [...lead.followUps] : []);
     setEditReportingManager(lead?.reportingManager?._id || "");
+    setEditReportingManagers(Array.isArray(lead?.reportingManagers) ? lead.reportingManagers.map(r=>r?._id || r) : []);
     setEditMeetings(Array.isArray(lead?.meeting) ? [...lead.meeting] : []);
+    setClosureStatus(lead?.closureStatus || "In Progress");
+    setCompleted(!!lead?.completed);
   };
 
   const handleSave = async () => {
@@ -170,7 +215,10 @@ const MyWorksheet = () => {
           mailers: mailersPayload,
           whatsapp: { sent: !!editWhatsapp },
           reportingManager: editReportingManager || undefined,
+          reportingManagers: Array.isArray(editReportingManagers) ? editReportingManagers : undefined,
           meeting: editMeetings.map(m => ({ _id: m._id, link: m.link || null, date: m.date || null, time: m.time || null, notes: m.notes || null })),
+          closureStatus,
+          completed,
         },
         { headers: { Authorization: `Bearer ${authToken}` } }
       );
@@ -382,6 +430,7 @@ const MyWorksheet = () => {
                   <th className="px-3 py-2 text-left text-sm">CRE</th>
                   <th className="px-3 py-2 text-left text-sm">Reporting Manager(s)</th>
                   <th className="px-3 py-2 text-left text-sm">Follow-Ups</th>
+                  <th className="px-3 py-2 text-left text-sm">Current Status</th>
                   <th className="px-3 py-2 text-left text-sm">Mailer1</th>
                   <th className="px-3 py-2 text-left text-sm">Mailer2</th>
                   <th className="px-3 py-2 text-left text-sm">WhatsApp</th>
@@ -390,17 +439,19 @@ const MyWorksheet = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {paginatedLeads.map(lead => (
+                {paginatedLeads.map(lead => {
+                  const n = normalize(lead);
+                  return (
                   <tr key={lead._id} className="hover:bg-gray-50">
-                    <td className="px-3 py-2 text-sm">{lead?.lead?.name || "N/A"}</td>
-                    <td className="px-3 py-2 text-sm">{lead?.lead?.designation || "N/A"}</td>
-                    <td className="px-3 py-2 text-sm">{lead?.lead?.company?.CompanyName || "N/A"}</td>
-                    <td className="px-3 py-2 text-sm">{lead?.lead?.company?.industry?.name || "N/A"}</td>
-                    <td className="px-3 py-2 text-sm">{lead?.lead?.location || "N/A"}</td>
-                    <td className="px-3 py-2 text-sm">{Array.isArray(lead?.lead?.mobile) ? lead.lead.mobile.join(", ") : lead?.lead?.mobile || "N/A"}</td>
-                    <td className="px-3 py-2 text-sm">{lead?.lead?.email || "N/A"}</td>
-                    <td className="px-3 py-2 text-sm">{lead?.lead?.productLine || "N/A"}</td>
-                    <td className="px-3 py-2 text-sm">{lead?.lead?.turnover || "N/A"}</td>
+                    <td className="px-3 py-2 text-sm" title={n.leadName}>{n.leadName}</td>
+                    <td className="px-3 py-2 text-sm" title={n.designation}>{n.designation}</td>
+                    <td className="px-3 py-2 text-sm" title={n.companyName}>{n.companyName}</td>
+                    <td className="px-3 py-2 text-sm" title={n.industryName}>{n.industryName}</td>
+                    <td className="px-3 py-2 text-sm" title={n.location}>{n.location}</td>
+                    <td className="px-3 py-2 text-sm" title={n.mobile}>{n.mobile}</td>
+                    <td className="px-3 py-2 text-sm" title={n.email}>{n.email}</td>
+                    <td className="px-3 py-2 text-sm" title={n.productLine}>{n.productLine}</td>
+                    <td className="px-3 py-2 text-sm" title={n.turnover}>{n.turnover}</td>
                     <td className="px-3 py-2 text-sm">{lead?.Calledbycre?.name || "N/A"}</td>
                     <td className="px-3 py-2 text-sm">{
                       Array.isArray(lead?.reportingManagers) && lead.reportingManagers.length > 0
@@ -419,6 +470,7 @@ const MyWorksheet = () => {
                         ))
                       )}
                     </td>
+                    <td className="px-3 py-2 text-sm">{n.currentStatus}</td>
                     <td className="px-3 py-2 text-sm">
                       {((lead?.mailers || []).find(m => m.type === "mailer1")?.sent) ? (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">Sent</span>
@@ -434,15 +486,7 @@ const MyWorksheet = () => {
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">Sent</span>
                       ) : <span className="text-gray-400">N/A</span>}
                     </td>
-                    <td className="px-3 py-2 text-sm">
-                      {(lead?.meeting || []).length > 0 ? (
-                        (lead.meeting || []).map(m => (
-                          <div key={m._id}>Link: {m?.link || "N/A"}, Date: {m?.date || "N/A"}</div>
-                        ))
-                      ) : (
-                        "N/A"
-                      )}
-                    </td>
+                    <td className="px-3 py-2 text-sm" title={n.meetingDisplay}>{n.meetingDisplay}</td>
                     <td className="px-3 py-2 text-sm">
                       <div className="flex items-center gap-2">
                         <button className="bg-blue-500 text-white px-2 py-1 rounded" onClick={() => handleSelectLead(lead)}>View/Edit</button>
@@ -459,7 +503,8 @@ const MyWorksheet = () => {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -492,6 +537,8 @@ const MyWorksheet = () => {
                     <p><strong>Email:</strong> {selectedLead?.lead?.email || "N/A"}</p>
                     <p><strong>Product Line:</strong> {selectedLead?.lead?.productLine || "N/A"}</p>
                     <p><strong>Turnover:</strong> {selectedLead?.lead?.turnover || "N/A"}</p>
+                    <p><strong>Lead Model:</strong> {selectedLead?.leadModel || "N/A"}</p>
+                    <p><strong>Assignment ID:</strong> {selectedLead?._id}</p>
                   </div>
                 </div>
 
@@ -530,15 +577,37 @@ const MyWorksheet = () => {
                   </div>
                 </div>
 
-                {/* Reporting Manager */}
+                {/* Reporting Managers */}
                 <div className="bg-gray-50 border rounded-xl p-4">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Reporting Manager</h3>
-                  <select className="border p-2 rounded w-full" value={editReportingManager} onChange={e => setEditReportingManager(e.target.value)}>
-                    <option value="">Select Manager</option>
-                    {managers.map(m => (
-                      <option key={m._id} value={m._id}>{m.name}</option>
-                    ))}
-                  </select>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Reporting Managers</h3>
+                  <div className="space-y-2">
+                    <select className="border p-2 rounded w-full" value={editReportingManager} onChange={e => setEditReportingManager(e.target.value)}>
+                      <option value="">Add a manager...</option>
+                      {managers.map(m => (
+                        <option key={m._id} value={m._id}>{m.name}</option>
+                      ))}
+                    </select>
+                    <button className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm" onClick={() => {
+                      if (!editReportingManager) return;
+                      setEditReportingManagers(arr => Array.from(new Set([...(arr||[]), editReportingManager])));
+                      setEditReportingManager("");
+                    }}>Add</button>
+                    {(editReportingManagers||[]).length === 0 ? (
+                      <p className="text-sm text-gray-500">No managers selected.</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {editReportingManagers.map(id => {
+                          const m = managers.find(mm => String(mm._id) === String(id));
+                          return (
+                            <span key={id} className="text-xs px-2 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-800 flex items-center gap-1">
+                              {m?.name || id}
+                              <button className="text-blue-700" onClick={() => setEditReportingManagers(arr => arr.filter(x => String(x) !== String(id)))}>×</button>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Follow-ups */}

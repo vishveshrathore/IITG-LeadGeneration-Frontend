@@ -16,12 +16,36 @@ const BDDashboard = () => {
   };
 
   const bentoItems = [
+    {
+      title: 'Manage Access and Roles & all',
+      icon: <BsPersonCheck size={30} />,
+      route: '/admin/access-and-roles',
+      color: 'bg-pink-100',
+    },
+    {
+      title: 'Corporate Account Approval',
+      icon: <BsPersonCheck size={30} />,
+      route: '/admin/corporate-account-approval',
+      color: 'bg-pink-100',
+    },
+    {
+      title: 'Manage Companies for BDE & Recuitment',
+      icon: <BsPersonCheck size={30} />,
+      route: '/admin/recruiters/companies',
+      color: 'bg-pink-100',
+    },
+    {
+      title: 'Manage Industries for BDE & Recuitment',
+      icon: <BsPersonCheck size={30} />,
+      route: '/admin/recruiters/industries',
+      color: 'bg-pink-100',
+    },
    {
   title: 'Leads Dashboard',
   icon: <BsPersonCheck size={30} />,
   route: '/creDashboard', // ✅ must match route exactly
   color: 'bg-red-100',
-},
+  },
 
     {
       title: 'Manage Leads',
@@ -47,30 +71,9 @@ const BDDashboard = () => {
       route: '/admin/companies',
       color: 'bg-green-100',
     },
-    {
-      title: 'Manage Access and Roles & all',
-      icon: <BsPersonCheck size={30} />,
-      route: '/admin/lgAccessControl',
-      color: 'bg-pink-100',
-    },
-    {
-      title: 'Corporate Account Approval',
-      icon: <BsPersonCheck size={30} />,
-      route: '/admin/corporate-account-approval',
-      color: 'bg-pink-100',
-    },
-    {
-      title: 'Manage Companies for BDE & Recuitment',
-      icon: <BsPersonCheck size={30} />,
-      route: '/admin/recruiters/companies',
-      color: 'bg-pink-100',
-    },
-    {
-      title: 'Manage Industries for BDE & Recuitment',
-      icon: <BsPersonCheck size={30} />,
-      route: '/admin/recruiters/industries',
-      color: 'bg-pink-100',
-    },
+ 
+   
+   
     
   ];
 
