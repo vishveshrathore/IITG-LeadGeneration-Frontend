@@ -177,7 +177,7 @@ const CreCrmDashboard = () => {
       count: metrics.todaysFollowups,
     },
     {
-      title: 'Closure Prospects',
+      title: 'Closure Prospects / GM Conduction',
       description: 'Monitor Closure Prospects Leads',
       icon: <MdBusiness className="text-teal-600 text-3xl" />,
       path: '/cre/closureprospects',
@@ -215,7 +215,7 @@ const CreCrmDashboard = () => {
     ...(
       isLeaderUI
         ? [{
-            title: 'Team Leads',
+            title: 'Teams MIS',
             description: 'Monitor your team’s lead pipeline',
             icon: <FiUsers className="text-cyan-600 text-3xl" />,
             path: '/cre/myteam',
