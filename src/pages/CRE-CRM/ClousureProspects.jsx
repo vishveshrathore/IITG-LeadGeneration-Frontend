@@ -14,6 +14,7 @@ const ClousureProspects = () => {
   const token = authToken || localStorage.getItem("token");
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [updatingIds, setUpdatingIds] = useState([]); // ids currently being saved
 
   // Email modal state
   const [emailModalOpen, setEmailModalOpen] = useState(false);
@@ -26,6 +27,10 @@ const ClousureProspects = () => {
   const [emailAssignmentId, setEmailAssignmentId] = useState("");
   const [emailMailersSnapshot, setEmailMailersSnapshot] = useState([]);
 
+  // Congrats modal state for closures
+  const [closureCongrats, setClosureCongrats] = useState({ open: false, name: '', company: '' });
+
+  // Fetch closure prospects leads
   const fetchLeads = async () => {
     if (!token) return;
     setLoading(true);
@@ -35,8 +40,9 @@ const ClousureProspects = () => {
       });
       setLeads(res.data?.data || []);
     } catch (e) {
-      console.error(e);
-      toast.error("Failed to fetch closure prospects");
+      const serverMsg = e?.response?.data?.message || e?.message || "Failed to fetch closure prospects";
+      console.error("Fetch closure prospects error:", e?.response?.data || e);
+      toast.error(serverMsg);
     } finally {
       setLoading(false);
     }
@@ -49,11 +55,10 @@ const ClousureProspects = () => {
 
   const openWhatsApp = async (assignmentId, number, recipientName, senderName) => {
     if (!number) { toast.error("Mobile number not found"); return; }
-    const message = `Hello ${recipientName},\n\nThis is ${senderName} from IITGJobs.com. We have recently launched a tech-driven product to help organizations control attrition, and I would like to seek an appointment with you.\n\nYour insights would mean a lot. Kindly let me know your comfortable timings for a telephonic discussion. I look forward to hearing from you.\n\nBest regards,  \n${senderName}  \nIITGJobs.com`;
+    const message = `Hello ${recipientName},\n\nThis is ${senderName} from IITGJobs.com.Pvt.Ltd. We have recently launched a tech-driven product to help organizations control attrition, and I would like to seek an appointment with you.\n\nYour insights would mean a lot. Kindly let me know your comfortable timings for a telephonic discussion. I look forward to hearing from you.\n\nBest regards,  \n${senderName}  \nIITGJobs.com`;
     const url = `https://web.whatsapp.com/send?phone=91${number}&text=${encodeURIComponent(message)}`;
     const win = window.open(url, "whatsappWindow");
     if (win) win.focus();
-    // Persist whatsapp sent
     try {
       await axios.put(`${BASE_URL}/api/cre/lead/${assignmentId}`,
         { whatsapp: { sent: true } },
@@ -61,6 +66,43 @@ const ClousureProspects = () => {
       );
       fetchLeads();
     } catch (e) { console.error(e); }
+  };
+
+  const updateClosureStatus = async (assignmentId, status, leadItem) => {
+    if (!assignmentId || !token) {
+      toast.error('Auth or ID missing');
+      return;
+    }
+    const prev = leads.map(l => ({ ...l }));
+    const next = leads.map(l => (l._id === assignmentId ? { ...l, closureStatus: status } : l));
+    setLeads(next);
+    setUpdatingIds((ids) => [...new Set([...ids, assignmentId])]);
+    try {
+      const resp = await axios.put(
+        `${BASE_URL}/api/cre/lead/${assignmentId}`,
+        { closureStatus: status },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (resp?.status >= 200 && resp?.status < 300) {
+        if (status === 'Closed') {
+          const leadName = leadItem?.lead?.name || 'Lead';
+          const companyName = leadItem?.lead?.company?.CompanyName || '';
+          setClosureCongrats({ open: true, name: leadName, company: companyName });
+        } else {
+          toast.success(`Marked as ${status}`);
+        }
+        fetchLeads();
+      } else {
+        throw new Error('Non-2xx response');
+      }
+    } catch (e) {
+      console.error(e);
+      setLeads(prev);
+      const serverMsg = e?.response?.data?.message || 'Failed to update closure status';
+      toast.error(serverMsg);
+    } finally {
+      setUpdatingIds((ids) => ids.filter(id => id !== assignmentId));
+    }
   };
 
   const openEmailModal = (assignmentId, recipientName, email, mailers = []) => {
@@ -152,21 +194,38 @@ const ClousureProspects = () => {
                   <th className="px-3 py-2 text-left text-sm">Mailer1</th>
                   <th className="px-3 py-2 text-left text-sm">Mailer2</th>
                   <th className="px-3 py-2 text-left text-sm">WhatsApp</th>
+                  <th className="px-3 py-2 text-left text-sm">Closure</th>
                   <th className="px-3 py-2 text-left text-sm">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {(leads || []).map((item) => (
-                  <tr key={item._id} className="hover:bg-gray-50">
-                    <td className="px-3 py-2 text-sm">{item?.lead?.name || "N/A"}</td>
+                  <tr
+                    key={item._id}
+                    className={`${item?.closureStatus === 'Closed' ? 'bg-emerald-50/40' : 'bg-amber-50/30'} hover:bg-white transition-colors`}
+                  >
+                    <td className="px-3 py-2 text-sm">
+                      <span className={`mr-2 align-middle ${item?.closureStatus === 'Closed' ? 'text-emerald-600' : 'text-amber-600'}`}>
+                        {item?.closureStatus === 'Closed' ? '✅' : '⚠️'}
+                      </span>
+                      <span className="font-semibold text-slate-900">{item?.lead?.name || "N/A"}</span>
+                    </td>
                     <td className="px-3 py-2 text-sm">{item?.lead?.designation || "N/A"}</td>
-                    <td className="px-3 py-2 text-sm">{item?.lead?.company?.CompanyName || "N/A"}</td>
+                    <td className="px-3 py-2 text-sm">
+                      {item?.lead?.company?.CompanyName ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                          {item.lead.company.CompanyName}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">N/A</span>
+                      )}
+                    </td>
                     <td className="px-3 py-2 text-sm">{item?.lead?.company?.industry?.name || "N/A"}</td>
                     <td className="px-3 py-2 text-sm">{item?.lead?.location || "N/A"}</td>
                     <td className="px-3 py-2 text-sm">{Array.isArray(item?.lead?.mobile) ? item.lead.mobile.join(", ") : item?.lead?.mobile || "N/A"}</td>
                     <td className="px-3 py-2 text-sm">{item?.lead?.email || "N/A"}</td>
                     <td className="px-3 py-2 text-sm">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-700 border border-orange-200">
                         {item?.currentStatus || "N/A"}
                       </span>
                     </td>
@@ -185,17 +244,39 @@ const ClousureProspects = () => {
                     <td className="px-3 py-2 text-sm">
                       {((item?.mailers || []).find(m => m.type === "mailer1")?.sent) ? (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">Sent</span>
-                      ) : <span className="text-gray-400">N/A</span>}
+                      ) : <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-50 text-slate-400 border border-slate-200">N/A</span>}
                     </td>
                     <td className="px-3 py-2 text-sm">
                       {((item?.mailers || []).find(m => m.type === "mailer2")?.sent) ? (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">Sent</span>
-                      ) : <span className="text-gray-400">N/A</span>}
+                      ) : <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-50 text-slate-400 border border-slate-200">N/A</span>}
                     </td>
                     <td className="px-3 py-2 text-sm">
                       {item?.whatsapp?.sent ? (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">Sent</span>
-                      ) : <span className="text-gray-400">N/A</span>}
+                      ) : <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-50 text-slate-400 border border-slate-200">N/A</span>}
+                    </td>
+                    <td className="px-3 py-2 text-sm">
+                      {/* Closure status segmented toggle with optimistic update */}
+                      <div className="flex items-center gap-2">
+                        <div className="inline-flex rounded-md overflow-hidden border border-slate-200 shadow-sm">
+                          <button
+                            className={`px-2.5 py-1 text-xs ${item?.closureStatus === 'In Progress' ? 'bg-amber-500 text-white' : 'bg-white text-slate-700'} disabled:opacity-60 hover:bg-amber-50`}
+                            onClick={() => updateClosureStatus(item._id, 'In Progress')}
+                            disabled={updatingIds.includes(item._id)}
+                            title="Mark In Progress"
+                          >⚠️ In Progress</button>
+                          <button
+                            className={`px-2.5 py-1 text-xs ${item?.closureStatus === 'Closed' ? 'bg-emerald-600 text-white' : 'bg-white text-slate-700'} disabled:opacity-60 hover:bg-emerald-50`}
+                            onClick={() => updateClosureStatus(item._id, 'Closed', item)}
+                            disabled={updatingIds.includes(item._id)}
+                            title="Mark Closed"
+                          >✅ Closed</button>
+                        </div>
+                        {updatingIds.includes(item._id) && (
+                          <span className="text-[11px] text-slate-500">Saving...</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-3 py-2 text-sm">
                       <div className="flex items-center gap-2">
@@ -252,10 +333,57 @@ const ClousureProspects = () => {
           </div>
         )}
 
+        {/* Closure Congrats Modal */}
+        {closureCongrats.open && (
+          <div className="fixed inset-0 z-50">
+            <div
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setClosureCongrats({ open: false, name: '', company: '' })}
+            />
+            <div className="relative z-10 h-full w-full flex items-center justify-center p-4">
+              <div className="w-full max-w-md rounded-2xl overflow-hidden shadow-2xl border border-white/20">
+                <div className="bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500 p-1">
+                  <div className="bg-white rounded-2xl p-6">
+                    {/* Header pills: Lead (top-left) and Company (top-right) */}
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                        👤 {closureCongrats.name}
+                      </span>
+                      {closureCongrats.company && (
+                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                          🏢 {closureCongrats.company}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-center mb-3">
+                      <div className="h-14 w-14 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-2xl">🎉</div>
+                    </div>
+                    <h3 className="text-xl font-extrabold text-slate-900 text-center">Closure Achieved!</h3>
+                    <p className="mt-2 text-center text-slate-600">
+                      Congratulations on closing {closureCongrats.name}
+                      {closureCongrats.company ? ` at ${closureCongrats.company}` : ''}.
+                    </p>
+                    <div className="mt-4 rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-emerald-800 text-sm text-center">
+                      Keep up the momentum and continue delivering great results!
+                    </div>
+                    <div className="mt-6 flex justify-center">
+                      <button
+                        className="px-4 py-2 rounded-lg bg-emerald-600 text-white shadow hover:bg-emerald-700"
+                        onClick={() => setClosureCongrats({ open: false, name: '', company: '' })}
+                      >Awesome!</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );
 };
 
 export default ClousureProspects;
+
 

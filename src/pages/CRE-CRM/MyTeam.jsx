@@ -58,11 +58,28 @@ const MyTeam = () => {
     run();
   }, [token, isLeader]);
 
+  // Derive per-member closures (closureStatus === 'Closed') from teamLeadsData
+  const memberClosedCounts = useMemo(() => {
+    const map = {};
+    for (const a of teamLeadsData) {
+      const uid = String(a.Calledbycre?._id || a.Calledbycre || '');
+      if (!uid) continue;
+      if (a?.closureStatus === 'Closed') {
+        map[uid] = (map[uid] || 0) + 1;
+      }
+    }
+    return map;
+  }, [teamLeadsData]);
+
   const filteredLeads = useMemo(() => {
     let rows = [...teamLeadsData];
     if (selectedUserId) rows = rows.filter(a => String(a.Calledbycre?._id || a.Calledbycre) === String(selectedUserId));
     if (statusFilter) {
-      rows = rows.filter(a => (a.currentStatus || '').toLowerCase() === statusFilter.toLowerCase());
+      if (statusFilter === 'Closed') {
+        rows = rows.filter(a => a?.closureStatus === 'Closed');
+      } else {
+        rows = rows.filter(a => (a.currentStatus || '').toLowerCase() === statusFilter.toLowerCase());
+      }
     }
     if (search.trim()) {
       const q = search.trim().toLowerCase();
@@ -124,7 +141,8 @@ const MyTeam = () => {
                     <th className="px-4 py-3 text-left">Pending</th>
                     <th className="px-4 py-3 text-left">Positive</th>
                     <th className="px-4 py-3 text-left">Negative</th>
-                    <th className="px-4 py-3 text-left">Closure</th>
+                    <th className="px-4 py-3 text-left">Closure Prospects</th>
+                    <th className="px-4 py-3 text-left">Closed</th>
                     <th className="px-4 py-3 text-left">FU Today</th>
                   </tr>
                 </thead>
@@ -145,6 +163,7 @@ const MyTeam = () => {
                         <td className="px-4 py-3">{m.metrics?.positive ?? 0}</td>
                         <td className="px-4 py-3">{m.metrics?.negative ?? 0}</td>
                         <td className="px-4 py-3">{m.metrics?.closureProspects ?? 0}</td>
+                        <td className="px-4 py-3">{memberClosedCounts[String(m._id)] || 0}</td>
                         <td className="px-4 py-3">{m.metrics?.todaysFollowups ?? 0}</td>
                       </tr>
                     ))
@@ -174,6 +193,7 @@ const MyTeam = () => {
               <option value="Positive">Positive</option>
               <option value="Negative">Negative</option>
               <option value="Closure Prospects">Closure Prospects</option>
+              <option value="Closed">Closed</option>
             </select>
           </div>
           <div className="flex items-center gap-2">
@@ -207,6 +227,7 @@ const MyTeam = () => {
                   <th className="px-4 py-3 text-left">Mobile</th>
                   <th className="px-4 py-3 text-left">Assigned CRE</th>
                   <th className="px-4 py-3 text-left">Status</th>
+                  <th className="px-4 py-3 text-left">Closure</th>
                   <th className="px-4 py-3 text-left">Follow-up</th>
                   <th className="px-4 py-3 text-left">Manager</th>
                 </tr>
@@ -235,8 +256,19 @@ const MyTeam = () => {
                         <td className="px-4 py-3">{Array.isArray(lead.mobile) ? lead.mobile.join(', ') : (lead.mobile || '—')}</td>
                         <td className="px-4 py-3">{a.Calledbycre?.name || '—'}</td>
                         <td className="px-4 py-3">{status}</td>
+                        <td className="px-4 py-3">
+                          {a?.closureStatus === 'Closed' ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">✅ Closed</span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">⚠️ Pending</span>
+                          )}
+                        </td>
                         <td className="px-4 py-3">{fuDate ? fuDate.toLocaleDateString() : '—'}</td>
-                        <td className="px-4 py-3">{a.reportingManager?.name || '—'}</td>
+                        <td className="px-4 py-3">
+                          {Array.isArray(a.reportingManagers) && a.reportingManagers.length > 0
+                            ? a.reportingManagers.map(rm => `${rm?.name || ''}${rm?.email ? ` (${rm.email})` : ''}`).filter(Boolean).join(', ')
+                            : (a.reportingManager?.name || '—')}
+                        </td>
                       </tr>
                     );
                   })

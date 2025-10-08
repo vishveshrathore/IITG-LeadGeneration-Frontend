@@ -100,7 +100,7 @@ const TodaysFollowup = () => {
                   <th className="px-3 py-2 text-left text-sm font-medium text-gray-700">Product Line</th>
                   <th className="px-3 py-2 text-left text-sm font-medium text-gray-700">Turnover</th>
                   <th className="px-3 py-2 text-left text-sm font-medium text-gray-700">CRE</th>
-                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-700">Reporting Manager</th>
+                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-700">Reporting Manager(s)</th>
                   <th className="px-3 py-2 text-left text-sm font-medium text-gray-700">Follow-Ups</th>
                   <th className="px-3 py-2 text-left text-sm font-medium text-gray-700">Mailer1</th>
                   <th className="px-3 py-2 text-left text-sm font-medium text-gray-700">Mailer2</th>
@@ -122,7 +122,11 @@ const TodaysFollowup = () => {
                     <td className="px-3 py-2 text-sm">{assignment.lead?.productLine || "N/A"}</td>
                     <td className="px-3 py-2 text-sm">{assignment.lead?.turnover || "N/A"}</td>
                     <td className="px-3 py-2 text-sm">{assignment.Calledbycre?.name || "N/A"}</td>
-                    <td className="px-3 py-2 text-sm">{assignment.reportingManager?.name || "N/A"}</td>
+                    <td className="px-3 py-2 text-sm">{
+                      Array.isArray(assignment.reportingManagers) && assignment.reportingManagers.length > 0
+                        ? assignment.reportingManagers.map(rm => `${rm?.name || ''}${rm?.email ? ` (${rm.email})` : ''}`).filter(Boolean).join(', ')
+                        : (assignment.reportingManager?.name || "N/A")
+                    }</td>
                     <td className="px-3 py-2 text-sm">
                       {assignment.followUps.map((fu, idx) => (
                         <div key={idx} className="flex items-center space-x-1">

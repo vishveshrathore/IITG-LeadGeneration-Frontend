@@ -185,7 +185,7 @@ const MyWorksheet = () => {
 
   const openWhatsApp = async (assignmentId, number, recipientName, senderName) => {
     if (!number) { toast.error("Mobile number not found"); return; }
-    const message = `Hello ${recipientName},\n\nThis is ${senderName} from IITGJobs.com. We have recently launched a tech-driven product to help organizations control attrition, and I would like to seek an appointment with you.\n\nYour insights would mean a lot. Kindly let me know your comfortable timings for a telephonic discussion. I look forward to hearing from you.\n\nBest regards,  \n${senderName}  \nIITGJobs.com`;
+    const message = `Hello ${recipientName},\n\nThis is ${senderName} from IITGJobs.com Pvt.Ltd. We have recently launched a tech-driven product to help organizations control attrition, and I would like to seek an appointment with you.\n\nYour insights would mean a lot. Kindly let me know your comfortable timings for a telephonic discussion. I look forward to hearing from you.\n\nBest regards,  \n${senderName}  \nIITGJobs.com`;
     const url = `https://web.whatsapp.com/send?phone=91${number}&text=${encodeURIComponent(message)}`;
     const win = window.open(url, "whatsappWindow");
     if (win) win.focus();
@@ -380,7 +380,7 @@ const MyWorksheet = () => {
                   <th className="px-3 py-2 text-left text-sm">Product Line</th>
                   <th className="px-3 py-2 text-left text-sm">Turnover</th>
                   <th className="px-3 py-2 text-left text-sm">CRE</th>
-                  <th className="px-3 py-2 text-left text-sm">Reporting Manager</th>
+                  <th className="px-3 py-2 text-left text-sm">Reporting Manager(s)</th>
                   <th className="px-3 py-2 text-left text-sm">Follow-Ups</th>
                   <th className="px-3 py-2 text-left text-sm">Mailer1</th>
                   <th className="px-3 py-2 text-left text-sm">Mailer2</th>
@@ -402,7 +402,11 @@ const MyWorksheet = () => {
                     <td className="px-3 py-2 text-sm">{lead?.lead?.productLine || "N/A"}</td>
                     <td className="px-3 py-2 text-sm">{lead?.lead?.turnover || "N/A"}</td>
                     <td className="px-3 py-2 text-sm">{lead?.Calledbycre?.name || "N/A"}</td>
-                    <td className="px-3 py-2 text-sm">{lead?.reportingManager?.name || "N/A"}</td>
+                    <td className="px-3 py-2 text-sm">{
+                      Array.isArray(lead?.reportingManagers) && lead.reportingManagers.length > 0
+                        ? lead.reportingManagers.map(rm => `${rm?.name || ''}${rm?.email ? ` (${rm.email})` : ''}`).filter(Boolean).join(', ')
+                        : (lead?.reportingManager?.name || "N/A")
+                    }</td>
                     <td className="px-3 py-2 text-sm">
                       {(lead?.followUps || []).length === 0 ? (
                         <span>N/A</span>

@@ -68,7 +68,9 @@ const LeadAssignmentDashboard = () => {
   const [meetingDate, setMeetingDate] = useState('');
   const [meetingTime, setMeetingTime] = useState('');
   const [meetingNotes, setMeetingNotes] = useState('');
-  const [selectedReportingManager, setSelectedReportingManager] = useState('');
+  const [selectedReportingManagers, setSelectedReportingManagers] = useState([]);
+  const [managersOpen, setManagersOpen] = useState(false);
+  const [managerSearch, setManagerSearch] = useState('');
   // General remarks (separate from follow-up remarks)
   const [remarks, setRemarks] = useState('');
 
@@ -78,7 +80,8 @@ const LeadAssignmentDashboard = () => {
     if (!lead) return { progress: 0 };
     let completed = 0;
     if (lead?.currentStatus && lead.currentStatus !== 'Pending') completed++;
-    if (lead?.reportingManager) completed++;
+    if (lead?.reportingManagers && lead.reportingManagers.length > 0) completed++;
+    else if (lead?.reportingManager) completed++;
     if (lead?.meeting && (lead.meeting.link || lead.meeting.date || lead.meeting.time || lead.meeting.notes)) completed++;
     if (lead?.followUps && lead.followUps.length > 0) completed++;
     const pct = Math.round((completed / fieldsTotal) * 100) || 0;
@@ -121,13 +124,12 @@ const LeadAssignmentDashboard = () => {
       setReportingManagers(managersArray);
 
       // Auto-select if lead already has a reporting manager assigned
-      if (lead?.reportingManager) {
-        const managerId =
-          typeof lead.reportingManager === "object"
-            ? lead.reportingManager._id
-            : lead.reportingManager;
-
-        if (managerId) setSelectedReportingManager(managerId);
+      if (lead?.reportingManagers && Array.isArray(lead.reportingManagers)) {
+        const ids = lead.reportingManagers.map(m => typeof m === 'object' ? m._id : m).filter(Boolean);
+        if (ids.length) setSelectedReportingManagers(ids);
+      } else if (lead?.reportingManager) {
+        const managerId = typeof lead.reportingManager === 'object' ? lead.reportingManager._id : lead.reportingManager;
+        if (managerId) setSelectedReportingManagers([managerId]);
       }
     } catch (err) {
       console.error("Fetch reporting managers failed:", err);
@@ -163,7 +165,11 @@ const LeadAssignmentDashboard = () => {
       const fetchedLead = res.data;
       if (fetchedLead) {
         setNewStatus(fetchedLead.currentStatus || 'Pending');
-        setSelectedReportingManager(fetchedLead.reportingManager?._id || '');
+        if (fetchedLead.reportingManagers && Array.isArray(fetchedLead.reportingManagers)) {
+          setSelectedReportingManagers(fetchedLead.reportingManagers.map(m => typeof m === 'object' ? m._id : m).filter(Boolean));
+        } else {
+          setSelectedReportingManagers(fetchedLead.reportingManager?._id ? [fetchedLead.reportingManager._id] : []);
+        }
         setMeetingLink(fetchedLead.meeting?.link || '');
         setMeetingDate(fetchedLead.meeting?.date ? new Date(fetchedLead.meeting.date).toISOString().split('T')[0] : '');
         setMeetingTime(fetchedLead.meeting?.time || '');
@@ -214,7 +220,11 @@ const LeadAssignmentDashboard = () => {
         setLead(parsedLead);
         // Rehydrate local UI state and clear loading immediately
         setNewStatus(parsedLead.currentStatus || 'Pending');
-        setSelectedReportingManager(parsedLead.reportingManager?._id || '');
+        if (parsedLead.reportingManagers && Array.isArray(parsedLead.reportingManagers)) {
+          setSelectedReportingManagers(parsedLead.reportingManagers.map(m => typeof m === 'object' ? m._id : m).filter(Boolean));
+        } else {
+          setSelectedReportingManagers(parsedLead.reportingManager?._id ? [parsedLead.reportingManager._id] : []);
+        }
         setMeetingLink(parsedLead.meeting?.link || '');
         setMeetingDate(parsedLead.meeting?.date ? new Date(parsedLead.meeting.date).toISOString().split('T')[0] : '');
         setMeetingTime(parsedLead.meeting?.time || '');
@@ -260,7 +270,7 @@ const LeadAssignmentDashboard = () => {
     // Prepare the payload based on the new schema structure
     const payload = {
       currentStatus: newStatus,
-      ...(selectedReportingManager && { reportingManager: selectedReportingManager }),
+      ...(selectedReportingManagers.length > 0 && { reportingManagers: selectedReportingManagers }),
       remarks: remarksText,
       
       // Only include follow-up if date and remarks are present
@@ -321,7 +331,7 @@ const LeadAssignmentDashboard = () => {
   const openWhatsApp = (number, recipientName, senderName) => {
     const message = `Hello ${recipientName},
 
-This is ${senderName} from IITGJobs.com. We have recently launched a tech-driven product to help organizations control attrition, and I would like to seek an appointment with you.
+This is ${senderName} from IITGJobs.com.Pvt.Ltd. We have recently launched a tech-driven product to help organizations control attrition, and I would like to seek an appointment with you.
 
 Your insights would mean a lot. Kindly let me know your comfortable timings for a telephonic discussion. I look forward to hearing from you.
 
@@ -560,28 +570,82 @@ IITGJobs.com`;
                         </select>
                     </div>
 
-                    {/* Reporting Manager */}
-                   <div className="relative">
-    <label className="block text-sm font-medium text-gray-700 capitalize mb-1 flex items-center">
-        <FaUserTie className="mr-2"/> Reporting Manager
-    </label>
-    <select
-        value={selectedReportingManager}
-        onChange={(e) => setSelectedReportingManager(e.target.value)}
-        className="w-full border border-gray-300 px-4 py-3 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition-all bg-white"
-    >
-        <option value="">Select Manager (Optional)</option>
-        {/* FIX: Use Nullish Coalescing (??) to prevent 
-          "reportingManagers.map is not a function" error.
-          It ensures that if reportingManagers is null/undefined, it uses [] instead.
-        */}
-        {(reportingManagers ?? []).map((manager) => (
-            <option key={manager._id} value={manager._id}>
-                {manager.name} ({manager.email})
-            </option>
-        ))}
-    </select>
-</div>
+                    {/* Reporting Managers (Enhanced multi-select) */}
+                    <div className="relative">
+                      <label className="block text-sm font-medium text-gray-700 capitalize mb-1 flex items-center">
+                        <FaUserTie className="mr-2"/> Reporting Managers
+                      </label>
+                      {/* Combobox-like trigger showing chips */}
+                      <div className="w-full border border-gray-300 px-3 py-2 rounded-xl shadow-sm bg-white flex flex-wrap items-center gap-2 cursor-pointer"
+                           onClick={() => setManagersOpen((o)=>!o)}>
+                        {selectedReportingManagers.length === 0 ? (
+                          <span className="text-sm text-slate-500">Select manager(s)…</span>
+                        ) : (
+                          (selectedReportingManagers || []).map((id) => {
+                            const m = (reportingManagers ?? []).find(x => String(x._id) === String(id));
+                            const label = m ? `${m.name} (${m.email})` : id;
+                            return (
+                              <span key={id} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-slate-100 text-slate-700 border border-slate-200">
+                                {label}
+                                <button type="button" className="ml-1 text-slate-500 hover:text-red-600"
+                                  onClick={(e)=>{ e.stopPropagation(); setSelectedReportingManagers(prev=>prev.filter(x=>String(x)!==String(id))); }}>
+                                  ✕
+                                </button>
+                              </span>
+                            );
+                          })
+                        )}
+                        <span className="ml-auto text-slate-500 text-xs">{managersOpen ? 'Close' : 'Open'}</span>
+                      </div>
+
+                      {/* Dropdown panel */}
+                      {managersOpen && (
+                        <div className="absolute z-20 mt-1 w-full rounded-xl border border-slate-200 bg-white shadow-xl p-3">
+                          <input
+                            type="text"
+                            value={managerSearch}
+                            onChange={(e)=>setManagerSearch(e.target.value)}
+                            placeholder="Search managers…"
+                            className="w-full mb-2 px-3 py-2 border rounded-md text-sm"
+                          />
+                          <div className="max-h-52 overflow-auto pr-1">
+                            {((reportingManagers ?? []).filter(m => {
+                              const q = managerSearch.trim().toLowerCase();
+                              if (!q) return true;
+                              const t = `${m.name} ${m.email}`.toLowerCase();
+                              return t.includes(q);
+                            })).map((m) => {
+                              const checked = selectedReportingManagers.some(id => String(id) === String(m._id));
+                              return (
+                                <label key={m._id} className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-slate-50 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={(e)=>{
+                                      const v = String(m._id);
+                                      setSelectedReportingManagers(prev => {
+                                        const has = prev.some(x => String(x) === v);
+                                        if (e.target.checked && !has) return [...prev, v];
+                                        if (!e.target.checked && has) return prev.filter(x => String(x) !== v);
+                                        return prev;
+                                      });
+                                    }}
+                                  />
+                                  <span className="text-sm text-slate-700">{m.name} <span className="text-slate-400">({m.email})</span></span>
+                                </label>
+                              );
+                            })}
+                            {(reportingManagers ?? []).length === 0 && (
+                              <div className="text-sm text-slate-500 p-2">No managers available</div>
+                            )}
+                          </div>
+                          <div className="mt-2 flex items-center justify-between">
+                            <button type="button" className="text-xs px-2 py-1 rounded border" onClick={()=>setSelectedReportingManagers([])}>Clear</button>
+                            <button type="button" className="text-xs px-3 py-1 rounded bg-indigo-600 text-white" onClick={()=>setManagersOpen(false)}>Done</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                 </div>
 
                 {/* Follow-Ups Section */}

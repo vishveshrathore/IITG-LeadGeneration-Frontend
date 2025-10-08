@@ -100,7 +100,7 @@ const PositiveLead = () => {
                 <th className="px-3 py-2 text-left text-sm font-medium">Product Line</th>
                 <th className="px-3 py-2 text-left text-sm font-medium">Turnover</th>
                 <th className="px-3 py-2 text-left text-sm font-medium">CRE</th>
-                <th className="px-3 py-2 text-left text-sm font-medium">Reporting Manager</th>
+                <th className="px-3 py-2 text-left text-sm font-medium">Reporting Manager(s)</th>
                 <th className="px-3 py-2 text-left text-sm font-medium">Follow-Ups</th>
                 <th className="px-3 py-2 text-left text-sm font-medium">Mailer1</th>
                 <th className="px-3 py-2 text-left text-sm font-medium">Mailer2</th>
@@ -122,7 +122,11 @@ const PositiveLead = () => {
                   <td className="px-3 py-2 text-sm">{assignment?.lead?.productLine || "N/A"}</td>
                   <td className="px-3 py-2 text-sm">{assignment?.lead?.turnover || "N/A"}</td>
                   <td className="px-3 py-2 text-sm">{assignment?.Calledbycre?.name || "N/A"}</td>
-                  <td className="px-3 py-2 text-sm">{assignment?.reportingManager?.name || "N/A"}</td>
+                  <td className="px-3 py-2 text-sm">{
+                    Array.isArray(assignment?.reportingManagers) && assignment.reportingManagers.length > 0
+                      ? assignment.reportingManagers.map(rm => `${rm?.name || ''}${rm?.email ? ` (${rm.email})` : ''}`).filter(Boolean).join(', ')
+                      : (assignment?.reportingManager?.name || "N/A")
+                  }</td>
                   <td className="px-3 py-2 text-sm">
                     {(assignment?.followUps || []).map((fu) => (
                       <div key={fu._id} className="flex items-center space-x-1">
@@ -196,7 +200,10 @@ const PositiveLead = () => {
                     <p><strong>Product Line:</strong> {selectedLead?.lead?.productLine || "N/A"}</p>
                     <p><strong>Turnover:</strong> {selectedLead?.lead?.turnover || "N/A"}</p>
                     <p><strong>CRE:</strong> {selectedLead?.Calledbycre?.name || "N/A"}</p>
-                    <p><strong>Reporting Manager:</strong> {selectedLead?.reportingManager?.name || "N/A"}</p>
+                    <p><strong>Reporting Manager(s):</strong> {Array.isArray(selectedLead?.reportingManagers) && selectedLead.reportingManagers.length > 0
+                      ? selectedLead.reportingManagers.map(rm => `${rm?.name || ''}${rm?.email ? ` (${rm.email})` : ''}`).filter(Boolean).join(', ')
+                      : (selectedLead?.reportingManager?.name || "N/A")}
+                    </p>
                   </div>
                 </div>
 

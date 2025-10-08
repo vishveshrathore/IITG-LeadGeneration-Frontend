@@ -155,32 +155,45 @@ const CreCrmDashboard = () => {
     return filteredTeamData.slice(start, start + pageSize);
   }, [filteredTeamData, currentPage, pageSize]);
 
+  // Build action grid cards dynamically so we can attach live counts
+  const isLeaderUI = ["CRM-TeamLead", "RegionalHead", "NationalHead"].includes(role || user?.role);
   const actionGrids = [
-     {
+    {
+      title: 'Closures Till Date',
+      description: 'Closure Report',
+      icon: <MdBusiness className="text-teal-600 text-3xl" />,
+      path: '/cre/closure-till-date',
+      glow: 'from-teal-400 to-cyan-500',
+      tooltip: 'View all your successful deals',
+      count: undefined, // not available in current metrics
+    },
+    {
       title: 'Today Follow-ups',
       description: 'Track pending follow-up calls efficiently',
       icon: <MdAssignment className="text-green-600 text-3xl" />,
       path: '/cre/followups',
       glow: 'from-green-400 to-teal-500',
       tooltip: 'Review follow-up reminders',
+      count: metrics.todaysFollowups,
     },
     {
-      title: 'Clouser Prospects',
-      description: 'Monitor Clouser Prospects Leads',
+      title: 'Closure Prospects',
+      description: 'Monitor Closure Prospects Leads',
       icon: <MdBusiness className="text-teal-600 text-3xl" />,
       path: '/cre/closureprospects',
       glow: 'from-teal-400 to-cyan-500',
       tooltip: 'View all your successful deals',
+      count: metrics.closureProspects,
     },
-     {
+    {
       title: 'Positive leads',
       description: 'Monitor Positive Leads',
       icon: <MdBusiness className="text-teal-600 text-3xl" />,
       path: '/cre/positiveleads',
       glow: 'from-teal-400 to-cyan-500',
       tooltip: 'View all your successful deals',
+      count: metrics.positiveLeads,
     },
-   
     {
       title: 'My WorkSheet',
       description: 'Manage All the leads assigned to you',
@@ -188,16 +201,30 @@ const CreCrmDashboard = () => {
       path: '/cre/worksheet',
       glow: 'from-indigo-400 to-blue-500',
       tooltip: 'Add a brand-new lead call',
+      count: metrics.myLeads,
     },
-     {
+    {
       title: 'New Leads',
       description: 'Quickly log and manage your fresh leads',
       icon: <FiPhoneCall className="text-indigo-600 text-3xl" />,
       path: '/creassignedlead',
       glow: 'from-indigo-400 to-blue-500',
       tooltip: 'Add a brand-new lead call',
+      count: undefined,
     },
-    
+    ...(
+      isLeaderUI
+        ? [{
+            title: 'Team Leads',
+            description: 'Monitor your team’s lead pipeline',
+            icon: <FiUsers className="text-cyan-600 text-3xl" />,
+            path: '/cre/myteam',
+            glow: 'from-cyan-400 to-sky-500',
+            tooltip: 'Overview of team leads',
+            count: metrics.teamLeads,
+          }]
+        : []
+    ),
   ];
 
   const getGreeting = () => {
@@ -317,42 +344,70 @@ const CreCrmDashboard = () => {
           <p className="text-right text-sm text-gray-600">- {quote.author}</p>
         </motion.div>
 
-        {/* Metrics Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mt-8">
-          {[{
-            title: 'My Leads', value: metrics.myLeads, color: 'from-blue-500 to-indigo-600', icon: <FiUsers className="text-white" />
-          },{
-            title: "Today's Follow-ups", value: metrics.todaysFollowups, color: 'from-emerald-500 to-teal-600', icon: <MdAssignment className="text-white" />
-          },{
-            title: 'Positive Leads', value: metrics.positiveLeads, color: 'from-purple-500 to-fuchsia-600', icon: <FiCheckCircle className="text-white" />
-          },{
-            title: 'Closure Prospects', value: metrics.closureProspects, color: 'from-orange-500 to-rose-600', icon: <MdBusiness className="text-white" />
-          },
-          // Conditionally append Team Leads card for leader roles
-          ...(["CRM-TeamLead", "RegionalHead", "NationalHead"].includes(role || user?.role) ? [{
-            title: 'Team Leads', value: metrics.teamLeads, color: 'from-cyan-500 to-sky-600', icon: <FiUsers className="text-white" />
-          }] : [])
-          ].map((card, i) => (
-          <motion.div key={card.title}
-            className="relative overflow-hidden rounded-xl shadow-md bg-white cursor-pointer"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.05 * i }}
-            whileHover={{ y: -3, scale: 1.01, boxShadow: '0 18px 28px -18px rgba(0,0,0,0.25)' }}
-          >
-            <div className={`absolute inset-0 bg-gradient-to-tr ${card.color} opacity-10 blur-xl`} />
-            <div className="relative p-6 flex items-center justify-between">
-              <div>
-                <div className="text-sm text-gray-500">{card.title}</div>
-                <div className="text-2xl font-bold text-gray-800">
-                  {loadingMetrics ? '—' : <CountUp end={Number(card.value) || 0} duration={1.2} />}
-                </div>
-              </div>
-              <div className={`p-3 rounded-full bg-gradient-to-tr ${card.color}`}>{card.icon}</div>
+        {/* At-a-glance stats strip (compact, replaces big metric cards) */}
+        <motion.div
+          className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          {/* My Leads */}
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white/80 px-4 py-3 shadow-sm">
+            <div className="flex items-center gap-2 text-slate-600">
+              <FiUsers className="text-blue-600" />
+              <span className="text-sm">My Leads</span>
             </div>
-          </motion.div>
-        ))}
-      </div>
+            <div className="text-base font-semibold text-slate-900">
+              {loadingMetrics ? '—' : <CountUp end={Number(metrics.myLeads) || 0} duration={1.0} />}
+            </div>
+          </div>
+
+          {/* Today's Follow-ups */}
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white/80 px-4 py-3 shadow-sm">
+            <div className="flex items-center gap-2 text-slate-600">
+              <MdAssignment className="text-emerald-600" />
+              <span className="text-sm">Today's Follow-ups</span>
+            </div>
+            <div className="text-base font-semibold text-slate-900">
+              {loadingMetrics ? '—' : <CountUp end={Number(metrics.todaysFollowups) || 0} duration={1.0} />}
+            </div>
+          </div>
+
+          {/* Positive Leads */}
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white/80 px-4 py-3 shadow-sm">
+            <div className="flex items-center gap-2 text-slate-600">
+              <FiCheckCircle className="text-purple-600" />
+              <span className="text-sm">Positive Leads</span>
+            </div>
+            <div className="text-base font-semibold text-slate-900">
+              {loadingMetrics ? '—' : <CountUp end={Number(metrics.positiveLeads) || 0} duration={1.0} />}
+            </div>
+          </div>
+
+          {/* Closure Prospects */}
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white/80 px-4 py-3 shadow-sm">
+            <div className="flex items-center gap-2 text-slate-600">
+              <MdBusiness className="text-orange-600" />
+              <span className="text-sm">Closure Prospects</span>
+            </div>
+            <div className="text-base font-semibold text-slate-900">
+              {loadingMetrics ? '—' : <CountUp end={Number(metrics.closureProspects) || 0} duration={1.0} />}
+            </div>
+          </div>
+
+          {/* Team Leads (only for leader roles) */}
+          {(["CRM-TeamLead", "RegionalHead", "NationalHead"].includes(role || user?.role)) && (
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white/80 px-4 py-3 shadow-sm">
+              <div className="flex items-center gap-2 text-slate-600">
+                <FiUsers className="text-cyan-600" />
+                <span className="text-sm">Team Leads</span>
+              </div>
+              <div className="text-base font-semibold text-slate-900">
+                {loadingMetrics ? '—' : <CountUp end={Number(metrics.teamLeads) || 0} duration={1.0} />}
+              </div>
+            </div>
+          )}
+        </motion.div>
 
       {/* Quick Actions
       <div className="mt-6 flex flex-wrap gap-3">
@@ -378,6 +433,14 @@ const CreCrmDashboard = () => {
             <div
               className={`absolute inset-0 bg-gradient-to-tr ${item.glow} opacity-10 animate-pulse blur-xl`}
             />
+            {/* Count badge */}
+            {item.count !== undefined && (
+              <div className="absolute top-3 right-3">
+                <div className="px-2.5 py-1 rounded-full bg-slate-900/80 text-white text-xs shadow-md">
+                  {loadingMetrics ? '—' : <CountUp end={Number(item.count) || 0} duration={1.0} />}
+                </div>
+              </div>
+            )}
             <div className="relative bg-white p-6 rounded-xl h-full flex flex-col justify-between">
               <div className="flex items-center gap-4 mb-4">{item.icon}</div>
               <h4 className="text-lg font-semibold text-gray-800">{item.title}</h4>
