@@ -27,6 +27,9 @@ const CreCrmDashboard = () => {
     positiveLeads: 0,
     closureProspects: 0,
     teamLeads: 0,
+    teamTodaysFollowups: 0,
+    teamPositiveLeads: 0,
+    teamClosureProspects: 0,
   });
   const [loadingMetrics, setLoadingMetrics] = useState(true);
   const [teamLeadsData, setTeamLeadsData] = useState([]);
@@ -65,11 +68,17 @@ const CreCrmDashboard = () => {
         ];
         // Conditionally fetch team leads only for leader roles
         const isLeader = ["CRM-TeamLead", "DeputyCRMTeamLead", "RegionalHead", "DeputyRegionalHead", "NationalHead", "DeputyNationalHead"].includes(role || user?.role);
-        const teamReq = isLeader ? axios.get(`${BASE_URL}/api/cre/team/leads`, { headers }) : null;
+        const teamMetricsReqs = isLeader ? [
+          axios.get(`${BASE_URL}/api/cre/today/followups?scope=team`, { headers }),
+          axios.get(`${BASE_URL}/api/cre/positive/lead?scope=team`, { headers }),
+          axios.get(`${BASE_URL}/api/cre/closure-prospects?scope=team`, { headers })
+        ] : [];
+        const teamLeadsReq = isLeader ? axios.get(`${BASE_URL}/api/cre/team/leads`, { headers }) : null;
 
-        const [myLeadsRes, todaysRes, positiveRes, closureRes, teamRes] = await Promise.allSettled(
-          teamReq ? [...reqs, teamReq] : reqs
+        const settled = await Promise.allSettled(
+          isLeader ? [...reqs, ...teamMetricsReqs, teamLeadsReq] : reqs
         );
+        const [myLeadsRes, todaysRes, positiveRes, closureRes, teamTodaysRes, teamPositiveRes, teamClosureRes, teamRes] = settled;
 
         const safeCount = (res) => (res?.status === 'fulfilled' ? (res.value?.data?.count ?? res.value?.data?.total ?? res.value?.data?.data?.length ?? 0) : 0);
         setMetrics({
@@ -78,6 +87,9 @@ const CreCrmDashboard = () => {
           positiveLeads: safeCount(positiveRes),
           closureProspects: safeCount(closureRes),
           teamLeads: safeCount(teamRes),
+          teamTodaysFollowups: safeCount(teamTodaysRes),
+          teamPositiveLeads: safeCount(teamPositiveRes),
+          teamClosureProspects: safeCount(teamClosureRes),
         });
       } catch (_) {
         // Fail silently to keep dashboard resilient
@@ -158,6 +170,15 @@ const CreCrmDashboard = () => {
   // Build action grid cards dynamically so we can attach live counts
   const isLeaderUI = ["CRM-TeamLead", "DeputyCRMTeamLead", "RegionalHead", "DeputyRegionalHead", "NationalHead", "DeputyNationalHead"].includes(role || user?.role);
   const actionGrids = [
+     {
+      title: 'New Leads',
+      description: 'Quickly log and manage your fresh leads',
+      icon: <FiPhoneCall className="text-indigo-600 text-3xl" />,
+      path: '/creassignedlead',
+      glow: 'from-indigo-400 to-blue-500',
+      tooltip: 'Add a brand-new lead call',
+      count: undefined,
+    },
     {
       title: 'Closures Till Date',
       description: 'Closure Report',
@@ -175,6 +196,7 @@ const CreCrmDashboard = () => {
       glow: 'from-green-400 to-teal-500',
       tooltip: 'Review follow-up reminders',
       count: metrics.todaysFollowups,
+      teamCount: isLeaderUI ? metrics.teamTodaysFollowups : undefined,
     },
     {
       title: 'Closure Prospects / GM Conduction',
@@ -184,6 +206,7 @@ const CreCrmDashboard = () => {
       glow: 'from-teal-400 to-cyan-500',
       tooltip: 'View all your successful deals',
       count: metrics.closureProspects,
+      teamCount: isLeaderUI ? metrics.teamClosureProspects : undefined,
     },
     {
       title: 'Positive leads',
@@ -193,6 +216,7 @@ const CreCrmDashboard = () => {
       glow: 'from-teal-400 to-cyan-500',
       tooltip: 'View all your successful deals',
       count: metrics.positiveLeads,
+      teamCount: isLeaderUI ? metrics.teamPositiveLeads : undefined,
     },
     {
       title: 'My WorkSheet',
@@ -203,15 +227,7 @@ const CreCrmDashboard = () => {
       tooltip: 'Add a brand-new lead call',
       count: metrics.myLeads,
     },
-    {
-      title: 'New Leads',
-      description: 'Quickly log and manage your fresh leads',
-      icon: <FiPhoneCall className="text-indigo-600 text-3xl" />,
-      path: '/creassignedlead',
-      glow: 'from-indigo-400 to-blue-500',
-      tooltip: 'Add a brand-new lead call',
-      count: undefined,
-    },
+   
     ...(
       isLeaderUI
         ? [{
@@ -418,7 +434,7 @@ const CreCrmDashboard = () => {
       </div>
 
       {/* Compact Action Grids */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mt-8 mb-14">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6 mt-8 mb-14">
         {actionGrids.map((item, i) => (
           <motion.div
             key={i}
@@ -432,11 +448,19 @@ const CreCrmDashboard = () => {
             <div
               className={`absolute inset-0 bg-gradient-to-tr ${item.glow} opacity-10 animate-pulse blur-xl`}
             />
-            {/* Count badge */}
+            {/* Count badges: personal (top-right) and team (bottom-right for leaders) */}
             {item.count !== undefined && (
               <div className="absolute top-3 right-3">
                 <div className="px-2.5 py-1 rounded-full bg-slate-900/80 text-white text-xs shadow-md">
                   {loadingMetrics ? '—' : <CountUp end={Number(item.count) || 0} duration={1.0} />}
+                </div>
+              </div>
+            )}
+            {isLeaderUI && item.teamCount !== undefined && (
+              <div className="absolute bottom-3 right-3 flex items-center gap-1">
+                <div className="px-2 py-1 rounded-full bg-cyan-600/85 text-white text-[10px] shadow-md flex items-center gap-1">
+                  <FiUsers className="text-white" />
+                  {loadingMetrics ? '—' : <CountUp end={Number(item.teamCount) || 0} duration={1.0} />}
                 </div>
               </div>
             )}

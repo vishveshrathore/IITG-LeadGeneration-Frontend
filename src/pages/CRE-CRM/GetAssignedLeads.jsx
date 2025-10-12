@@ -29,7 +29,7 @@ import { mailer2Template } from "../../emails/mailer2";
 import { convert } from "html-to-text";
 
 // Constants for new schema fields and options
-const STATUS_OPTIONS = ['Pending', 'Positive', 'Negative', 'Closure Prospects'];
+const STATUS_OPTIONS = ['Pending', 'Positive', 'Negative', 'Closure Prospects', 'Wrong Number', 'RNR'];
 
 const LeadAssignmentDashboard = () => {
   const { authToken, user } = useAuth();
@@ -122,15 +122,9 @@ const LeadAssignmentDashboard = () => {
           : [];
 
       setReportingManagers(managersArray);
-
-      // Auto-select if lead already has a reporting manager assigned
-      if (lead?.reportingManagers && Array.isArray(lead.reportingManagers)) {
-        const ids = lead.reportingManagers.map(m => typeof m === 'object' ? m._id : m).filter(Boolean);
-        if (ids.length) setSelectedReportingManagers(ids);
-      } else if (lead?.reportingManager) {
-        const managerId = typeof lead.reportingManager === 'object' ? lead.reportingManager._id : lead.reportingManager;
-        if (managerId) setSelectedReportingManagers([managerId]);
-      }
+      // Default-select ALL managers by request
+      const allIds = managersArray.map(m => m._id).filter(Boolean);
+      setSelectedReportingManagers(allIds);
     } catch (err) {
       console.error("Fetch reporting managers failed:", err);
       const status = err?.response?.status;

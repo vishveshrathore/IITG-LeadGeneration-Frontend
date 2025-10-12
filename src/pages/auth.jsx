@@ -120,13 +120,17 @@ const AuthScreen = () => {
 
         setTimeout(() => {
           const r = (role || '').toLowerCase();
-          if (r === 'admin') navigate('/adminDashboard');
-          else if (r === 'lg') navigate('/lgDashboard');
-          else if (r === 'cre-crm') navigate('/CRE-CRMDashboard');
-          else if (r === 'crm-teamlead') navigate('/CRE-CRMDashboard');
-          else if (r === 'regionalhead') navigate('/CRE-CRMDashboard');
-          else if (r === 'nationalhead') navigate('/CRE-CRMDashboard');
-          else if (r === 'adminteam') navigate('/adminteam/dashboard');
+          const rn = r.replace(/[^a-z]/g, ''); // normalize by removing non-letters
+          if (rn === 'admin') navigate('/adminDashboard');
+          else if (rn === 'lg') navigate('/lgDashboard');
+          else if (rn === 'crecrm') navigate('/CRE-CRMDashboard');
+          else if (rn === 'crmteamlead') navigate('/CRE-CRMDashboard');
+          else if (rn === 'deputycrmteamlead') navigate('/CRE-CRMDashboard');
+          else if (rn === 'regionalhead') navigate('/CRE-CRMDashboard');
+          else if (rn === 'deputyregionalhead') navigate('/CRE-CRMDashboard');
+          else if (rn === 'nationalhead') navigate('/CRE-CRMDashboard');
+          else if (rn === 'deputynationalhead') navigate('/CRE-CRMDashboard');
+          else if (rn === 'adminteam') navigate('/adminteam/dashboard');
           else toast.error(`Unknown role: ${role}`);
         }, 500);
 

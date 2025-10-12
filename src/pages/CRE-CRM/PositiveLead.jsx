@@ -3,23 +3,34 @@ import axios from "axios";
 import toast, { Toaster } from "react-hot-toast";
 import { FaCalendarAlt, FaEdit } from "react-icons/fa";
 import CRENavbar from "../../components/CreNavbar";
+import TeamScopeMenu from "../../components/TeamScopeMenu";
 import { BASE_URL } from "../../config";
 import { useAuth } from "../../context/AuthContext";
 
 const PositiveLead = () => {
-  const { authToken } = useAuth();
+  const { authToken, user, role } = useAuth();
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedLead, setSelectedLead] = useState(null);
   const [remarks, setRemarks] = useState("");
   const [status, setStatus] = useState("");
   const statusOptions = ["Pending", "Positive", "Negative", "Closure Prospects"];
+  // hierarchy selector
+  const [scope, setScope] = useState('self'); // self | team | user
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [selectedUserId, setSelectedUserId] = useState('');
 
   const fetchLeads = async () => {
     if (!authToken) return;
     setLoading(true);
     try {
-      const res = await axios.get(`${BASE_URL}/api/cre/positive/lead`, {
+      const isLeader = ["CRM-TeamLead", "DeputyCRMTeamLead", "RegionalHead", "DeputyRegionalHead", "NationalHead", "DeputyNationalHead"].includes(role || user?.role);
+      let url = `${BASE_URL}/api/cre/positive/lead`;
+      if (isLeader) {
+        if (scope === 'team') url += `?scope=team`;
+        else if (scope === 'user' && selectedUserId) url += `?userId=${encodeURIComponent(selectedUserId)}`;
+      }
+      const res = await axios.get(url, {
         headers: { Authorization: `Bearer ${authToken}` },
       });
       setLeads(res.data.data);
@@ -31,9 +42,32 @@ const PositiveLead = () => {
     }
   };
 
+  const getLatestRemark = (a) => {
+    if (!a) return 'N/A';
+    if (a.remarks && a.remarks.trim()) return a.remarks.trim();
+    const fus = Array.isArray(a.followUps) ? a.followUps : [];
+    if (fus.length === 0) return 'N/A';
+    const last = fus[fus.length - 1];
+    return last?.remarks || 'N/A';
+  };
+
   useEffect(() => {
     fetchLeads();
-  }, [authToken]);
+  }, [authToken, scope, selectedUserId]);
+
+  // load team members for leaders
+  useEffect(() => {
+    const isLeader = ["CRM-TeamLead", "DeputyCRMTeamLead", "RegionalHead", "DeputyRegionalHead", "NationalHead", "DeputyNationalHead"].includes(role || user?.role);
+    if (!authToken || !isLeader) { setTeamMembers([]); return; }
+    const run = async () => {
+      try {
+        const res = await axios.get(`${BASE_URL}/api/cre/team/members`, { headers: { Authorization: `Bearer ${authToken}` } });
+        const items = Array.isArray(res?.data?.data) ? res.data.data : [];
+        setTeamMembers(items);
+      } catch (_) { setTeamMembers([]); }
+    };
+    run();
+  }, [authToken, role, user?.role]);
 
   const handleSelectLead = (lead) => {
     setSelectedLead(lead);
@@ -77,6 +111,18 @@ const PositiveLead = () => {
           <h1 className="text-2xl font-bold">Positive Leads
             <span className="ml-2 text-sm font-medium text-gray-500">({leads?.length || 0})</span>
           </h1>
+          <TeamScopeMenu
+            isLeader={["CRM-TeamLead", "DeputyCRMTeamLead", "RegionalHead", "DeputyRegionalHead", "NationalHead", "DeputyNationalHead"].includes(role || user?.role)}
+            teamMembers={teamMembers}
+            scope={scope}
+            selectedUserId={selectedUserId}
+            allLabel="All"
+            title="Filter by team"
+            persist={false}
+            onSelectMe={() => { setScope('self'); setSelectedUserId(''); }}
+            onSelectAll={() => { setScope('team'); setSelectedUserId(''); }}
+            onSelectUser={(id) => { setScope('user'); setSelectedUserId(id); }}
+          />
         </div>
 
         {leads.length === 0 ? (
@@ -90,79 +136,30 @@ const PositiveLead = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-100 sticky top-0 z-10">
               <tr>
-                <th className="px-3 py-2 text-left text-sm font-medium">Lead Name</th>
+                <th className="px-3 py-2 text-left text-sm font-medium">Name</th>
+                <th className="px-3 py-2 text-left text-sm font-medium">Company name</th>
                 <th className="px-3 py-2 text-left text-sm font-medium">Designation</th>
-                <th className="px-3 py-2 text-left text-sm font-medium">Company</th>
-                <th className="px-3 py-2 text-left text-sm font-medium">Industry</th>
                 <th className="px-3 py-2 text-left text-sm font-medium">Location</th>
-                <th className="px-3 py-2 text-left text-sm font-medium">Mobile</th>
-                <th className="px-3 py-2 text-left text-sm font-medium">Email</th>
-                <th className="px-3 py-2 text-left text-sm font-medium">Product Line</th>
-                <th className="px-3 py-2 text-left text-sm font-medium">Turnover</th>
-                <th className="px-3 py-2 text-left text-sm font-medium">CRE</th>
-                <th className="px-3 py-2 text-left text-sm font-medium">Reporting Manager(s)</th>
-                <th className="px-3 py-2 text-left text-sm font-medium">Follow-Ups</th>
-                <th className="px-3 py-2 text-left text-sm font-medium">Mailer1</th>
-                <th className="px-3 py-2 text-left text-sm font-medium">Mailer2</th>
-                <th className="px-3 py-2 text-left text-sm font-medium">WhatsApp</th>
-                <th className="px-3 py-2 text-left text-sm font-medium">Meeting</th>
-                <th className="px-3 py-2 text-left text-sm font-medium">Actions</th>
+                <th className="px-3 py-2 text-left text-sm font-medium">Latest Remark</th>
+                <th className="px-3 py-2 text-left text-sm font-medium">Followups</th>
+                <th className="px-3 py-2 text-left text-sm font-medium">Details</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {leads.map((assignment) => (
                 <tr key={assignment._id} className="hover:bg-gray-50">
                   <td className="px-3 py-2 text-sm">{assignment?.lead?.name || "N/A"}</td>
-                  <td className="px-3 py-2 text-sm">{assignment?.lead?.designation || "N/A"}</td>
                   <td className="px-3 py-2 text-sm">{assignment?.lead?.company?.CompanyName || "N/A"}</td>
-                  <td className="px-3 py-2 text-sm">{assignment?.lead?.company?.industry?.name || "N/A"}</td>
+                  <td className="px-3 py-2 text-sm">{assignment?.lead?.designation || "N/A"}</td>
                   <td className="px-3 py-2 text-sm">{assignment?.lead?.location || "N/A"}</td>
-                  <td className="px-3 py-2 text-sm">{Array.isArray(assignment?.lead?.mobile) ? assignment.lead.mobile.join(", ") : assignment?.lead?.mobile || "N/A"}</td>
-                  <td className="px-3 py-2 text-sm">{assignment?.lead?.email || "N/A"}</td>
-                  <td className="px-3 py-2 text-sm">{assignment?.lead?.productLine || "N/A"}</td>
-                  <td className="px-3 py-2 text-sm">{assignment?.lead?.turnover || "N/A"}</td>
-                  <td className="px-3 py-2 text-sm">{assignment?.Calledbycre?.name || "N/A"}</td>
-                  <td className="px-3 py-2 text-sm">{
-                    Array.isArray(assignment?.reportingManagers) && assignment.reportingManagers.length > 0
-                      ? assignment.reportingManagers.map(rm => `${rm?.name || ''}${rm?.email ? ` (${rm.email})` : ''}`).filter(Boolean).join(', ')
-                      : (assignment?.reportingManager?.name || "N/A")
-                  }</td>
-                  <td className="px-3 py-2 text-sm">
-                    {(assignment?.followUps || []).map((fu) => (
-                      <div key={fu._id} className="flex items-center space-x-1">
-                        <FaCalendarAlt className="text-gray-500" />
-                        <span>{fu?.followUpDate ? new Date(fu.followUpDate).toLocaleString() : "N/A"} - {fu?.remarks || ""}</span>
-                      </div>
-                    ))}
-                  </td>
-                  <td className="px-3 py-2 text-sm">
-                    {(assignment?.mailers || []).find(m => m.type === 'mailer1')?.sent ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">Sent</span>
-                    ) : <span className="text-gray-400">N/A</span>}
-                  </td>
-                  <td className="px-3 py-2 text-sm">
-                    {(assignment?.mailers || []).find(m => m.type === 'mailer2')?.sent ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">Sent</span>
-                    ) : <span className="text-gray-400">N/A</span>}
-                  </td>
-                  <td className="px-3 py-2 text-sm">
-                    {assignment?.whatsapp?.sent ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">Sent</span>
-                    ) : <span className="text-gray-400">N/A</span>}
-                  </td>
-                  <td className="px-3 py-2 text-sm">
-                    {(assignment?.meeting || []).length > 0 ? (
-                      (assignment.meeting || []).map((m) => (
-                        <div key={m._id} className="text-sm">Link: {m?.link || "N/A"}, Date: {m?.date || "N/A"}</div>
-                      ))
-                    ) : "N/A"}
-                  </td>
+                  <td className="px-3 py-2 text-sm">{getLatestRemark(assignment)}</td>
+                  <td className="px-3 py-2 text-sm">{Array.isArray(assignment?.followUps) ? assignment.followUps.length : 0}</td>
                   <td className="px-3 py-2 text-sm">
                     <button
                       className="flex items-center bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
                       onClick={() => handleSelectLead(assignment)}
                     >
-                      <FaEdit className="mr-1" /> View/Edit
+                      <FaEdit className="mr-1" /> Details
                     </button>
                   </td>
                 </tr>
@@ -204,6 +201,15 @@ const PositiveLead = () => {
                       ? selectedLead.reportingManagers.map(rm => `${rm?.name || ''}${rm?.email ? ` (${rm.email})` : ''}`).filter(Boolean).join(', ')
                       : (selectedLead?.reportingManager?.name || "N/A")}
                     </p>
+                    <p><strong>Assignment ID:</strong> {selectedLead?._id}</p>
+                    <p><strong>Lead ID:</strong> {selectedLead?.lead?._id || selectedLead?.lead}</p>
+                    <p><strong>Lead Model:</strong> {selectedLead?.leadModel || 'N/A'}</p>
+                    <p><strong>Current Status:</strong> {selectedLead?.currentStatus || 'N/A'}</p>
+                    <p><strong>Closure Status:</strong> {selectedLead?.closureStatus || 'N/A'}</p>
+                    <p><strong>Completed:</strong> {String(selectedLead?.completed)}</p>
+                    <p><strong>Assigned At:</strong> {selectedLead?.assignedAt ? new Date(selectedLead.assignedAt).toLocaleString() : 'N/A'}</p>
+                    <p><strong>Created:</strong> {selectedLead?.createdAt ? new Date(selectedLead.createdAt).toLocaleString() : 'N/A'}</p>
+                    <p><strong>Updated:</strong> {selectedLead?.updatedAt ? new Date(selectedLead.updatedAt).toLocaleString() : 'N/A'}</p>
                   </div>
                 </div>
 

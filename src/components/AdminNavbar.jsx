@@ -34,7 +34,7 @@ const AdminNavbar = () => {
       transition={{ type: 'spring', stiffness: 100 }}
       className="fixed top-0 left-0 right-0 z-50 bg-white border-b px-4 md:px-8 py-3 flex items-center justify-between shadow-sm"
     >
-      <h1 className="text-xl font-bold text-black-600 tracking-tight">IITGJobs.com</h1>
+      <h1 className="text-xl font-bold text-black-600 tracking-tight">IITGJobs.com Pvt.Ltd.</h1>
 
       {/* Mobile menu toggle */}
       <button className="md:hidden text-2xl text-gray-600" onClick={toggleMenu}>

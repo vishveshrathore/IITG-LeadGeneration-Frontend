@@ -135,14 +135,13 @@ const MyTeam = () => {
                   <tr>
                     <th className="px-4 py-3 text-left">Name</th>
                     <th className="px-4 py-3 text-left">Role</th>
-                    <th className="px-4 py-3 text-left">Region</th>
                     <th className="px-4 py-3 text-left">Email</th>
-                    <th className="px-4 py-3 text-left">Total</th>
-                    <th className="px-4 py-3 text-left">Pending</th>
-                    <th className="px-4 py-3 text-left">Positive</th>
-                    <th className="px-4 py-3 text-left">Negative</th>
-                    <th className="px-4 py-3 text-left">Closure Prospects</th>
                     <th className="px-4 py-3 text-left">Closed</th>
+                    <th className="px-4 py-3 text-left">Closure Prospects</th>
+                    <th className="px-4 py-3 text-left">Positive</th>
+                    <th className="px-4 py-3 text-left">Pending</th>
+                    <th className="px-4 py-3 text-left">Negative</th>
+                    <th className="px-4 py-3 text-left">Total</th>
                     <th className="px-4 py-3 text-left">FU Today</th>
                   </tr>
                 </thead>
@@ -156,15 +155,14 @@ const MyTeam = () => {
                       <tr key={m._id} className="border-t border-slate-100 hover:bg-slate-50/60 cursor-pointer" onClick={() => { setSelectedUserId(m._id); setPage(1); }}>
                         <td className="px-4 py-3">{m.name || '—'}</td>
                         <td className="px-4 py-3">{m.role || '—'}</td>
-                        <td className="px-4 py-3">{m.region || '—'}</td>
                         <td className="px-4 py-3">{m.email || '—'}</td>
-                        <td className="px-4 py-3">{m.metrics?.total ?? 0}</td>
-                        <td className="px-4 py-3">{m.metrics?.pending ?? 0}</td>
-                        <td className="px-4 py-3">{m.metrics?.positive ?? 0}</td>
-                        <td className="px-4 py-3">{m.metrics?.negative ?? 0}</td>
+                         <td className="px-4 py-3">{memberClosedCounts[String(m._id)] || 0}</td>
                         <td className="px-4 py-3">{m.metrics?.closureProspects ?? 0}</td>
-                        <td className="px-4 py-3">{memberClosedCounts[String(m._id)] || 0}</td>
-                        <td className="px-4 py-3">{m.metrics?.todaysFollowups ?? 0}</td>
+                        <td className="px-4 py-3">{m.metrics?.positive ?? 0}</td>
+                        <td className="px-4 py-3">{m.metrics?.pending ?? 0}</td>
+                        <td className="px-4 py-3">{m.metrics?.negative ?? 0}</td>
+                        <td className="px-4 py-3">{m.metrics?.total ?? 0}</td>
+                      <td className="px-4 py-3">{m.metrics?.todaysFollowups ?? 0}</td>
                       </tr>
                     ))
                   ))}

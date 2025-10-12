@@ -29,6 +29,12 @@ const CreDashboard = () => {
       icon: <MdManageAccounts className="text-4xl text-blue-500" />,
       onClick: () => navigate('/admin/accountapproval'),
     },
+    {
+      title: 'CRE Leads Working Dashboard',
+      description: 'Manage & view CRE leads working ',
+      icon: <MdManageAccounts className="text-4xl text-blue-500" />,
+      onClick: () => navigate('/admin/cre-called-data'),
+    },
    
     
     

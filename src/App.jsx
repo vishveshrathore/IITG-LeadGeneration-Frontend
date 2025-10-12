@@ -30,6 +30,7 @@ import LinkedInPParser from "./components/LinkedInPParser.jsx"; //LinkedIn Parse
 import CorporateAccountApproval from "./pages/Admin/CorporateAccountApproval.jsx"; //Admin Side
 import RecruitersIndustries from "./pages/Admin/RecruitersIndustries.jsx"; // Admin - BDE & Recruitment Industries
 import RecruitersCompanies from "./pages/Admin/RecruitersCompanies.jsx"; // Admin - BDE & Recruitment Companies
+import CRECalledData from "./pages/Admin/CRECalledData.jsx"; // Admin - CRE Leads Working Dashboard
 
 import CreCrmDashboard from "./pages/CRE-CRM/CRE-CRMDashboard.jsx"; //CRE Side
 import LeadAssignment from "./pages/CRE-CRM/GetAssignedLeads.jsx"; //CRE Side
@@ -152,6 +153,14 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/admin/cre-called-data"
+          element={
+            <ProtectedRoute role="admin">
+              <CRECalledData />
+            </ProtectedRoute>
+          }
+        />
         {/* LG routes */}
         <Route
           path="/lgDashboard"
@@ -239,7 +248,15 @@ function App() {
         <Route
           path="/CRE-CRMDashboard"
           element={
-            <ProtectedRoute role="cre-crm">
+            <ProtectedRoute roles={[
+              "cre-crm",
+              "crm-teamlead",
+              "deputycrm-teamlead",
+              "regionalhead",
+              "deputyregionalhead",
+              "nationalhead",
+              "deputynationalhead"
+            ]}>
               <CreCrmDashboard />
             </ProtectedRoute>
           }
