@@ -3,6 +3,7 @@ import { AnimatePresence } from "framer-motion";
 import AuthScreen from "./pages/auth.jsx";
 import BDDashboard from "./pages/Admin/BD-Dashboard.jsx";
 import LGDashboard from "./pages/LG/LGDashboard.jsx";
+import RejectedLeads from "./pages/LG/RejectedLeads.jsx";
 import OTPScreen from "./pages/OTPScreen.jsx";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AddHrForm from "./pages/LG/AddLeads.jsx";
@@ -43,6 +44,7 @@ import ClosureTillDate from "./pages/CRE-CRM/ClosureTillDate.jsx"; //CRE Side
 import MyTeam from "./pages/CRE-CRM/MyTeam.jsx"; //CRE Side - Team page
 
 import AdminTeamDashboard from "./pages/AdminTeam/AdminTeamDashboard.jsx"; 
+import DisabledLGRejectedLeads from "./pages/AdminTeam/DisabledLGRejectedLeads.jsx";
 
 function App() {
   const location = useLocation();
@@ -176,6 +178,14 @@ function App() {
           element={
             <ProtectedRoute role="lg">
               <TodayLeadsOfLG />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/lg/rejected"
+          element={
+            <ProtectedRoute role="lg">
+              <RejectedLeads />
             </ProtectedRoute>
           }
         />
@@ -326,6 +336,14 @@ function App() {
           element={
             <ProtectedRoute role="adminteam">
               <AdminTeamDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/adminteam/disabled-lg-rejected"
+          element={
+            <ProtectedRoute role="adminteam">
+              <DisabledLGRejectedLeads />
             </ProtectedRoute>
           }
         />

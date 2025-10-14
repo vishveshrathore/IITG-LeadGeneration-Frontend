@@ -3,7 +3,8 @@ import axios from "axios";
 import { motion } from "framer-motion";
 import { toast, Toaster } from "react-hot-toast";
 import AdminNavbar from "../../components/AdminNavbar";
-import { FiCheckCircle, FiRefreshCw, FiCheckSquare } from "react-icons/fi";
+import { useAuth } from "../../context/AuthContext";
+import { FiCheckCircle, FiRefreshCw, FiCheckSquare, FiXCircle } from "react-icons/fi";
 import { BASE_URL } from "../../config";
 
 const API_BASE = `${BASE_URL}/api/admin/getallleads/CRE`;
@@ -25,6 +26,7 @@ const Badge = ({ children, className = "" }) => (
 );
 
 export default function CRELeadsApprovalDashboard() {
+  const { authToken } = useAuth();
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(false);
   const [busyIds, setBusyIds] = useState(new Set());
@@ -33,6 +35,7 @@ export default function CRELeadsApprovalDashboard() {
   const [globalStats, setGlobalStats] = useState({ total: 0 });
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(5);
+  
   const [industries, setIndustries] = useState([]);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [creCounts, setCreCounts] = useState({
@@ -42,6 +45,20 @@ export default function CRELeadsApprovalDashboard() {
   const [industryQuery, setIndustryQuery] = useState("");
   const [industrySearchResults, setIndustrySearchResults] = useState([]);
   const [industryLoading, setIndustryLoading] = useState(false);
+
+  // Reject UI state
+  const [rejectForId, setRejectForId] = useState(null);
+  const [rejectReasons, setRejectReasons] = useState([]); // array of selected reasons
+  const [rejectNote, setRejectNote] = useState(''); // only used when "Other" is selected
+
+  const REJECT_OPTIONS = [
+    'HR level is Below Senior Manager',
+    'Industry type is not right',
+    'Mobile Number is not right',
+    'Productline not mentioned',
+    'Employee Strength is not Mentioned',
+    'Other',
+  ];
 
   // Fetch leads
   const fetchLeads = async (page = 1, searchTerm = "") => {
@@ -61,6 +78,80 @@ export default function CRELeadsApprovalDashboard() {
     } finally {
       setLoading(false);
     }
+  };
+
+  
+
+  // Reject lead -> send back to LG dashboard
+  const rejectLead = async (lead, reason, note) => {
+    const id = lead._id;
+    setBusyIds((s) => new Set([...s, id]));
+    try {
+      await axios.put(
+        `${BASE_URL}/api/admin/leads/reject/forcre/${id}`,
+        {
+          type: lead.type || 'RawLead',
+          reason,
+          note,
+        },
+        {
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+        }
+      );
+      toast.success("Lead rejected to LG");
+      // Save selected remarks into UI state immediately
+      setLeads(prev => prev.map(x => {
+        if (x._id !== id) return x;
+        return {
+          ...x,
+          status: 'rejected',
+          rejectionReason: reason,
+          rejectionNote: note,
+        };
+      }));
+      // Do not refetch immediately to preserve locally saved remarks visibility
+    } catch (e) {
+      const status = e?.response?.status;
+      if (status === 401) {
+        toast.error('Session expired or invalid token. Please login again.');
+      } else if (status === 403) {
+        toast.error('Only Admin/AdminTeam can reject leads.');
+      } else {
+        toast.error(e?.response?.data?.message || 'Reject failed');
+      }
+    } finally {
+      setBusyIds((s) => {
+        const n = new Set(s);
+        n.delete(id);
+        return n;
+      });
+    }
+  };
+
+  const openReject = (lead) => {
+    setRejectForId(lead._id);
+    // Preload from DB if already rejected
+    const savedReasons = (lead.rejectionReason || '')
+      .split(';')
+      .map(r => r.trim())
+      .filter(Boolean);
+    setRejectReasons(savedReasons);
+    setRejectNote(lead.rejectionNote || '');
+  };
+
+  const cancelReject = () => {
+    setRejectForId(null);
+    setRejectReasons([]);
+    setRejectNote('');
+  };
+
+  const submitReject = async (lead) => {
+    const selected = Array.isArray(rejectReasons) ? rejectReasons : [];
+    const hasOther = selected.includes('Other');
+    const reasonsString = selected.join('; ');
+    const note = hasOther ? (rejectNote || '') : '';
+    await rejectLead(lead, reasonsString, note);
+    cancelReject();
   };
 
   // Debounced industry async search (trending UX)
@@ -157,6 +248,8 @@ export default function CRELeadsApprovalDashboard() {
     }
   };
 
+  
+
   // Mark pending
   const markPending = async (lead) => {
     const id = lead._id;
@@ -206,6 +299,7 @@ export default function CRELeadsApprovalDashboard() {
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-800">
           CRE Dashboard for Lead Approval
         </h1>
+        
       </div>
 
       {/* Stats Cards */}
@@ -510,8 +604,45 @@ export default function CRELeadsApprovalDashboard() {
                     <td className="px-4 py-3 text-sm text-gray-600">
                       {lead.designation}
                     </td>
-                      <td className="px-4 py-3 text-center">
-                      <div className="flex gap-2 justify-center items-center">
+                      <td className="px-4 py-3">
+                      <div className="flex flex-col gap-2 items-start">
+                        {lead.status !== 'approved for calling' && (
+                          <div className="mb-1 text-xs text-gray-600">
+                            Current Status:
+                            <span
+                              className={`ml-2 inline-block px-2 py-0.5 rounded-full text-xs ${
+                                lead.status === 'approved for calling'
+                                  ? 'bg-green-100 text-green-700'
+                                  : lead.status === 'rejected'
+                                  ? 'bg-red-100 text-red-700'
+                                  : 'bg-slate-100 text-slate-700'
+                              }`}
+                            >
+                              {lead.status || '—'}
+                            </span>
+                          </div>
+                        )}
+                        {(lead.rejectionReason || lead.rejectionNote) && (
+                          <div className="w-full">
+                            {lead.rejectionReason && (
+                              <div className="mt-1 flex flex-wrap gap-2">
+                                {(lead.rejectionReason || '')
+                                  .split(';')
+                                  .map(r => r.trim())
+                                  .filter(Boolean)
+                                  .map((r, idx) => (
+                                    <span key={idx} className="inline-block px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-xs">
+                                      {r}
+                                    </span>
+                                  ))}
+                              </div>
+                            )}
+                            {lead.rejectionNote && (
+                              <div className="mt-1 text-xs text-gray-600">Note: {lead.rejectionNote}</div>
+                            )}
+                          </div>
+                        )}
+                        <div className="flex gap-2 justify-center items-center">
                         {lead.status === "approved for calling" ? (
                           <Badge className="bg-green-100 text-green-700">
                             Approved for calling
@@ -534,8 +665,63 @@ export default function CRELeadsApprovalDashboard() {
                             >
                               <FiRefreshCw /> Pending
                             </button>
+                            <button
+                              onClick={() => openReject(lead)}
+                              disabled={isBusy}
+                              className={`${buttonBase} bg-red-600 text-white hover:bg-red-700`}
+                              title="Reject and send back to LG"
+                            >
+                              <FiXCircle /> Reject
+                            </button>
+                            {rejectForId === id && (
+                              <div className="mt-2 p-3 border rounded-lg bg-white shadow-sm w-80">
+                                <label className="block text-xs text-gray-600 mb-1">Select reasons</label>
+                                <div className="space-y-1 mb-2">
+                                  {REJECT_OPTIONS.map((opt) => (
+                                    <label key={opt} className="flex items-center gap-2 text-sm">
+                                      <input
+                                        type="checkbox"
+                                        checked={rejectReasons.includes(opt)}
+                                        onChange={(e) => {
+                                          setRejectReasons((prev) => {
+                                            const set = new Set(prev);
+                                            if (e.target.checked) set.add(opt); else set.delete(opt);
+                                            return Array.from(set);
+                                          });
+                                        }}
+                                      />
+                                      <span>{opt}</span>
+                                    </label>
+                                  ))}
+                                </div>
+                                {rejectReasons.includes('Other') && (
+                                  <>
+                                    <label className="block text-xs text-gray-600 mb-1">Details for "Other"</label>
+                                    <input
+                                      type="text"
+                                      value={rejectNote}
+                                      onChange={(e) => setRejectNote(e.target.value)}
+                                      placeholder="Enter details"
+                                      className="w-full border rounded px-2 py-1 text-sm mb-2"
+                                    />
+                                  </>
+                                )}
+                                <div className="flex justify-end gap-2">
+                                  <button
+                                    onClick={cancelReject}
+                                    className="px-3 py-1 text-sm rounded border bg-white hover:bg-slate-50"
+                                  >Cancel</button>
+                                  <button
+                                    onClick={() => submitReject(lead)}
+                                    disabled={rejectReasons.length === 0 || (rejectReasons.includes('Other') && !rejectNote.trim())}
+                                    className="px-3 py-1 text-sm rounded bg-red-600 text-white disabled:opacity-50"
+                                  >Submit</button>
+                                </div>
+                              </div>
+                            )}
                           </>
                         )}
+                        </div>
                       </div>
                     </td>
 
@@ -603,6 +789,8 @@ export default function CRELeadsApprovalDashboard() {
           </button>
         </div>
       )}
+
+      
     </div>
   );
 }

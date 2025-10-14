@@ -31,6 +31,8 @@ const LgDashboard = () => {
   const [serverHour, setServerHour] = useState(null);
   const [quote, setQuote] = useState({ text: "", author: "" });
 
+  // Rejected leads moved to dedicated page '/lg/rejected'
+
   const [userName, setUserName] = useState('');
   const [timeString, setTimeString] = useState(() => new Date().toLocaleTimeString());
   const [showModal, setShowModal] = useState(false);
@@ -99,6 +101,8 @@ const LgDashboard = () => {
   if (authToken) fetchCounts();
 }, [authToken]);
 
+// Rejected list now loaded in dedicated page
+
 useEffect(() => {
   const fetchServerTime = async () => {
     try {
@@ -144,7 +148,7 @@ useEffect(() => {
     icon: <MdBusiness className="text-teal-600 text-4xl" />,
     glow: 'from-teal-400 to-cyan-500',
     tooltip: 'Leads submitted today',
-    locked: serverHour !== null ? serverHour < 18 : true, 
+    locked: serverHour !== null ? serverHour < 15 : true, 
   },
 
   // {
@@ -218,6 +222,14 @@ useEffect(() => {
       glow: 'from-green-400 to-teal-500',
       tooltip: 'Check today’s progress',
     },
+    {
+      title: 'Rejected Leads',
+      description: 'Review and edit your rejected leads',
+      icon: <MdAssignment className="text-rose-600 text-5xl" />,
+      path: '/lg/rejected',
+      glow: 'from-rose-400 to-pink-500',
+      tooltip: 'Open rejected leads list',
+    },
   ];
 
   const now = new Date();
@@ -248,6 +260,8 @@ const hour = now.getHours();
             <div className="absolute -top-24 -right-16 h-72 w-72 rounded-full bg-gradient-to-tr from-slate-200 to-slate-300 blur-3xl" />
             <div className="absolute -bottom-24 -left-16 h-72 w-72 rounded-full bg-gradient-to-tr from-slate-100 to-slate-300 blur-3xl" />
           </div>
+
+        {/* Rejected leads table removed from dashboard; use dedicated page */}
 
           <div className="relative z-10 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
             <div>
@@ -306,7 +320,13 @@ const hour = now.getHours();
               onClick={() => {
                 ensureAudio();
                 sounds.click.play();
-                navigate(item.path);
+                if (item.path?.startsWith('#')) {
+                  const id = item.path.slice(1);
+                  const el = document.getElementById(id);
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                } else {
+                  navigate(item.path);
+                }
               }}
               onMouseEnter={() => { ensureAudio(); sounds.hover.play(); }}
               data-tooltip-id={`grid-${i}`}
@@ -439,6 +459,8 @@ const hour = now.getHours();
     </motion.div>
   )}
 </AnimatePresence>
+
+      {/* Edit modal removed for dashboard */}
 
     </div>
   );
