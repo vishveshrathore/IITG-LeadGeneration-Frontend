@@ -69,8 +69,8 @@ export const mailer1Template = ({ recipientName, crmName }) => `
                       <strong>Harshika Aginhotri</strong><br/>
                       HR Business Partner (HRBP)<br/>
                       📞 +91 9202960598<br/>
-                      ✉️ <a href="mailto:harshika.a@iitgjobsl.com" style="color:#000000; text-decoration:none;">harshika.a@iitgjobsl.com</a><br/>
-                      🌐 <a href="https://iitgindianjobs.com" style="color:#000000; text-decoration:none;">iitgindianjobs.com</a><br/>
+                      ✉️ <a href="mailto:harshika.a@iitgjobs.co.in" style="color:#000000; text-decoration:none;">harshika.a@iitgjobs.co.in</a><br/>
+                      🌐 <a href="https://iitgjobs.co.in" style="color:#000000; text-decoration:none;">iitgjobs.co.in</a><br/>
                       <span style="font-size:13px; color:#000000;">Beside Gulzar Hotel, Mahanadda, Jabalpur</span>
                     </td>
                   </tr>
