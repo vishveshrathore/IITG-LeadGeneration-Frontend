@@ -42,6 +42,7 @@ import MyWorksheet from "./pages/CRE-CRM/Worksheet.jsx"; //CRE Side
 import ClousureProspects from "./pages/CRE-CRM/ClousureProspects.jsx"; //CRE Side
 import ClosureTillDate from "./pages/CRE-CRM/ClosureTillDate.jsx"; //CRE Side
 import MyTeam from "./pages/CRE-CRM/MyTeam.jsx"; //CRE Side - Team page
+import TeamStats from "./pages/CRE-CRM/TeamStats.jsx";
 
 import AdminTeamDashboard from "./pages/AdminTeam/AdminTeamDashboard.jsx"; 
 import DisabledLGRejectedLeads from "./pages/AdminTeam/DisabledLGRejectedLeads.jsx";
@@ -276,6 +277,14 @@ function App() {
           element={
             <ProtectedRoute role="cre-crm">
               <MyTeam />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/cre/team-stats"
+          element={
+            <ProtectedRoute role="cre-crm">
+              <TeamStats />
             </ProtectedRoute>
           }
         />

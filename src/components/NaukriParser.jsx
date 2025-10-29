@@ -249,7 +249,7 @@ const NaukriParser = () => {
               <button
                 onClick={handleClear}
                 disabled={!profiles.length}
-                className="py-1 px-2 rounded border border-gray-300 bg-gray-200 text-gray-800 text-xs disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300"
+                className="ml-auto py-1 px-2 rounded border border-red-700 bg-red-600 text-white text-xs disabled:opacity-50 disabled:cursor-not-allowed hover:bg-red-700"
               >
                 Clear Results
               </button>

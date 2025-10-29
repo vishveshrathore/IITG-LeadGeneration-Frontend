@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
@@ -26,6 +27,9 @@ const MyTeam = () => {
   const [viewOpen, setViewOpen] = useState(false);
   const [viewLead, setViewLead] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [conductionDone, setConductionDone] = useState({});
+  const navigate = useNavigate();
+  const [confirmToggle, setConfirmToggle] = useState({ open: false, id: null, next: false });
 
   useEffect(() => {
     if (!token || !isLeader) return;
@@ -43,6 +47,31 @@ const MyTeam = () => {
     };
     run();
   }, [token, isLeader]);
+
+  useEffect(() => {
+    if (!Array.isArray(teamLeadsData)) return;
+    setConductionDone(prev => {
+      const next = { ...prev };
+      for (const lead of teamLeadsData) {
+        const id = String(lead?._id || '');
+        if (!id) continue;
+        const backendVal = typeof lead?.conductionDone === 'boolean' ? lead.conductionDone : undefined;
+        if (backendVal !== undefined) next[id] = backendVal;
+        else if (next[id] === undefined) next[id] = false;
+      }
+      return next;
+    });
+  }, [teamLeadsData]);
+
+  const persistConductionDone = async (assignmentId, value) => {
+    try {
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      await axios.put(`${BASE_URL}/api/cre/lead/${assignmentId}`, { conductionDone: value }, { headers });
+    } catch (e) {
+      // rollback on failure
+      setConductionDone(prev => ({ ...prev, [String(assignmentId)]: !value }));
+    }
+  };
 
   useEffect(() => {
     if (!token || !isLeader) return;
@@ -74,10 +103,24 @@ const MyTeam = () => {
     return map;
   }, [teamLeadsData]);
 
+  // Derive per-member conduction counts (conductionDone === true) from teamLeadsData
+  const memberConductionCounts = useMemo(() => {
+    const map = {};
+    for (const a of teamLeadsData) {
+      const uid = String(a.Calledbycre?._id || a.Calledbycre || '');
+      if (!uid) continue;
+      if (a?.conductionDone === true) {
+        map[uid] = (map[uid] || 0) + 1;
+      }
+    }
+    return map;
+  }, [teamLeadsData]);
+
   const teamTotals = useMemo(() => {
     const sum = {
       closed: 0,
       closureProspects: 0,
+      conduction: 0,
       positive: 0,
       pending: 0,
       negative: 0,
@@ -88,6 +131,7 @@ const MyTeam = () => {
       const id = String(m._id);
       sum.closed += Number(memberClosedCounts[id] || 0);
       sum.closureProspects += Number(m?.metrics?.closureProspects || 0);
+      sum.conduction += Number(memberConductionCounts[id] || 0);
       sum.positive += Number(m?.metrics?.positive || 0);
       sum.pending += Number(m?.metrics?.pending || 0);
       sum.negative += Number(m?.metrics?.negative || 0);
@@ -95,7 +139,7 @@ const MyTeam = () => {
       sum.todaysFollowups += Number(m?.metrics?.todaysFollowups || 0);
     }
     return sum;
-  }, [teamMembers, memberClosedCounts]);
+  }, [teamMembers, memberClosedCounts, memberConductionCounts]);
 
   const filteredLeads = useMemo(() => {
     let rows = [...teamLeadsData];
@@ -245,7 +289,10 @@ const MyTeam = () => {
     <div className="min-h-screen w-full bg-slate-50 text-slate-900">
       <CRENavbar />
       <div className="pt-20 px-6 w-full">
-        <motion.h1 initial={{opacity:0,y:10}} animate={{opacity:1,y:0}} className="text-2xl font-bold mb-4">My Team</motion.h1>
+        <div className="mb-4 flex items-center justify-between">
+          <motion.h1 initial={{opacity:0,y:10}} animate={{opacity:1,y:0}} className="text-2xl font-bold">My Team</motion.h1>
+          <button onClick={() => navigate('/cre/team-stats')} className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-3 py-1.5 text-white text-xs hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500">Detailed Stats</button>
+        </div>
 
         {/* Team members */}
         <div className="mb-8">
@@ -259,24 +306,26 @@ const MyTeam = () => {
                     <th className="px-4 py-3 text-left">Email</th>
                     <th className="px-4 py-3 text-left">Closed</th>
                     <th className="px-4 py-3 text-left">Closure Prospects</th>
+                    <th className="px-4 py-3 text-left">Conduction</th>
                     <th className="px-4 py-3 text-left">Positive</th>
                     <th className="px-4 py-3 text-left">Pending</th>
                     <th className="px-4 py-3 text-left">Negative</th>
-                    <th className="px-4 py-3 text-left">Total</th>
+                    <th className="px-4 py-3 text-left">Total Leads Consumed</th>
                     <th className="px-4 py-3 text-left">FU Today</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loadingMembers ? (
-                    <tr><td className="px-4 py-4" colSpan={10}>Loading team members…</td></tr>
+                    <tr><td className="px-4 py-4" colSpan={11}>Loading team members…</td></tr>
                   ) : (
                     <>
                       <tr className="bg-green-100 font-semibold">
-                        <td className="px-4 py-3">{`${user?.name || 'Reporting Manager'} (Total: ${teamTotals.total})`}</td>
+                        <td className="px-4 py-3">{`${user?.name || 'Reporting Manager'} (TLC: ${teamTotals.total})`}</td>
                         <td className="px-4 py-3">{role || user?.role || '—'}</td>
                         <td className="px-4 py-3">{user?.email || '—'}</td>
                         <td className="px-4 py-3">{teamTotals.closed}</td>
                         <td className="px-4 py-3">{teamTotals.closureProspects}</td>
+                        <td className="px-4 py-3">{teamTotals.conduction}</td>
                         <td className="px-4 py-3">{teamTotals.positive}</td>
                         <td className="px-4 py-3">{teamTotals.pending}</td>
                         <td className="px-4 py-3">{teamTotals.negative}</td>
@@ -284,7 +333,7 @@ const MyTeam = () => {
                         <td className="px-4 py-3">{teamTotals.todaysFollowups}</td>
                       </tr>
                       {teamMembers.length === 0 ? (
-                        <tr><td className="px-4 py-6 text-slate-500" colSpan={10}>No team members found.</td></tr>
+                        <tr><td className="px-4 py-6 text-slate-500" colSpan={11}>No team members found.</td></tr>
                       ) : (
                         teamMembers.map(m => (
                           <tr key={m._id} className="border-t border-slate-100 hover:bg-slate-50/60 cursor-pointer" onClick={() => { setSelectedUserId(m._id); setPage(1); }}>
@@ -293,6 +342,7 @@ const MyTeam = () => {
                             <td className="px-4 py-3">{m.email || '—'}</td>
                             <td className="px-4 py-3">{memberClosedCounts[String(m._id)] || 0}</td>
                             <td className="px-4 py-3">{m.metrics?.closureProspects ?? 0}</td>
+                            <td className="px-4 py-3">{memberConductionCounts[String(m._id)] || 0}</td>
                             <td className="px-4 py-3">{m.metrics?.positive ?? 0}</td>
                             <td className="px-4 py-3">{m.metrics?.pending ?? 0}</td>
                             <td className="px-4 py-3">{m.metrics?.negative ?? 0}</td>
@@ -398,12 +448,29 @@ const MyTeam = () => {
                             : (a.reportingManager?.name || '—')}
                         </td>
                         <td className="px-4 py-3">
-                          <button
-                            onClick={() => { setViewLead(a); setViewOpen(true); }}
-                            className="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-3 py-1.5 text-white text-xs hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          >
-                            View
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => { setViewLead(a); setViewOpen(true); }}
+                              className="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-3 py-1.5 text-white text-xs hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            >
+                              View
+                            </button>
+                            <div className="flex items-center gap-2 text-xs">
+                              <span className="text-slate-600">Conduction done</span>
+                              <button
+                                onClick={() => {
+                                  const curr = Boolean(conductionDone[String(a._id)]);
+                                  const nextVal = !curr;
+                                  setConfirmToggle({ open: true, id: a._id, next: nextVal });
+                                }}
+                                className={`relative inline-flex items-center h-6 rounded-full px-1 transition-colors duration-200 ${conductionDone[String(a._id)] ? 'bg-green-600' : 'bg-slate-300'}`}
+                                aria-label="Toggle Conduction done"
+                              >
+                                <span className={`inline-block w-4 h-4 transform bg-white rounded-full shadow transition-transform duration-200 ${conductionDone[String(a._id)] ? 'translate-x-5' : 'translate-x-0'}`}></span>
+                                <span className={`ml-2 min-w-[26px] text-[10px] font-medium ${conductionDone[String(a._id)] ? 'text-white' : 'text-slate-700'}`}>{conductionDone[String(a._id)] ? 'Yes' : 'No'}</span>
+                              </button>
+                            </div>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -584,6 +651,33 @@ const MyTeam = () => {
                   </div>
                 </div>
               )}
+            </div>
+          </motion.div>
+        </div>
+      )}
+      {confirmToggle.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-slate-900/50" onClick={() => setConfirmToggle({ open:false, id:null, next:false })} />
+          <motion.div initial={{opacity:0, y:12}} animate={{opacity:1, y:0}} className="relative z-10 w-[90vw] max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+              <div className="text-base font-semibold">Confirm</div>
+              <button onClick={() => setConfirmToggle({ open:false, id:null, next:false })} className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50">Close</button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="text-sm text-slate-700">Are you sure you want to mark Conduction done to {confirmToggle.next ? 'Yes' : 'No'}?</div>
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setConfirmToggle({ open:false, id:null, next:false })} className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50">Cancel</button>
+                <button
+                  onClick={() => {
+                    const id = confirmToggle.id;
+                    const val = confirmToggle.next;
+                    setConductionDone(prev => ({ ...prev, [String(id)]: val }));
+                    persistConductionDone(id, val);
+                    setConfirmToggle({ open:false, id:null, next:false });
+                  }}
+                  className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-3 py-1.5 text-white text-xs hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >Confirm</button>
+              </div>
             </div>
           </motion.div>
         </div>
