@@ -69,7 +69,7 @@ const MyWorksheet = () => {
   const [emailAssignmentId, setEmailAssignmentId] = useState("");
   const [emailMailersSnapshot, setEmailMailersSnapshot] = useState([]);
 
-  const statusOptions = ["Pending", "Positive", "Negative", "Closure Prospects"];
+  const statusOptions = ["Pending", "Positive", "Negative", "Wrong Number", "Closure Prospects"];
   const closureStatusOptions = ["Closed", "In Progress", "Pending"];
 
   // Consistent status resolver: prefer currentStatus; fallback to last statusHistory
@@ -78,6 +78,22 @@ const MyWorksheet = () => {
     if (assignment.currentStatus) return assignment.currentStatus;
     const hist = Array.isArray(assignment.statusHistory) ? assignment.statusHistory : [];
     return hist.length > 0 ? hist[hist.length - 1].status || "Pending" : "Pending";
+  };
+
+  const markWrongNumber = async (assignment) => {
+    if (!assignment?._id) return;
+    try {
+      await axios.put(
+        `${BASE_URL}/api/cre/lead/${assignment._id}`,
+        { currentStatus: 'Wrong Number', remarks: 'Marked as Wrong Number from Worksheet' },
+        { headers: { Authorization: `Bearer ${authToken}` } }
+      );
+      toast.success('Marked as Wrong Number');
+      fetchLeads();
+    } catch (e) {
+      console.error(e);
+      toast.error(e?.response?.data?.message || 'Failed to mark Wrong Number');
+    }
   };
 
   // Normalize mixed model shapes into a consistent record for UI
@@ -431,6 +447,7 @@ const MyWorksheet = () => {
                   <th className="px-3 py-2 text-left text-sm">Reporting Manager(s)</th>
                   <th className="px-3 py-2 text-left text-sm">Follow-Ups</th>
                   <th className="px-3 py-2 text-left text-sm">Current Status</th>
+                  <th className="px-3 py-2 text-left text-sm">LG Update</th>
                   <th className="px-3 py-2 text-left text-sm">Mailer1</th>
                   <th className="px-3 py-2 text-left text-sm">Mailer2</th>
                   <th className="px-3 py-2 text-left text-sm">WhatsApp</th>
@@ -472,6 +489,13 @@ const MyWorksheet = () => {
                     </td>
                     <td className="px-3 py-2 text-sm">{n.currentStatus}</td>
                     <td className="px-3 py-2 text-sm">
+                      {lead?.lgUpdated ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">Number Updated</span>
+                      ) : (
+                        <span className="text-gray-400 text-sm">—</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-sm">
                       {((lead?.mailers || []).find(m => m.type === "mailer1")?.sent) ? (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">Sent</span>
                       ) : <span className="text-gray-400">N/A</span>}
@@ -490,6 +514,7 @@ const MyWorksheet = () => {
                     <td className="px-3 py-2 text-sm">
                       <div className="flex items-center gap-2">
                         <button className="bg-blue-500 text-white px-2 py-1 rounded" onClick={() => handleSelectLead(lead)}>View/Edit</button>
+                        <button className="bg-amber-500 text-white px-2 py-1 rounded" title="Mark as Wrong Number" onClick={() => markWrongNumber(lead)}>Wrong No.</button>
                         {Array.isArray(lead?.lead?.mobile) && lead.lead.mobile[0] && (
                           <button className="bg-green-500 text-white px-2 py-1 rounded flex items-center gap-1" onClick={() => openWhatsApp(lead._id, lead.lead.mobile[0], lead?.lead?.name, user?.name)} title="WhatsApp">
                             <FaWhatsapp />

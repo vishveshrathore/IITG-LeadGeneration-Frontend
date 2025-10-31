@@ -3,6 +3,7 @@ import { AnimatePresence } from "framer-motion";
 import AuthScreen from "./pages/auth.jsx";
 import BDDashboard from "./pages/Admin/BD-Dashboard.jsx";
 import LGDashboard from "./pages/LG/LGDashboard.jsx";
+import WrongNumberLeads from "./pages/LG/WrongNumberLeads.jsx";
 import RejectedLeads from "./pages/LG/RejectedLeads.jsx";
 import OTPScreen from "./pages/OTPScreen.jsx";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -46,6 +47,7 @@ import TeamStats from "./pages/CRE-CRM/TeamStats.jsx";
 
 import AdminTeamDashboard from "./pages/AdminTeam/AdminTeamDashboard.jsx"; 
 import DisabledLGRejectedLeads from "./pages/AdminTeam/DisabledLGRejectedLeads.jsx";
+import DisabledLGWrongNumber from "./pages/AdminTeam/DisabledLGWrongNumber.jsx";
 
 function App() {
   const location = useLocation();
@@ -187,6 +189,14 @@ function App() {
           element={
             <ProtectedRoute role="lg">
               <RejectedLeads />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/lg/wrong-number"
+          element={
+            <ProtectedRoute role="lg">
+              <WrongNumberLeads />
             </ProtectedRoute>
           }
         />
@@ -353,6 +363,14 @@ function App() {
           element={
             <ProtectedRoute role="adminteam">
               <DisabledLGRejectedLeads />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/adminteam/disabled-lg-wrong-number"
+          element={
+            <ProtectedRoute role="adminteam">
+              <DisabledLGWrongNumber />
             </ProtectedRoute>
           }
         />

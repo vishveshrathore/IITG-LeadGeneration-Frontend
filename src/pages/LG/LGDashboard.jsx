@@ -148,7 +148,7 @@ useEffect(() => {
     icon: <MdBusiness className="text-teal-600 text-4xl" />,
     glow: 'from-teal-400 to-cyan-500',
     tooltip: 'Leads submitted today',
-    locked: serverHour !== null ? serverHour < 15 : true, 
+    locked: serverHour !== null ? serverHour < 18 : true, 
   },
 
   // {
@@ -229,6 +229,14 @@ useEffect(() => {
       path: '/lg/rejected',
       glow: 'from-rose-400 to-pink-500',
       tooltip: 'Open rejected leads list',
+    },
+    {
+      title: 'Wrong Number Leads',
+      description: 'Leads marked as Wrong Number and returned to you',
+      icon: <MdAssignment className="text-amber-600 text-5xl" />,
+      path: '/lg/wrong-number',
+      glow: 'from-amber-400 to-yellow-500',
+      tooltip: 'View all Wrong Number leads',
     },
   ];
 

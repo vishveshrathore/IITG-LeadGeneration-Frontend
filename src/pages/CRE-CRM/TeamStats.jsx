@@ -144,7 +144,7 @@ const TeamStats = () => {
       let sum = 0;
       for (const uid of Object.keys(dm)) {
         const v = dm[uid];
-        sum += (v.conduction || 0) + (v.prospects || 0) + (v.closed || 0);
+        sum += (v.conduction || 0) + (v.closed || 0);
       }
       if (sum > 0) arr.push(d);
     }
@@ -161,8 +161,8 @@ const TeamStats = () => {
 
   const downloadCsv = () => {
     const members = teamMembers;
-    const header1 = ['S.no', 'Date', ...members.flatMap((m) => [m.name || '—', '', ''])];
-    const header2 = ['', '', ...members.flatMap(() => ['Conduction', 'Closure Prospects', 'Closed'])];
+    const header1 = ['S.no', 'Date', ...members.flatMap((m) => [m.name || '—', ''])];
+    const header2 = ['', '', ...members.flatMap(() => ['Conduction', 'Closed'])];
 
     const rows = [header1, header2];
     // Totals at top
@@ -171,7 +171,7 @@ const TeamStats = () => {
       '',
       ...members.flatMap((m) => {
         const t = totalsByMember[String(m._id)] || { conduction: 0, prospects: 0, closed: 0 };
-        return [String(t.conduction), String(t.prospects), String(t.closed)];
+        return [String(t.conduction), String(t.closed)];
       })
     ];
     rows.push(totalsRow);
@@ -183,7 +183,7 @@ const TeamStats = () => {
         new Date(d).toLocaleDateString(),
         ...members.flatMap((m) => {
           const dm = (dailyByMember[d] || {})[String(m._id)] || { conduction: 0, prospects: 0, closed: 0 };
-          return [String(dm.conduction), String(dm.prospects), String(dm.closed)];
+          return [String(dm.conduction), String(dm.closed)];
         })
       ]);
     });
@@ -235,7 +235,7 @@ const TeamStats = () => {
                     <th className={`border-b border-r text-left align-bottom font-semibold text-slate-700 ${compact ? 'px-2 py-1 w-12' : 'px-3 py-2 w-16'} sticky left-0 bg-white z-20`}>S.no</th>
                     <th className={`border-b border-r text-left align-bottom font-semibold text-slate-700 ${compact ? 'px-2 py-1 w-24' : 'px-3 py-2 w-32'} sticky`} style={{left: compact ? 48 : 64, background: 'white', zIndex: 20}}>Date</th>
                     {teamMembers.map((m) => (
-                      <th key={m._id} className="px-3 py-2 border-b border-r text-center font-semibold text-slate-800" colSpan={3}>
+                      <th key={m._id} className="px-3 py-2 border-b border-r text-center font-semibold text-slate-800" colSpan={2}>
                         <div className="truncate max-w-[12rem] mx-auto">{m.name || '—'}</div>
                       </th>
                     ))}
@@ -246,7 +246,6 @@ const TeamStats = () => {
                     {teamMembers.map((m) => (
                       <React.Fragment key={m._id}>
                         <th className="px-3 py-2 border-b border-r text-center text-slate-600">Conduction</th>
-                        <th className="px-3 py-2 border-b border-r text-center text-slate-600">Closure Prospects</th>
                         <th className="px-3 py-2 border-b border-r text-center text-slate-600">Closed</th>
                       </React.Fragment>
                     ))}
@@ -263,18 +262,15 @@ const TeamStats = () => {
                           <td className={`${compact ? 'px-2 py-1' : 'px-3 py-2'} border-t border-r text-center`}>
                             <span className={`inline-flex items-center justify-center ${compact ? 'min-w-[1.5rem] px-1.5 py-0.5 text-[11px]' : 'min-w-[2rem] px-2 py-0.5'} rounded-full bg-slate-100 text-slate-700`}>{t.conduction}</span>
                           </td>
-                          <td className={`${compact ? 'px-2 py-1' : 'px-3 py-2'} border-t border-r text-center`}>
-                            <span className={`inline-flex items-center justify-center ${compact ? 'min-w-[1.5rem] px-1.5 py-0.5 text-[11px]' : 'min-w-[2rem] px-2 py-0.5'} rounded-full bg-slate-100 text-slate-700`}>{t.prospects}</span>
-                          </td>
-                          <td className={`${compact ? 'px-2 py-1' : 'px-3 py-2'} border-t border-r text-center`}>
-                            <span className={`inline-flex items-center justify-center ${compact ? 'min-w-[1.5rem] px-1.5 py-0.5 text-[11px]' : 'min-w-[2rem] px-2 py-0.5'} rounded-full bg-slate-100 text-slate-700`}>{t.closed}</span>
+                          <td className={`${compact ? 'px-2 py-1' : 'px-3 py-2'} border-t border-r text-center ${t.closed === 0 ? 'bg-rose-100' : ''}`}>
+                            <span className={`inline-flex items-center justify-center ${compact ? 'min-w-[1.5rem] px-1.5 py-0.5 text-[11px]' : 'min-w-[2rem] px-2 py-0.5'} rounded-full ${t.closed === 0 ? 'bg-rose-100 text-rose-900' : 'bg-slate-100 text-slate-700'}`}>{t.closed}</span>
                           </td>
                         </React.Fragment>
                       );
                     })}
                   </tr>
                   <tr>
-                    <td colSpan={2 + (membersFiltered.length * 3)} className="p-0">
+                    <td colSpan={2 + (membersFiltered.length * 2)} className="p-0">
                       <div className="h-[1px] bg-slate-200" />
                     </td>
                   </tr>
@@ -289,9 +285,6 @@ const TeamStats = () => {
                           <React.Fragment key={m._id}>
                             <td className={`${compact ? 'px-2 py-1' : 'px-3 py-2'} border-r text-center`}>
                               <span className={`inline-flex items-center justify-center ${compact ? 'min-w-[1.5rem] px-1.5 py-0.5 text-[11px]' : 'min-w-[2rem] px-2 py-0.5'} rounded-full ${sunday && dm.conduction === 0 ? 'bg-rose-100 text-rose-900' : chipClass(dm.conduction)}`}>{sunday && dm.conduction === 0 ? 'Sunday' : dm.conduction}</span>
-                            </td>
-                            <td className={`${compact ? 'px-2 py-1' : 'px-3 py-2'} border-r text-center`}>
-                              <span className={`inline-flex items-center justify-center ${compact ? 'min-w-[1.5rem] px-1.5 py-0.5 text-[11px]' : 'min-w-[2rem] px-2 py-0.5'} rounded-full ${sunday && dm.prospects === 0 ? 'bg-rose-100 text-rose-900' : chipClass(dm.prospects)}`}>{sunday && dm.prospects === 0 ? 'Sunday' : dm.prospects}</span>
                             </td>
                             <td className={`${compact ? 'px-2 py-1' : 'px-3 py-2'} border-r text-center`}>
                               <span className={`inline-flex items-center justify-center ${compact ? 'min-w-[1.5rem] px-1.5 py-0.5 text-[11px]' : 'min-w-[2rem] px-2 py-0.5'} rounded-full ${sunday && dm.closed === 0 ? 'bg-rose-100 text-rose-900' : chipClass(dm.closed)}`}>{sunday && dm.closed === 0 ? 'Sunday' : dm.closed}</span>

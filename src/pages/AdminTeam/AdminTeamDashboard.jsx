@@ -134,6 +134,24 @@ const AdminTeamDashboard = () => {
               </span>
             </div>
           </motion.div>
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => navigate("/adminteam/disabled-lg-wrong-number")}
+            className="cursor-pointer p-6 rounded-xl shadow-lg bg-white border border-slate-200 flex flex-col justify-between hover:shadow-xl transition"
+          >
+            <div>
+              <h2 className="text-xl font-bold text-slate-800">Wrong Number (LG Disabled)</h2>
+              <p className="mt-2 text-sm text-slate-600">
+                Leads marked Wrong Number where the owning LG account is disabled
+              </p>
+            </div>
+            <div className="mt-4 text-right">
+              <span className="text-sm font-semibold text-indigo-600 hover:underline">
+                View →
+              </span>
+            </div>
+          </motion.div>
         </div>
       </div>
     </div>
