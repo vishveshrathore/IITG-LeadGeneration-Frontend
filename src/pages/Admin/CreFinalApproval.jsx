@@ -299,7 +299,6 @@ export default function CRELeadsApprovalDashboard() {
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-800">
           CRE Dashboard for Lead Approval
         </h1>
-        
       </div>
 
       {/* Stats Cards */}

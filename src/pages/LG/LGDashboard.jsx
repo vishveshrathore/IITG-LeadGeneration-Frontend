@@ -148,7 +148,7 @@ useEffect(() => {
     icon: <MdBusiness className="text-teal-600 text-4xl" />,
     glow: 'from-teal-400 to-cyan-500',
     tooltip: 'Leads submitted today',
-    locked: serverHour !== null ? serverHour < 18 : true, 
+    locked: serverHour !== null ? serverHour < 18: true, 
   },
 
   // {
