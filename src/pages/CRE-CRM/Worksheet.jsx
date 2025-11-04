@@ -57,6 +57,7 @@ const MyWorksheet = () => {
   const [newMeeting, setNewMeeting] = useState({ link: "", date: "", time: "", notes: "" });
   const [closureStatus, setClosureStatus] = useState("In Progress");
   const [completed, setCompleted] = useState(false);
+  const [editEmail, setEditEmail] = useState("");
 
   // Email modal states (Mailer)
   const [emailModalOpen, setEmailModalOpen] = useState(false);
@@ -78,6 +79,27 @@ const MyWorksheet = () => {
     if (assignment.currentStatus) return assignment.currentStatus;
     const hist = Array.isArray(assignment.statusHistory) ? assignment.statusHistory : [];
     return hist.length > 0 ? hist[hist.length - 1].status || "Pending" : "Pending";
+  };
+
+  const saveEmail = async (assignmentId, value) => {
+    if (!assignmentId) return;
+    const emailVal = (value || "").trim();
+    if (!emailVal) { toast.error("Email cannot be empty"); return; }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailVal)) { toast.error("Invalid email format"); return; }
+    try {
+      await axios.put(`${BASE_URL}/api/cre/lead/${assignmentId}/email`, { email: emailVal }, { headers: { Authorization: `Bearer ${authToken}` } });
+      toast.success("Email updated");
+      if (selectedLead && selectedLead._id === assignmentId) {
+        const updated = { ...selectedLead, lead: { ...(selectedLead.lead || {}), email: emailVal } };
+        setSelectedLead(updated);
+        setEditEmail(emailVal);
+      }
+      fetchLeads();
+    } catch (e) {
+      console.error(e);
+      toast.error(e?.response?.data?.message || "Failed to update email");
+    }
   };
 
   const markWrongNumber = async (assignment) => {
@@ -205,6 +227,7 @@ const MyWorksheet = () => {
     setEditMeetings(Array.isArray(lead?.meeting) ? [...lead.meeting] : []);
     setClosureStatus(lead?.closureStatus || "In Progress");
     setCompleted(!!lead?.completed);
+    setEditEmail(lead?.lead?.email || "");
   };
 
   const handleSave = async () => {
@@ -520,10 +543,19 @@ const MyWorksheet = () => {
                             <FaWhatsapp />
                           </button>
                         )}
-                        {lead?.lead?.email && (
+                        {lead?.lead?.email ? (
                           <button className="bg-blue-600 text-white px-2 py-1 rounded flex items-center gap-1" onClick={() => openEmailModal(lead._id, lead?.lead?.name, lead?.lead?.email, lead?.mailers)} title="Email">
                             <FaEnvelope />
                           </button>
+                        ) : (
+                          <button
+                            className="bg-indigo-500 text-white px-2 py-1 rounded"
+                            title="Add Email"
+                            onClick={() => {
+                              const v = window.prompt("Enter email for this lead");
+                              if (v !== null) saveEmail(lead._id, v);
+                            }}
+                          >Add Email</button>
                         )}
                       </div>
                     </td>
@@ -559,7 +591,20 @@ const MyWorksheet = () => {
                     <p><strong>Company:</strong> {selectedLead?.lead?.company?.CompanyName || "N/A"}</p>
                     <p><strong>Location:</strong> {selectedLead?.lead?.location || "N/A"}</p>
                     <p><strong>Mobile:</strong> {Array.isArray(selectedLead?.lead?.mobile) ? selectedLead.lead.mobile.join(", ") : selectedLead?.lead?.mobile || "N/A"}</p>
-                    <p><strong>Email:</strong> {selectedLead?.lead?.email || "N/A"}</p>
+                    <p className="flex items-center gap-2">
+                      <strong>Email:</strong>
+                      <input
+                        className="border rounded px-2 py-1 text-sm flex-1 min-w-0"
+                        type="email"
+                        value={editEmail}
+                        onChange={e => setEditEmail(e.target.value)}
+                        placeholder="Enter email"
+                      />
+                      <button
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-sm"
+                        onClick={() => saveEmail(selectedLead?._id, editEmail)}
+                      >Save</button>
+                    </p>
                     <p><strong>Product Line:</strong> {selectedLead?.lead?.productLine || "N/A"}</p>
                     <p><strong>Turnover:</strong> {selectedLead?.lead?.turnover || "N/A"}</p>
                     <p><strong>Lead Model:</strong> {selectedLead?.leadModel || "N/A"}</p>
