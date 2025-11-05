@@ -140,7 +140,7 @@ const LinkedInPParser = () => {
   }, [companies, fromCorporate, companyFromUrl]);
 
   const handleParse = async () => {
-    if (!rawData.trim()) return showToast("Please paste LinkedIn data first.", "error");
+    if (!rawData.trim()) return showToast("Please paste data first.", "error");
 
     setLoading(true);
     try {
@@ -208,13 +208,13 @@ const LinkedInPParser = () => {
         <main className="w-full mx-auto p-4 my-15">
           <header className="mb-4">
             <h1 className="text-lg font-semibold text-gray-900">Table 12</h1>
-            <p className="text-xs text-gray-600">Paste LinkedIn Recruiter results to extract structured profile information.</p>
+            <p className="text-xs text-gray-600">Paste Recruiter results to extract structured profile information.</p>
           </header>
 
           <div className="bg-white p-3 border border-gray-200 flex flex-col gap-3">
             <textarea
               className="w-full h-48 p-2 text-gray-800 bg-gray-50 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-gray-300 resize-y text-sm"
-              placeholder="Paste LinkedIn recruiter results here..."
+              placeholder="Paste recruiter results here..."
               value={rawData}
               onChange={(e) => setRawData(e.target.value)}
               disabled={loading}
