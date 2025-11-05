@@ -28,7 +28,7 @@ const PriorityAssignLeads = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalLeads, setTotalLeads] = useState(0);
-  const leadsPerPage = 25;
+  const leadsPerPage = 50;
   const [excludeCalled, setExcludeCalled] = useState(true);
   const [excludeAlreadyAssigned, setExcludeAlreadyAssigned] = useState(false);
   const [activeTab, setActiveTab] = useState('assigned');
