@@ -56,7 +56,7 @@ const PriorityAssignLeads = () => {
     }
   };
 
-  const fetchLeads = async () => {
+  const fetchLeads = async (pageOverride) => {
     setLoading(true);
     try {
       const cleanFilters = Object.fromEntries(
@@ -64,7 +64,7 @@ const PriorityAssignLeads = () => {
       );
       const { data } = await axios.get(
         `${BASE_URL}/api/admin/getApprovedForCallingLeads`,
-        { params: { ...cleanFilters, page: currentPage, limit: leadsPerPage, excludeCalled, excludeAlreadyAssigned } }
+        { params: { ...cleanFilters, page: pageOverride ?? currentPage, limit: leadsPerPage, excludeCalled, excludeAlreadyAssigned } }
       );
       setLeads(data.leads || []);
       setTotalLeads(data.total || 0);
@@ -227,7 +227,7 @@ const PriorityAssignLeads = () => {
               />
             ))}
             <button
-              onClick={() => setCurrentPage(1) || fetchLeads()}
+              onClick={() => { setCurrentPage(1); fetchLeads(1); }}
               className="col-span-1 md:col-span-1 bg-blue-600 text-white px-5 py-3 rounded shadow hover:bg-blue-700 transition"
             >
               Apply Filters
@@ -249,9 +249,9 @@ const PriorityAssignLeads = () => {
                   <th className="p-3 whitespace-normal break-words">#</th>
                   <th className="p-3 whitespace-normal break-words">Name</th>
                   <th className="p-3 whitespace-normal break-words">Designation</th>
+                  <th className="p-3 whitespace-normal break-words">Company</th>
                   <th className="p-3 whitespace-normal break-words">Mobile</th>
                   <th className="p-3 whitespace-normal break-words">Email</th>
-                  <th className="p-3 whitespace-normal break-words">Company</th>
                   <th className="p-3 whitespace-normal break-words">Industry</th>
                   <th className="p-3 whitespace-normal break-words">Product Line</th>
                   <th className="p-3 whitespace-normal break-words">Employee Strength</th>
@@ -266,11 +266,12 @@ const PriorityAssignLeads = () => {
                 {leads.map((lead, index) => (
                   <tr
                     key={lead._id}
+                    style={{ backgroundColor: lead.exclusiveToSpecificCRE ? '#46e251ff' : (lead.calledByCre ? '#46e251ff' : undefined) }}
                     className={`${
                       index % 2 === 0 ? "bg-gray-50" : "bg-white"
-                    } ${lead.blockStatus === 'block' ? 'bg-red-50' : ''} hover:bg-blue-50 transition cursor-pointer ${
+                    } ${ (!lead.exclusiveToSpecificCRE && !lead.calledByCre && lead.blockStatus === 'block') ? 'bg-red-50' : '' } ${ (!lead.exclusiveToSpecificCRE && !lead.calledByCre) ? 'hover:bg-blue-50' : '' } transition cursor-pointer ${
                       selectedLeads.includes(lead._id)
-                        ? "bg-blue-100 border-l-4 border-blue-500"
+                        ? "border-l-4 border-blue-500"
                         : ""
                     }`}
                     onClick={() => toggleLeadSelection(lead._id)}
@@ -283,11 +284,22 @@ const PriorityAssignLeads = () => {
                         className="h-4 w-4 text-blue-600 rounded border-gray-300"
                       />
                     </td>
-                    <td className="p-3 whitespace-normal break-words">{lead.name}</td>
+                    <td className="p-3 whitespace-normal break-words">{lead.name}
+                      {(lead.exclusiveToSpecificCRE || lead.calledByCre) && (
+                        <span className="ml-2 inline-flex gap-1 align-middle">
+                          {lead.exclusiveToSpecificCRE && (
+                            <span className="px-2 py-0.5 rounded-full bg-blue-600 text-white text-[10px]">Priority</span>
+                          )}
+                          {lead.calledByCre && (
+                            <span className="px-2 py-0.5 rounded-full bg-indigo-600 text-white text-[10px]">Called</span>
+                          )}
+                        </span>
+                      )}
+                    </td>
                     <td className="p-3 whitespace-normal break-words">{lead.designation}</td>
+                    <td className="p-3 whitespace-normal break-words">{lead.company?.CompanyName || "-"}</td>
                     <td className="p-3 whitespace-normal break-words">{lead.mobile?.join(", ") || "-"}</td>
                     <td className="p-3 whitespace-normal break-words">{lead.email || "-"}</td>
-                    <td className="p-3 whitespace-normal break-words">{lead.company?.CompanyName || "-"}</td>
                     <td className="p-3 whitespace-normal break-words">{lead.industry?.name || "-"}</td>
                     <td className="p-3 whitespace-normal break-words">{lead.productLine || "-"}</td>
                     <td className="p-3 whitespace-normal break-words">{lead.employeeStrength || "-"}</td>
