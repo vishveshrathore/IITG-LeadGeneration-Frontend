@@ -18,6 +18,27 @@ const RawLeads = () => {
   const [industryQuery, setIndustryQuery] = useState("");
   const [showIndustryDropdown, setShowIndustryDropdown] = useState(false);
 
+  // Search HR (inline panel)
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [loadingSearch, setLoadingSearch] = useState(false);
+
+  const handleSearchHR = async () => {
+    if (!searchQuery.trim()) return;
+    setLoadingSearch(true);
+    try {
+      const res = await axios.get(`${BASE_URL}/api/lg/search`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+        params: { name: searchQuery },
+      });
+      setSearchResults(res.data.results || []);
+    } catch (err) {
+      toast.error("❌ Failed to search HR");
+    } finally {
+      setLoadingSearch(false);
+    }
+  };
+
   const fields = [
     "name",
     "designation",
@@ -207,29 +228,76 @@ const RawLeads = () => {
         <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">
           📋 Assigned Raw Lead
         </h2>
-{/* Progress Bar */}
-<div className="mb-6">
-  <div className="w-full bg-gray-200 h-2 rounded-full">
-    <div
-      className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-      style={{
-        width: `${Math.round(
-          (fields.filter(f => formData[f] && formData[f] !== "").length /
-            fields.length) *
-            100
-        )}%`
-      }}
-    ></div>
-  </div>
-  <p className="text-sm text-gray-600 mt-1 text-right">
-    {Math.round(
-      (fields.filter(f => formData[f] && formData[f] !== "").length /
-        fields.length) *
-        100
-    )}
-    % Completed
-  </p>
-</div>
+        {/* Search HR by Name */}
+        <div className="bg-white border rounded-2xl p-4 sm:p-6 mb-6">
+          <div className="flex justify-between items-center mb-4 border-b pb-2">
+            <h3 className="text-lg font-semibold text-blue-700 flex items-center gap-2">
+              🔍 Search HR by Name
+            </h3>
+            <span className="text-sm text-gray-500">{searchResults.length} items</span>
+          </div>
+          <div className="flex gap-2 mb-4">
+            <input
+              type="text"
+              placeholder="Enter HR name..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="flex-1 p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+            />
+            <button
+              onClick={handleSearchHR}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            >
+              Search
+            </button>
+          </div>
+          {loadingSearch ? (
+            <p className="text-gray-500">Loading...</p>
+          ) : searchResults.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 gap-4">
+              {searchResults.map((item, idx) => (
+                <div
+                  key={idx}
+                  className="p-4 rounded-xl bg-gradient-to-tr from-white via-gray-50 to-blue-50 border border-gray-200 shadow-sm hover:shadow-md transition"
+                >
+                  <p className="font-semibold text-blue-800">{item.name}</p>
+                  <p className="text-gray-600 text-sm">{item.designation || "—"}</p>
+                  <p className="text-gray-600 text-sm mt-1">{item.company || "No Company"}</p>
+                  <p className="text-gray-700 text-sm mt-1">
+                    {Array.isArray(item.mobile)
+                      ? (item.mobile.length ? item.mobile.join(", ") : "No Mobile")
+                      : (item.mobile || "No Mobile")}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500">No results found</p>
+          )}
+        </div>
+        {/* Progress Bar */}
+        <div className="mb-6">
+          <div className="w-full bg-gray-200 h-2 rounded-full">
+            <div
+              className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+              style={{
+                width: `${Math.round(
+                  (fields.filter(f => formData[f] && formData[f] !== "").length /
+                    fields.length) *
+                    100
+                )}%`
+              }}
+            ></div>
+          </div>
+          <p className="text-sm text-gray-600 mt-1 text-right">
+            {Math.round(
+              (fields.filter(f => formData[f] && formData[f] !== "").length /
+                fields.length) *
+                100
+            )}
+            % Completed
+          </p>
+        </div>
 
         {loading ? (
           <motion.p
