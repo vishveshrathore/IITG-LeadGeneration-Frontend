@@ -218,7 +218,7 @@ const NaukriParser = () => {
           <div className="bg-white p-3 border border-gray-200 flex flex-col gap-3">
             <textarea
               className="w-full h-48 p-2 text-gray-800 bg-gray-50 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-gray-300 resize-y text-sm"
-              placeholder="Paste Naukri recruiter data here..."
+              placeholder="Paste recruiter data here..."  
               value={rawData}
               onChange={(e) => setRawData(e.target.value)}
               disabled={loading}
