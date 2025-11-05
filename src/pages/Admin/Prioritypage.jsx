@@ -31,6 +31,7 @@ const PriorityAssignLeads = () => {
   const leadsPerPage = 25;
   const [excludeCalled, setExcludeCalled] = useState(true);
   const [excludeAlreadyAssigned, setExcludeAlreadyAssigned] = useState(false);
+  const [activeTab, setActiveTab] = useState('assigned');
 
   const updateLeadInState = (updated) => {
     setLeads((prev) => prev.map((l) => (l._id === updated._id ? { ...l, ...updated } : l)));
@@ -121,6 +122,11 @@ const PriorityAssignLeads = () => {
   };
 
   const totalPages = Math.ceil(totalLeads / leadsPerPage);
+  const displayLeads = leads.filter((l) =>
+    activeTab === 'assigned'
+      ? (l.exclusiveToSpecificCRE || l.calledByCre)
+      : (!l.exclusiveToSpecificCRE && !l.calledByCre)
+  );
 
   const resetFilters = () => {
     setFilters({
@@ -151,6 +157,21 @@ const PriorityAssignLeads = () => {
         <h2 className="text-3xl font-bold mb-6 text-gray-800 my-16">
           Approved Leads for Calling & Prioritize Lead
         </h2>
+
+        <div className="mb-4 flex gap-2">
+          <button
+            onClick={() => setActiveTab('assigned')}
+            className={`px-4 py-2 rounded-lg border ${activeTab === 'assigned' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300'}`}
+          >
+            CRE (Priority) & Called
+          </button>
+          <button
+            onClick={() => setActiveTab('unassigned')}
+            className={`px-4 py-2 rounded-lg border ${activeTab === 'unassigned' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300'}`}
+          >
+            Unassigned
+          </button>
+        </div>
 
         {/* Filters and CRE Assign Section */}
         <div className="flex flex-col md:flex-row items-start md:items-center gap-4 mb-4 flex-wrap">
@@ -239,7 +260,7 @@ const PriorityAssignLeads = () => {
         <div className="bg-white rounded-xl shadow overflow-hidden">
           {loading ? (
             <p className="p-4 text-gray-500 text-center">Loading leads...</p>
-          ) : leads.length === 0 ? (
+          ) : displayLeads.length === 0 ? (
             <p className="p-4 text-gray-400 text-center">No leads found</p>
           ) : (
             <div className="w-full">
@@ -263,7 +284,7 @@ const PriorityAssignLeads = () => {
                 </tr>
                 </thead>
                 <tbody>
-                {leads.map((lead, index) => (
+                {displayLeads.map((lead, index) => (
                   <tr
                     key={lead._id}
                     style={{ backgroundColor: lead.exclusiveToSpecificCRE ? '#46e251ff' : (lead.calledByCre ? '#46e251ff' : undefined) }}
