@@ -174,7 +174,7 @@ const TeamStats = () => {
   const downloadCsv = () => {
     const members = teamMembers;
     const header1 = ['S.no', 'Date', ...members.flatMap((m) => [m.name || '—', ''])];
-    const header2 = ['', '', ...members.flatMap(() => ['Conduction', 'Closed'])];
+    const header2 = ['', '', ...members.flatMap(() => ['Gmeet Conduction', 'New Client Acquisition'])];
 
     const rows = [header1, header2];
     // Totals at top
@@ -258,8 +258,8 @@ const TeamStats = () => {
                     <th className="px-3 py-2 border-b border-r"></th>
                     {teamMembers.map((m) => (
                       <React.Fragment key={m._id}>
-                        <th className="px-3 py-2 border-b border-r text-center text-slate-600">Conduction</th>
-                        <th className="px-3 py-2 border-b border-r text-center text-slate-600">Closed</th>
+                        <th className="px-3 py-2 border-b border-r text-center text-slate-600">Gmeet Conduction</th>
+                        <th className="px-3 py-2 border-b border-r text-center text-slate-600">New Client Acquisition</th>
                       </React.Fragment>
                     ))}
                   </tr>
