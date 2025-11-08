@@ -8,19 +8,17 @@ export const mailer2Template = ({ recipientName, crmName, crmEmail, crmPhone }) 
   <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #000000;">
 
     <p>Dear ${recipientName},</p>
-
-    <p>Greetings from <strong>IITGJobs.com Pvt.Ltd.</strong>!</p>
-
+    <p>Greetings from <strong>IITGJobs.com Pvt. Ltd.</strong>!</p>
     <p>
       I hope you are doing well. I am <strong>${crmName}</strong>, your
-      HR Business Partner at IITGJobs.com. Pvt.Ltd. We provide end-to-end recruitment
+      HR Business Partner at IITGJobs.com Pvt. Ltd. We provide end-to-end recruitment
       solutions and workforce retention strategies designed to optimize your
       talent management process.
     </p>
 
     <h3 style="color:#000000;">Key Services We Offer:</h3>
 
-    <h4 style="color:#000000;">1. Churn Prevention & Employee Retention</h4>
+    <h4 style="color:#000000;"><strong>1. ATTRITION PREVENTION & EMPLOYEE RETENTION</strong></h4>
     <ul style="color:#000000;">
       <li>
         <strong>Employee Risk Reports:</strong> Bi-monthly actionable reports
@@ -32,20 +30,20 @@ export const mailer2Template = ({ recipientName, crmName, crmEmail, crmPhone }) 
       </li>
     </ul>
 
-    <h4 style="color:#000000;">2. Recruitment Services – Preferred Partner Model (PPM)</h4>
+    <h4 style="color:#000000;"><strong>2. RECRUITMENT SERVICES – PREFERRED PARTNER MODEL (PPM)</strong></h4>
     <ul style="color:#000000;">
       <li>
         <strong>Cost-Effective Hiring:</strong> 2% of CTC across all hiring levels
-        or flat ₹20,000 for positions below ₹10 LPA.
+        or a flat ₹20,000 for positions below ₹10 LPA.
       </li>
       <li>
-        <strong>End-to-End Recruitment:</strong> From sourcing to onboarding,
+        <strong>End-to-end Recruitment:</strong> From sourcing to onboarding,
         our team ensures fast and quality hires.
       </li>
     </ul>
 
     <p>
-      By combining our Churn Prevention Model with PPM recruitment services, you
+      By combining our Attrition Prevention Model with PPM recruitment services, you
       can maintain a stable workforce and reduce talent gaps effectively.
     </p>
 
@@ -64,21 +62,9 @@ export const mailer2Template = ({ recipientName, crmName, crmEmail, crmPhone }) 
       ${crmPhone ? `📞 ${crmPhone}<br/>` : ''}
       ${crmEmail ? `✉️ <a href="mailto:${crmEmail}" style="color:#000000; text-decoration:none;">${crmEmail}</a><br/>` : ''}
     </p>
-
-    <!-- Signature -->
-    <table width="100%" cellpadding="0" cellspacing="0" border="0">
-      <tr>
-        <td style="font-size:14px; color:#000000; line-height:1.6;">
-          <strong>Harshika Aginhotri</strong><br/>
-          HR Business Partner (HRBP)<br/>
-          📞 +91 7701007807<br/>
-          ✉️ <a href="mailto:harshika.a@iitgjobs.co.in" style="color:#000000; text-decoration:none;">harshika.a@iitgjobs.co.in</a><br/>
-          🌐 <a href="https://iitgjobs.co.in" style="color:#000000; text-decoration:none;">iitgjobs.co.in</a><br/>
-          <span style="font-size:13px; color:#000000;">Beside Gulzar Hotel, Mahanadda, Jabalpur</span>
-        </td>
-      </tr>
-    </table>
-    
+    <div style="text-align:center; background:#f4f6f8; padding:15px; font-size:12px; color:#000000; margin-top:16px;">
+      &copy; ${new Date().getFullYear()} IITGJobs.com Pvt. Ltd. All Rights Reserved.
+    </div>
   </body>
 </html>
 `;

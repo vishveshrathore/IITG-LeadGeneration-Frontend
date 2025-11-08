@@ -236,6 +236,16 @@ const LeadAssignmentDashboard = () => {
     setEmailBody(convert(filled, { wordwrap: 130 }));
   }, [emailTemplate, emailModalOpen, crmPhoneResolved, emailRecipient?.recipientName, emailRecipient?.name, user?.name, user?.email]);
 
+  // Set subject based on selected template (Mailer 2 has a specific subject)
+  useEffect(() => {
+    if (!emailModalOpen) return;
+    if (emailTemplate === 'mailer2') {
+      setEmailSubject('Details about Churn Control Model & Preferred Partner Model.');
+    } else if (emailTemplate === 'mailer1') {
+      setEmailSubject('Brief about Churn Control Model & Preferred Partner Model.');
+    }
+  }, [emailTemplate, emailModalOpen]);
+
   useEffect(() => {
     // Ensure this initialization runs only once per mount (guards Strict Mode double-invoke)
     if (hasFetchedRef.current) return;
@@ -418,10 +428,10 @@ IITGJobs.com`;
       const formData = new FormData();
       formData.append("from", userEmail);
       formData.append("to", emailRecipient.email);
-      formData.append(
-        "subject",
-        emailSubject || "Regarding Attrention Control"
-      );
+      const fallbackSubject = emailTemplate === 'mailer2'
+        ? 'Details about Churn Control Model & Preferred Partner Model.'
+        : 'Brief about Churn Control Model & Preferred Partner Model.';
+      formData.append("subject", emailSubject || fallbackSubject);
       formData.append("body", emailBody || "");
       attachments.forEach((file) => formData.append("attachments", file));
       await axios.post(`${BASE_URL}/api/cre/send/mailer`, formData, {
