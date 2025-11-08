@@ -183,13 +183,14 @@ const TeamStats = () => {
       '',
       ...members.flatMap((m) => {
         const t = totalsByMember[String(m._id)] || { conduction: 0, prospects: 0, closed: 0 };
-        return [String(t.conduction), String(t.closed)];
+        return [t.conduction === 0 ? 'NIL' : String(t.conduction), t.closed === 0 ? 'NIL' : String(t.closed)];
       })
     ];
     rows.push(totalsRow);
 
     // Daily rows
-    monthDays.forEach((d, idx) => {
+    const days = monthDaysFiltered;
+    days.forEach((d, idx) => {
       rows.push([
         String(idx + 1),
         new Date(d).toLocaleDateString(),
