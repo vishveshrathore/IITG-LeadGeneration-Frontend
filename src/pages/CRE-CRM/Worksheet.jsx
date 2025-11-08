@@ -69,6 +69,8 @@ const MyWorksheet = () => {
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailAssignmentId, setEmailAssignmentId] = useState("");
   const [emailMailersSnapshot, setEmailMailersSnapshot] = useState([]);
+  // Cache CRM phone once to avoid intermittent empty values due to races
+  const [crmPhoneResolved, setCrmPhoneResolved] = useState("");
 
   const statusOptions = ["Pending", "Positive", "Negative", "Wrong Number", "Closure Prospects"];
   const closureStatusOptions = ["Closed", "In Progress", "Pending"];
@@ -289,60 +291,114 @@ const MyWorksheet = () => {
     }
   };
 
-  const openEmailModal = (assignmentId, recipientName, email, mailers = []) => {
-    if (!email) { toast.error("Recipient email not found"); return; }
-    setEmailRecipient({ name: recipientName || "", email });
-    setEmailAssignmentId(assignmentId);
-    setEmailMailersSnapshot(Array.isArray(mailers) ? mailers : []);
-    const templateFn = emailTemplate === "mailer1" ? mailer1Template : mailer2Template;
-    const filledTemplate = templateFn({ recipientName: recipientName || "", crmName: user?.name || "Our Team", crmEmail: user?.email || "default@example.com" });
-    setEmailBody(convert(filledTemplate, { wordwrap: 130 }));
-    setEmailModalOpen(true);
-  };
+ // Keep imports as they are (axios, BASE_URL, convert, mailer1Template, mailer2Template)
 
-  const handleSendEmail = async () => {
-    if (!emailRecipient.email) return toast.error("Recipient email not found");
-    setSendingEmail(true);
-    try {
-      const formData = new FormData();
-      formData.append("from", user?.email?.trim() || "");
-      formData.append("to", emailRecipient.email);
-      formData.append("subject", emailSubject || "Regarding Attrention Control");
-      formData.append("body", emailBody || "");
-      attachments.forEach((file) => formData.append("attachments", file));
-      await axios.post(`${BASE_URL}/api/cre/send/mailer`, formData, {
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" },
-      });
-      toast.success("Email sent successfully!");
-      // Build mailers payload preserving previous statuses and setting the chosen one to true
-      const existing = { mailer1: false, mailer2: false, ...Object.fromEntries((emailMailersSnapshot || []).map(m => [m.type, !!m.sent])) };
-      existing[emailTemplate] = true;
-      const mailersPayload = [
-        { type: 'mailer1', sent: !!existing.mailer1 },
-        { type: 'mailer2', sent: !!existing.mailer2 },
-      ];
-      if (emailAssignmentId) {
+  // Resolve CRM phone once and cache it
+  useEffect(() => {
+    let cancelled = false;
+    const resolvePhone = async () => {
+      let phone = Array.isArray(user?.mobile)
+        ? (user.mobile[0] || "")
+        : (user?.mobile || user?.phone || user?.officeSim || user?.altMobile || "");
+      if (!phone && token) {
         try {
-          await axios.put(`${BASE_URL}/api/cre/lead/${emailAssignmentId}`,
-            { mailers: mailersPayload },
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
-          fetchLeads();
-        } catch (e) { console.error(e); }
+          const res = await axios.get(`${BASE_URL}/api/me`, { headers: { Authorization: `Bearer ${token}` } });
+          const profile = res?.data || {};
+          phone = Array.isArray(profile?.mobile)
+            ? (profile.mobile[0] || "")
+            : (profile?.mobile || profile?.phone || profile?.officeSim || profile?.contactNumber || profile?.altMobile || "");
+        } catch (_) {}
       }
-      setEmailModalOpen(false);
-      setEmailRecipient({ name: "", email: "" });
-      setEmailBody("");
-      setEmailSubject("Regarding Attrention Control");
-      setAttachments([]);
-      setEmailAssignmentId("");
-      setEmailMailersSnapshot([]);
-    } catch (e) {
-      toast.error("Failed to send email.");
-    } finally {
-      setSendingEmail(false);
+      if (!cancelled) setCrmPhoneResolved(phone || "");
+    };
+    resolvePhone();
+    return () => { cancelled = true; };
+  }, [user?.mobile, user?.phone, user?.officeSim, user?.altMobile, token]);
+
+  // When template is switched in the modal, rebuild the email body with cached phone
+  useEffect(() => {
+    if (!emailModalOpen) return;
+    const templateFn = emailTemplate === "mailer1" ? mailer1Template : mailer2Template;
+    const recipientName = emailRecipient?.name || "";
+    const filled = templateFn({
+      recipientName,
+      crmName: user?.name || "Our Team",
+      crmEmail: user?.email || "default@example.com",
+      crmPhone: crmPhoneResolved || "",
+    });
+    setEmailBody(convert(filled, { wordwrap: 130 }));
+  }, [emailTemplate, emailModalOpen, crmPhoneResolved, emailRecipient?.name, user?.name, user?.email]);
+
+  const openEmailModal = async (assignmentId, recipientName, email, mailers = []) => {
+  if (!email) { toast.error("Recipient email not found"); return; }
+  setEmailRecipient({ name: recipientName || "", email });
+  setEmailAssignmentId(assignmentId);
+  setEmailMailersSnapshot(Array.isArray(mailers) ? mailers : []);
+
+    const templateFn = emailTemplate === "mailer1" ? mailer1Template : mailer2Template;
+    // Prefer cached phone; fallback to compute + fetch only if still empty
+    let crmPhone = crmPhoneResolved;
+    if (!crmPhone) {
+      crmPhone = Array.isArray(user?.mobile) ? (user.mobile[0] || "") : (user?.mobile || user?.phone || user?.officeSim || user?.altMobile || "");
     }
-  };
+    if (!crmPhone) {
+      try {
+        const res = await axios.get(`${BASE_URL}/api/me`, { headers: { Authorization: `Bearer ${token}` } });
+        const profile = res?.data || {};
+        crmPhone = Array.isArray(profile?.mobile) ? (profile.mobile[0] || "") : (profile?.mobile || profile?.phone || profile?.officeSim || profile?.contactNumber || profile?.altMobile || "");
+      } catch (_) { /* ignore */ }
+    }
+
+  const filledTemplate = templateFn({
+    recipientName: recipientName || "",
+    crmName: user?.name || "Our Team",
+    crmEmail: user?.email || "default@example.com",
+    crmPhone,
+  });
+
+  setEmailBody(convert(filledTemplate, { wordwrap: 130 }));
+  setEmailModalOpen(true);
+};
+
+const handleSendEmail = async () => {
+  if (!emailRecipient.email) return toast.error("Recipient email not found");
+  setSendingEmail(true);
+  try {
+    const formData = new FormData();
+    formData.append("from", user?.email?.trim() || "");
+    formData.append("to", emailRecipient.email);
+    formData.append("subject", emailSubject || "Regarding Attrention Control");
+    formData.append("body", emailBody || "");
+    attachments.forEach((file) => formData.append("attachments", file));
+    await axios.post(`${BASE_URL}/api/cre/send/mailer`, formData, {
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" },
+    });
+    toast.success("Email sent successfully!");
+    const existing = { mailer1: false, mailer2: false, ...Object.fromEntries((emailMailersSnapshot || []).map(m => [m.type, !!m.sent])) };
+    existing[emailTemplate] = true;
+    const mailersPayload = [
+      { type: 'mailer1', sent: !!existing.mailer1 },
+      { type: 'mailer2', sent: !!existing.mailer2 },
+    ];
+    if (emailAssignmentId) {
+      try {
+        await axios.put(`${BASE_URL}/api/cre/lead/${emailAssignmentId}`, { mailers: mailersPayload }, { headers: { Authorization: `Bearer ${token}` } });
+        fetchLeads();
+      } catch (e) { console.error(e); }
+    }
+    setEmailModalOpen(false);
+    setEmailRecipient({ name: "", email: "" });
+    setEmailBody("");
+    setEmailSubject("Regarding Attrention Control");
+    setAttachments([]);
+    setEmailAssignmentId("");
+    setEmailMailersSnapshot([]);
+  } catch (e) {
+    toast.error("Failed to send email.");
+  } finally {
+    setSendingEmail(false);
+  }
+};
 
   const handleResetFilters = () => {
     setCurrentStatus("");

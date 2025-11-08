@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import CRENavbar from '../../components/CreNavbar';
@@ -8,6 +9,10 @@ import { BASE_URL } from '../../config';
 const TeamStats = () => {
   const { authToken, role, user } = useAuth();
   const token = authToken || localStorage.getItem('token');
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const scope = params.get('scope');
+  const forceSelf = scope === 'self';
   const isLeader = [
     'CRM-TeamLead',
     'DeputyCRMTeamLead',
@@ -29,17 +34,24 @@ const TeamStats = () => {
   const [hideZeroMembers, setHideZeroMembers] = useState(false);
 
   useEffect(() => {
-    if (!token || !isLeader) return;
+    if (!token) return;
     const headers = { Authorization: `Bearer ${token}` };
     const run = async () => {
       try {
         setLoading(true);
-        const [membersRes, leadsRes] = await Promise.all([
-          axios.get(`${BASE_URL}/api/cre/team/members`, { headers }),
-          axios.get(`${BASE_URL}/api/cre/team/leads`, { headers }),
-        ]);
-        setTeamMembers(membersRes?.data?.data || []);
-        setTeamLeadsData(leadsRes?.data?.data || []);
+        if (isLeader && !forceSelf) {
+          const [membersRes, leadsRes] = await Promise.all([
+            axios.get(`${BASE_URL}/api/cre/team/members`, { headers }),
+            axios.get(`${BASE_URL}/api/cre/team/leads`, { headers }),
+          ]);
+          setTeamMembers(membersRes?.data?.data || []);
+          setTeamLeadsData(leadsRes?.data?.data || []);
+        } else {
+          const myLeadsRes = await axios.get(`${BASE_URL}/api/cre/myleads`, { headers });
+          const me = user ? [{ _id: user._id, name: user.name }] : [];
+          setTeamMembers(me);
+          setTeamLeadsData(myLeadsRes?.data?.data || []);
+        }
       } catch (e) {
         setTeamMembers([]);
         setTeamLeadsData([]);
@@ -48,7 +60,7 @@ const TeamStats = () => {
       }
     };
     run();
-  }, [token, isLeader]);
+  }, [token, isLeader, user?._id, user?.name, forceSelf]);
 
   // Helpers
   const ymd = (d) => {

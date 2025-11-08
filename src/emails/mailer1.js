@@ -1,4 +1,4 @@
-export const mailer1Template = ({ recipientName, crmName }) => `
+export const mailer1Template = ({ recipientName, crmName, crmEmail, crmPhone }) => `
 <!DOCTYPE html>
 <html>
   <head>
@@ -59,7 +59,9 @@ export const mailer1Template = ({ recipientName, crmName }) => `
 
                 <p style="margin:0 0 25px; color:#000000;">
                   Warm regards,<br/>
-                  <strong>${crmName}</strong>
+                  <strong>${crmName}</strong><br/>
+                  ${crmPhone ? `📞 ${crmPhone}<br/>` : ''}
+                  ${crmEmail ? `✉️ <a href="mailto:${crmEmail}" style="color:#000000; text-decoration:none;">${crmEmail}</a><br/>` : ''}
                 </p>
 
                 <!-- Signature -->
@@ -68,7 +70,7 @@ export const mailer1Template = ({ recipientName, crmName }) => `
                     <td style="font-size:14px; color:#000000; line-height:1.6;">
                       <strong>Harshika Aginhotri</strong><br/>
                       HR Business Partner (HRBP)<br/>
-                      📞 +91 9202960598<br/>
+                      📞 +91 7701007807<br/>
                       ✉️ <a href="mailto:harshika.a@iitgjobs.co.in" style="color:#000000; text-decoration:none;">harshika.a@iitgjobs.co.in</a><br/>
                       🌐 <a href="https://iitgjobs.co.in" style="color:#000000; text-decoration:none;">iitgjobs.co.in</a><br/>
                       <span style="font-size:13px; color:#000000;">Beside Gulzar Hotel, Mahanadda, Jabalpur</span>

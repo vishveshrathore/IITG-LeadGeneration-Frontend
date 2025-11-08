@@ -36,6 +36,9 @@ const LeadAssignmentDashboard = () => {
   const token = authToken || localStorage.getItem("token");
   const userEmail = user?.email?.trim();
 
+  // Cache CRM phone once to avoid intermittent empty values due to races
+  const [crmPhoneResolved, setCrmPhoneResolved] = useState("");
+
   const [lead, setLead] = useState(null);
   const [loading, setLoading] = useState(true);
   const [remarksOpen, setRemarksOpen] = useState(false);
@@ -197,6 +200,42 @@ const LeadAssignmentDashboard = () => {
     }
   }, [token]);
 
+  // Resolve CRM phone once and cache it
+  useEffect(() => {
+    let cancelled = false;
+    const resolvePhone = async () => {
+      let phone = Array.isArray(user?.mobile)
+        ? (user.mobile[0] || "")
+        : (user?.mobile || user?.phone || user?.officeSim || user?.altMobile || "");
+      if (!phone && token) {
+        try {
+          const res = await axios.get(`${BASE_URL}/api/me`, { headers: { Authorization: `Bearer ${token}` } });
+          const profile = res?.data || {};
+          phone = Array.isArray(profile?.mobile)
+            ? (profile.mobile[0] || "")
+            : (profile?.mobile || profile?.phone || profile?.officeSim || profile?.contactNumber || profile?.altMobile || "");
+        } catch (_) {}
+      }
+      if (!cancelled) setCrmPhoneResolved(phone || "");
+    };
+    resolvePhone();
+    return () => { cancelled = true; };
+  }, [user?.mobile, user?.phone, user?.officeSim, user?.altMobile, token]);
+
+  // When template is switched in the modal, rebuild the email body with cached phone
+  useEffect(() => {
+    if (!emailModalOpen) return;
+    const template = emailTemplate === "mailer1" ? mailer1Template : mailer2Template;
+    const recipientName = emailRecipient?.recipientName || emailRecipient?.name || "";
+    const filled = template({
+      recipientName,
+      crmName: user?.name || "Our Team",
+      crmEmail: user?.email || "default@example.com",
+      crmPhone: crmPhoneResolved || "",
+    });
+    setEmailBody(convert(filled, { wordwrap: 130 }));
+  }, [emailTemplate, emailModalOpen, crmPhoneResolved, emailRecipient?.recipientName, emailRecipient?.name, user?.name, user?.email]);
+
   useEffect(() => {
     // Ensure this initialization runs only once per mount (guards Strict Mode double-invoke)
     if (hasFetchedRef.current) return;
@@ -340,21 +379,35 @@ IITGJobs.com`;
     if (win) win.focus();
   };
 
-  const openEmailModal = (recipientName, email) => {
-    setEmailRecipient({ recipientName, email });
+ const openEmailModal = async (recipientName, email) => {
+  setEmailRecipient({ recipientName, email });
+  const template = emailTemplate === "mailer1" ? mailer1Template : mailer2Template;
 
-    const template =
-      emailTemplate === "mailer1" ? mailer1Template : mailer2Template;
+  // Prefer cached phone; fallback to compute + fetch only if still empty
+  let crmPhone = crmPhoneResolved;
+  if (!crmPhone) {
+    crmPhone = Array.isArray(user?.mobile) ? (user.mobile[0] || "") : (user?.mobile || user?.phone || user?.officeSim || user?.altMobile || "");
+  }
+  if (!crmPhone) {
+    try {
+      const res = await axios.get(`${BASE_URL}/api/me`, { headers: { Authorization: `Bearer ${token}` } });
+      const profile = res?.data || {};
+      crmPhone = Array.isArray(profile?.mobile) ? (profile.mobile[0] || "") : (
+        profile?.mobile || profile?.phone || profile?.officeSim || profile?.contactNumber || profile?.altMobile || ""
+      );
+    } catch (_) {}
+  }
 
-    const filledTemplate = template({
-      recipientName,
-      crmName: user?.name || "Our Team",
-      crmEmail: user?.email || "default@example.com",
-    });
+  const filledTemplate = template({
+    recipientName,
+    crmName: user?.name || "Our Team",
+    crmEmail: user?.email || "default@example.com",
+    crmPhone,
+  });
 
-    setEmailBody(convert(filledTemplate, { wordwrap: 130 }));
-    setEmailModalOpen(true);
-  };
+  setEmailBody(convert(filledTemplate, { wordwrap: 130 }));
+  setEmailModalOpen(true);
+};
 
   const handleSendEmail = async () => {
     if (!emailRecipient.email) {

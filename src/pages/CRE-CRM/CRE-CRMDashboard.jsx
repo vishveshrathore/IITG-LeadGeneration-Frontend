@@ -336,6 +336,14 @@ const CreCrmDashboard = () => {
               >
                 Go to Worksheet
               </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.03, boxShadow: '0 12px 30px -12px rgba(99,102,241,0.35)' }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => navigate('/cre/team-stats?scope=self')}
+                className="px-4 py-2 rounded-lg bg-white/80 text-slate-700 border border-slate-200 text-sm shadow-sm hover:bg-white transition"
+              >
+                My Stats
+              </motion.button>
               {(["CRM-TeamLead", "DeputyCRMTeamLead", "RegionalHead", "NationalHead"].includes(role || user?.role)) && (
                 <motion.button
                   whileHover={{ scale: 1.03, boxShadow: '0 12px 30px -12px rgba(56,189,248,0.45)' }}

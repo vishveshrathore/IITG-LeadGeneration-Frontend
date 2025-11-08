@@ -58,24 +58,26 @@ export const mailer2Template = ({ recipientName, crmName, crmEmail, crmPhone }) 
 
     <p>Looking forward to your positive response.</p>
 
-     <p style="margin:0 0 25px; color:#000000;">
-                  Warm regards,<br/>
-                  <strong>${crmName}</strong>
-                </p>
+    <p style="margin:0 0 25px; color:#000000;">
+      Warm regards,<br/>
+      <strong>${crmName}</strong><br/>
+      ${crmPhone ? `📞 ${crmPhone}<br/>` : ''}
+      ${crmEmail ? `✉️ <a href="mailto:${crmEmail}" style="color:#000000; text-decoration:none;">${crmEmail}</a><br/>` : ''}
+    </p>
 
-                <!-- Signature -->
-                <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                  <tr>
-                    <td style="font-size:14px; color:#000000; line-height:1.6;">
-                      <strong>Harshika Aginhotri</strong><br/>
-                      HR Business Partner (HRBP)<br/>
-                      📞 +91 9202960598<br/>
-                      ✉️ <a href="mailto:harshika.a@iitgjobs.co.in" style="color:#000000; text-decoration:none;">harshika.a@iitgjobs.co.in</a><br/>
-                      🌐 <a href="https://iitgjobs.co.in" style="color:#000000; text-decoration:none;">iitgjobs.co.in</a><br/>
-                      <span style="font-size:13px; color:#000000;">Beside Gulzar Hotel, Mahanadda, Jabalpur</span>
-                    </td>
-                  </tr>
-                </table>
+    <!-- Signature -->
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="font-size:14px; color:#000000; line-height:1.6;">
+          <strong>Harshika Aginhotri</strong><br/>
+          HR Business Partner (HRBP)<br/>
+          📞 +91 7701007807<br/>
+          ✉️ <a href="mailto:harshika.a@iitgjobs.co.in" style="color:#000000; text-decoration:none;">harshika.a@iitgjobs.co.in</a><br/>
+          🌐 <a href="https://iitgjobs.co.in" style="color:#000000; text-decoration:none;">iitgjobs.co.in</a><br/>
+          <span style="font-size:13px; color:#000000;">Beside Gulzar Hotel, Mahanadda, Jabalpur</span>
+        </td>
+      </tr>
+    </table>
     
   </body>
 </html>
