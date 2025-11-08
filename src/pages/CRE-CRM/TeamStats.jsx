@@ -271,11 +271,11 @@ const TeamStats = () => {
                       const t = totalsByMember[String(m._id)] || { conduction: 0, prospects: 0, closed: 0 };
                       return (
                         <React.Fragment key={m._id}>
-                          <td className={`${compact ? 'px-2 py-1' : 'px-3 py-2'} border-t border-r text-center`}>
-                            <span className={`inline-flex items-center justify-center ${compact ? 'min-w-[1.5rem] px-1.5 py-0.5 text-[11px]' : 'min-w-[2rem] px-2 py-0.5'} rounded-full bg-slate-100 text-slate-700`}>{t.conduction}</span>
+                          <td className={`${compact ? 'px-2 py-1' : 'px-3 py-2'} border-t border-r text-center ${t.conduction === 0 ? 'bg-rose-100' : ''}`}>
+                            <span className={`inline-flex items-center justify-center ${compact ? 'min-w-[1.5rem] px-1.5 py-0.5 text-[11px]' : 'min-w-[2rem] px-2 py-0.5'} rounded-full ${t.conduction === 0 ? 'bg-rose-100 text-rose-900' : 'bg-slate-100 text-slate-700'}`}>{t.conduction === 0 ? 'NIL' : t.conduction}</span>
                           </td>
                           <td className={`${compact ? 'px-2 py-1' : 'px-3 py-2'} border-t border-r text-center ${t.closed === 0 ? 'bg-rose-100' : ''}`}>
-                            <span className={`inline-flex items-center justify-center ${compact ? 'min-w-[1.5rem] px-1.5 py-0.5 text-[11px]' : 'min-w-[2rem] px-2 py-0.5'} rounded-full ${t.closed === 0 ? 'bg-rose-100 text-rose-900' : 'bg-slate-100 text-slate-700'}`}>{t.closed}</span>
+                            <span className={`inline-flex items-center justify-center ${compact ? 'min-w-[1.5rem] px-1.5 py-0.5 text-[11px]' : 'min-w-[2rem] px-2 py-0.5'} rounded-full ${t.closed === 0 ? 'bg-rose-100 text-rose-900' : 'bg-slate-100 text-slate-700'}`}>{t.closed === 0 ? 'NIL' : t.closed}</span>
                           </td>
                         </React.Fragment>
                       );
