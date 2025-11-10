@@ -42,6 +42,7 @@ export default function CRELeadsApprovalDashboard() {
     approved: { total: 0 },
     freshUnassigned: { total: 0 },
   });
+  const [activeTab, setActiveTab] = useState('Unassigned');
   const [industryQuery, setIndustryQuery] = useState("");
   const [industrySearchResults, setIndustrySearchResults] = useState([]);
   const [industryLoading, setIndustryLoading] = useState(false);
@@ -109,6 +110,7 @@ export default function CRELeadsApprovalDashboard() {
           rejectionNote: note,
         };
       }));
+      fetchCounts();
       // Do not refetch immediately to preserve locally saved remarks visibility
     } catch (e) {
       const status = e?.response?.status;
@@ -237,6 +239,7 @@ export default function CRELeadsApprovalDashboard() {
       });
       toast.success("Lead approved successfully");
       fetchLeads(page, debouncedSearch);
+      fetchCounts();
     } catch (e) {
       toast.error(e?.response?.data?.message || "Approve failed");
     } finally {
@@ -260,6 +263,7 @@ export default function CRELeadsApprovalDashboard() {
       });
       toast.success("Lead marked pending");
       fetchLeads(page, debouncedSearch);
+      fetchCounts();
     } catch (e) {
       toast.error(e?.response?.data?.message || "Pending failed");
     } finally {
@@ -281,7 +285,7 @@ export default function CRELeadsApprovalDashboard() {
 
   const selectAllOnPage = () => {
     const newSet = new Set(selected);
-    leads.forEach((i) => newSet.add(i._id));
+    filteredLeads.forEach((i) => newSet.add(i._id));
     setSelected(newSet);
   };
 
@@ -289,6 +293,20 @@ export default function CRELeadsApprovalDashboard() {
   const totalPages = Math.ceil(globalStats.total / limit);
   const handlePrevPage = () => setPage((p) => Math.max(p - 1, 1));
   const handleNextPage = () => setPage((p) => Math.min(p + 1, totalPages));
+
+  // Tabbed filtering helpers
+  const tabCounts = React.useMemo(() => ({
+    Unassigned: creCounts.freshUnassigned?.total || 0,
+    Rejected: creCounts.rejected?.total || 0,
+    Approved: creCounts.approved?.total || 0,
+  }), [creCounts]);
+
+  const filteredLeads = React.useMemo(() => {
+    if (activeTab === 'Approved') return leads.filter((l) => l.status === 'approved for calling');
+    if (activeTab === 'Rejected') return leads.filter((l) => l.status === 'rejected');
+    // Unassigned: status is neither approved nor rejected
+    return leads.filter((l) => l.status !== 'approved for calling' && l.status !== 'rejected');
+  }, [leads, activeTab]);
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen my-12">
@@ -301,8 +319,37 @@ export default function CRELeadsApprovalDashboard() {
         </h1>
       </div>
 
+      {/* Tabs: Unassigned, Rejected, Approved */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        {[
+          { key: 'Unassigned', label: 'Unassigned' },
+          { key: 'Rejected', label: 'Rejected' },
+          { key: 'Approved', label: 'Approved for Calling' },
+        ].map((t) => {
+          const isActive = activeTab === t.key;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setActiveTab(t.key)}
+              className={`${buttonBase} ${
+                isActive
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              {t.label}
+              <span className={`ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+                isActive ? 'bg-white/20' : 'bg-gray-100 text-gray-700'
+              }`}>
+                {tabCounts[t.key] || 0}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
         <motion.div
           variants={cardVariants}
           initial="initial"
@@ -310,10 +357,10 @@ export default function CRELeadsApprovalDashboard() {
           className="rounded-3xl bg-gradient-to-r from-blue-200 to-blue-400 flex flex-col items-start gap-2 p-6"
         >
           <div className="text-sm font-medium text-blue-900 uppercase tracking-wide">
-            Total Leads for Approval
+            Total Leads
           </div>
           <div className="text-3xl md:text-4xl font-bold text-blue-900">
-            {globalStats.total}
+            {creCounts.total?.total || 0}
           </div>
         </motion.div>
 
@@ -335,10 +382,24 @@ export default function CRELeadsApprovalDashboard() {
           variants={cardVariants}
           initial="initial"
           animate="animate"
+          className="rounded-3xl bg-gradient-to-r from-red-200 to-red-400 flex flex-col items-start gap-2 p-6"
+        >
+          <div className="text-sm font-medium text-red-900 uppercase tracking-wide">
+            Rejected Leads
+          </div>
+          <div className="text-3xl md:text-4xl font-bold text-red-900">
+            {creCounts.rejected?.total || 0}
+          </div>
+        </motion.div>
+
+        <motion.div
+          variants={cardVariants}
+          initial="initial"
+          animate="animate"
           className="rounded-3xl bg-gradient-to-r from-yellow-200 to-yellow-400 flex flex-col items-start gap-2 p-6"
         >
           <div className="text-sm font-medium text-yellow-900 uppercase tracking-wide">
-            Unassigned Data CRE
+            Unassigned Leads
           </div>
           <div className="text-3xl md:text-4xl font-bold text-yellow-900">
             {creCounts.freshUnassigned?.total || 0}
@@ -422,9 +483,9 @@ export default function CRELeadsApprovalDashboard() {
             </tbody>
           </table>
         </div>
-      ) : leads.length === 0 ? (
+      ) : filteredLeads.length === 0 ? (
         <div className="rounded-2xl border bg-white shadow-sm p-10 text-center text-gray-500">
-          No leads found.
+          No leads in this tab.
         </div>
       ) : (
         <div className="overflow-x-auto rounded-2xl border bg-white shadow-sm">
@@ -437,7 +498,7 @@ export default function CRELeadsApprovalDashboard() {
                     onChange={(e) =>
                       e.target.checked ? selectAllOnPage() : clearSelection()
                     }
-                    checked={leads.every((i) => selected.has(i._id))}
+                    checked={filteredLeads.length > 0 && filteredLeads.every((i) => selected.has(i._id))}
                   />
                 </th>
                 {[
@@ -465,7 +526,7 @@ export default function CRELeadsApprovalDashboard() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {leads.map((lead) => {
+              {filteredLeads.map((lead) => {
                 const id = lead._id;
                 const isBusy = busyIds.has(id);
                 const isSelected = selected.has(id);
