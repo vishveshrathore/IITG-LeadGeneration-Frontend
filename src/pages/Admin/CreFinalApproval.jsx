@@ -238,7 +238,8 @@ export default function CRELeadsApprovalDashboard() {
         type: lead.type || "RawLead",
       });
       toast.success("Lead approved successfully");
-      fetchLeads(page, debouncedSearch);
+      setPage(1);
+      fetchLeads(1, debouncedSearch);
       fetchCounts();
     } catch (e) {
       toast.error(e?.response?.data?.message || "Approve failed");
@@ -262,7 +263,8 @@ export default function CRELeadsApprovalDashboard() {
         type: lead.type || "RawLead",
       });
       toast.success("Lead marked pending");
-      fetchLeads(page, debouncedSearch);
+      setPage(1);
+      fetchLeads(1, debouncedSearch);
       fetchCounts();
     } catch (e) {
       toast.error(e?.response?.data?.message || "Pending failed");
@@ -274,6 +276,11 @@ export default function CRELeadsApprovalDashboard() {
       });
     }
   };
+
+  // Always return to first page when switching tabs so data is visible from page 1
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab]);
 
   const toggleSelect = (id) => {
     setSelected((s) => {
