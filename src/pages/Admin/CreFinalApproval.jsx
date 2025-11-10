@@ -69,6 +69,7 @@ export default function CRELeadsApprovalDashboard() {
       params.set("page", String(page));
       params.set("limit", String(limit));
       if (searchTerm) params.set("search", searchTerm);
+      if (activeTab) params.set('tab', activeTab);
 
       const { data } = await axios.get(`${API_BASE}?${params.toString()}`);
       setLeads(data.data);
@@ -216,7 +217,7 @@ export default function CRELeadsApprovalDashboard() {
     fetchLeads(page, debouncedSearch);
     fetchIndustries();
     fetchCounts();
-  }, [page, debouncedSearch, limit]);
+  }, [page, debouncedSearch, limit, activeTab]);
 
   // Debounce search input
   useEffect(() => {
