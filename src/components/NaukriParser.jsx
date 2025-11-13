@@ -1,4 +1,4 @@
-import React, { useState, useEffect, createContext, useContext } from "react";
+import React, { useState, useEffect, createContext, useContext, useRef } from "react";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import { BASE_URL } from "../config";
@@ -32,16 +32,22 @@ const NaukriParser = () => {
   const [selectedIds, setSelectedIds] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [companiesLoading, setCompaniesLoading] = useState(false);
+  const [recruitmentCompanies, setRecruitmentCompanies] = useState([]);
+  const [recruitmentCompaniesLoading, setRecruitmentCompaniesLoading] = useState(false);
   // selectedCompany must be a company _id for uploads
   const [selectedCompany, setSelectedCompany] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [toRecruitment, setToRecruitment] = useState(false);
+  const [uploadTab, setUploadTab] = useState('public'); // 'public' | 'recruitment'
   const [lastUpload, setLastUpload] = useState(null); // { count, source, companyId, ts }
   // Add company inline form
   const [showAddCompany, setShowAddCompany] = useState(false);
   const [newCompanyName, setNewCompanyName] = useState("");
   const [newIndustry, setNewIndustry] = useState("");
   const [addingCompany, setAddingCompany] = useState(false);
+  const excelInputRef = useRef(null);
+  const [excelFileName, setExcelFileName] = useState("");
   const STORAGE_KEY = "naukri_profiles_v1";
   const columns = [
     "name",
@@ -86,6 +92,14 @@ const NaukriParser = () => {
     }
   }, [profiles]);
 
+  // Master select checkbox state
+  const allSelected = profiles.length > 0 && selectedIds.length === profiles.length;
+  const someSelected = selectedIds.length > 0 && selectedIds.length < profiles.length;
+  const masterRef = useRef(null);
+  useEffect(() => {
+    if (masterRef.current) masterRef.current.indeterminate = someSelected;
+  }, [someSelected, selectedIds.length, profiles.length]);
+
   // Fetch companies for dropdown
   useEffect(() => {
     const fetchCompanies = async () => {
@@ -103,6 +117,57 @@ const NaukriParser = () => {
     };
     fetchCompanies();
   }, []);
+
+  // Fetch recruitment companies when Recruitment tab is active
+  useEffect(() => {
+    const fetchRecruitmentCompanies = async () => {
+      if (uploadTab !== 'recruitment') return;
+      setRecruitmentCompaniesLoading(true);
+      try {
+        const { data } = await axios.get(`${BASE_URL}/api/admin/getallpostjobs`);
+        const jobs = Array.isArray(data?.data) ? data.data : [];
+        const map = new Map();
+        for (const j of jobs) {
+          const c = j?.createdBy;
+          if (c && c._id && !map.has(c._id)) {
+            const cName = String(c.companyName || c.CompanyName || '').toLowerCase();
+            const match = Array.isArray(companies)
+              ? companies.find(rc => String(rc.CompanyName || rc.companyName || rc.name || '').toLowerCase() === cName)
+              : null;
+            map.set(c._id, {
+              _id: c._id,
+              companyName: c.companyName || c.CompanyName || 'Company',
+              hrName: c.hrName || c.name || '',
+              email: c.email || '',
+              mobile: c.mobile || '',
+              designation: c.designation || '',
+              recruitmentCompanyId: match?._id || '',
+              jobCount: 0,
+              positions: [],
+            });
+          }
+          if (c && c._id) {
+            const entry = map.get(c._id);
+            entry.jobCount = (entry.jobCount || 0) + 1;
+            const position = (j?.position || '').trim();
+            if (position) {
+              const key = position.toLowerCase();
+              const has = entry.positions.some(p => p.toLowerCase() === key);
+              if (!has) entry.positions.push(position);
+            }
+            map.set(c._id, entry);
+          }
+        }
+        setRecruitmentCompanies(Array.from(map.values()));
+      } catch (e) {
+        console.error('[Recruitment Companies] load error', e);
+        showToast('Failed to load recruitment companies', 'error');
+      } finally {
+        setRecruitmentCompaniesLoading(false);
+      }
+    };
+    fetchRecruitmentCompanies();
+  }, [uploadTab]);
 
   // When landed from Corporate, map company name in URL to actual company _id
   useEffect(() => {
@@ -135,6 +200,154 @@ const NaukriParser = () => {
       showToast("Server error while parsing data.", "error");
     }
     setLoading(false);
+  };
+
+  const handleExcelUpload = async (file) => {
+    try {
+      setLoading(true);
+      const data = await file.arrayBuffer();
+      const wb = XLSX.read(data, { type: 'array' });
+      const sheetName = wb.SheetNames[0];
+      if (!sheetName) {
+        showToast('No sheet found in Excel', 'error');
+        return;
+      }
+      const sheet = wb.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+      if (!rows.length) {
+        showToast('Empty Excel file', 'error');
+        return;
+      }
+      const norm = (s) => String(s || '').trim().toLowerCase().replace(/[^a-z]+/g, '');
+      // Try to locate header row dynamically (first 10 rows)
+      const syn = [
+        { key: 'name', pats: ['name','candidate','candidatename'] },
+        { key: 'experience', pats: ['experience','exp','exper','experienc','expirence'] },
+        { key: 'ctc', pats: ['ctc','salary','annualctc'] },
+        { key: 'location', pats: ['location','currentlocation','city','place'] },
+        { key: 'current_designation', pats: ['currentdesignation','designation','currdesignation','currentdesig','currdesig','currentd','role','currentrole'] },
+        { key: 'current_company', pats: ['currentcompany','company','organization','org','employer','currentc','currcompany'] },
+        { key: 'previous_roles', pats: ['previous','previousrole','previousroles','prevroles','prevrole'] },
+        { key: 'education', pats: ['education','edu','qualification'] },
+        { key: 'preferred_locations', pats: ['preferredlocation','preferredlocations','preferred','preferredloc','preflocation','preflocations'] },
+        { key: 'skills', pats: ['skills','keyskills','keyskill','keyskills'] },
+        { key: 'mobile', pats: ['mobile','phone','contact','contactnumber','contactno','mobilenumber','phonenumber'] },
+        { key: 'email', pats: ['email','mail','emailid','emailid'] },
+      ];
+      const mapHeader = (h) => {
+        const nh = norm(h);
+        for (const s of syn) {
+          if (s.pats.some(p => nh === p || nh.startsWith(p))) return s.key;
+        }
+        return null;
+      };
+      let headerRowIdx = 0;
+      let bestHits = -1;
+      const maxScan = Math.min(rows.length, 10);
+      for (let i = 0; i < maxScan; i++) {
+        const r = rows[i] || [];
+        let hits = 0;
+        for (let c = 0; c < r.length; c++) {
+          if (mapHeader(r[c])) hits++;
+        }
+        if (hits > bestHits) { bestHits = hits; headerRowIdx = i; }
+      }
+      const headers = (rows[headerRowIdx] || []).map(v => String(v || '').trim());
+      const headerIdxMap = {};
+      headers.forEach((h, idx) => {
+        const key = mapHeader(h);
+        if (key && headerIdxMap[key] == null) headerIdxMap[key] = idx;
+      });
+      const structuredKeys = Object.keys(headerIdxMap);
+
+      if (structuredKeys.length >= 5) {
+        const imported = [];
+        for (let i = headerRowIdx + 1; i < rows.length; i++) {
+          const row = rows[i] || [];
+          const obj = {};
+          structuredKeys.forEach(k => {
+            const idx = headerIdxMap[k];
+            obj[k] = row[idx] != null ? String(row[idx]) : '';
+          });
+        
+          // Basic normalization
+          obj.name = obj.name || '';
+          obj.experience = obj.experience || '';
+          obj.ctc = obj.ctc || '';
+          obj.location = obj.location || '';
+          obj.current_designation = obj.current_designation || '';
+          obj.current_company = obj.current_company || '';
+          obj.previous_roles = obj.previous_roles || '';
+          obj.education = obj.education || '';
+          obj.preferred_locations = obj.preferred_locations || '';
+          obj.skills = obj.skills || '';
+          obj.mobile = obj.mobile || '';
+          obj.email = obj.email || '';
+
+          // Skip completely empty rows
+          const anyVal = Object.values(obj).some(v => String(v).trim());
+          if (anyVal) imported.push(obj);
+        }
+        if (!imported.length) {
+          showToast('No usable rows found in Excel', 'error');
+        } else {
+          setProfiles(prev => [...prev, ...imported]);
+          showToast(`${imported.length} profiles added from Excel. Total: ${imported.length + (profiles?.length || 0)}`);
+        }
+      } else {
+        // Fallback: assume a single text column with raw dump and use backend parser
+        let colIndex = -1;
+        const headerIdx = headers.findIndex(h => /^(raw\s*data|raw|data|text|content)$/i.test(h));
+        if (headerIdx >= 0) colIndex = headerIdx;
+        if (colIndex === -1) {
+          let maxCols = 0;
+          rows.forEach(r => { if (r.length > maxCols) maxCols = r.length; });
+          let bestScore = -1;
+          for (let c = 0; c < maxCols; c++) {
+            let score = 0;
+            for (let i = headerIdx >= 0 ? headerRowIdx + 1 : headerRowIdx; i < rows.length; i++) {
+              const v = rows[i][c];
+              if (v != null) score += String(v).trim().length;
+            }
+            if (score > bestScore) { bestScore = score; colIndex = c; }
+          }
+        }
+        const startRow = headerIdx >= 0 ? headerRowIdx + 1 : headerRowIdx;
+        const texts = [];
+        for (let i = startRow; i < rows.length; i++) {
+          const v = rows[i][colIndex];
+          if (v != null && String(v).trim()) texts.push(String(v).trim());
+        }
+        const combined = texts.join('\n\n');
+        if (!combined.trim()) {
+          showToast('No text found in Excel', 'error');
+          return;
+        }
+        const res = await axios.post(`${BASE_URL}/api/recruitment/parse/naukri`, { rawData: combined });
+        if (res.data.success) {
+          const added = res.data.profiles || [];
+          setProfiles((prev) => [...prev, ...added]);
+          const addedCount = res.data.count || added.length;
+          showToast(`${addedCount} profiles added. Total: ${addedCount + (profiles?.length || 0)}`);
+        } else {
+          showToast(res.data.message || 'Parsing failed.', 'error');
+        }
+      }
+    } catch (e) {
+      console.error(e);
+      showToast('Failed to parse Excel file.', 'error');
+    } finally {
+      setLoading(false);
+      if (excelInputRef.current) excelInputRef.current.value = '';
+    }
+  };
+
+  const onExcelFileChange = async (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (f) {
+      setExcelFileName(f.name);
+      await handleExcelUpload(f);
+    }
   };
 
   const handleExport = () => {
@@ -195,6 +408,8 @@ const NaukriParser = () => {
   const handleClear = () => {
     setProfiles([]);
     try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+    setExcelFileName("");
+    if (excelInputRef.current) excelInputRef.current.value = '';
     showToast("Cleared parsed results");
   };
 
@@ -238,6 +453,25 @@ const NaukriParser = () => {
                 {loading ? "Parsing..." : "Parse Data"}
               </button>
 
+              <input
+                ref={excelInputRef}
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                onChange={onExcelFileChange}
+                className="hidden"
+              />
+              <button
+                onClick={() => excelInputRef.current && excelInputRef.current.click()}
+                disabled={loading}
+                className={`py-1 px-2 rounded border border-gray-300 bg-purple-600 text-white text-xs ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-purple-700'}`}
+              >
+                Upload Excel
+              </button>
+              {excelFileName ? (
+                <span className="text-[11px] bg-gray-100 border border-gray-200 text-gray-700 px-2 py-0.5 rounded">
+                  {excelFileName}
+                </span>
+              ) : null}
               <button
                 onClick={handleExport}
                 disabled={!profiles.length}
@@ -264,6 +498,23 @@ const NaukriParser = () => {
               <h3 className="text-sm font-semibold text-gray-800 mb-2">
                 {fromCorporate ? `Upload data for ${companyFromUrl}` : 'Upload data'}
               </h3>
+              {/* Tabs: Public vs Recruitment */}
+              <div className="mb-3 flex items-center gap-2 border-b border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => setUploadTab('public')}
+                  className={`text-xs px-3 py-1.5 -mb-px border-b-2 ${uploadTab==='public' ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-gray-600 hover:text-gray-800'}`}
+                >
+                  Upload data
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUploadTab('recruitment')}
+                  className={`text-xs px-3 py-1.5 -mb-px border-b-2 ${uploadTab==='recruitment' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-gray-600 hover:text-gray-800'}`}
+                >
+                  Recruitment
+                </button>
+              </div>
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   onClick={() => setSelectedIds(profiles.map((_, idx) => idx))}
@@ -283,26 +534,49 @@ const NaukriParser = () => {
                   <select
                     value={selectedCompany}
                     onChange={(e) => setSelectedCompany(e.target.value)}
-                    className={`text-xs px-2 py-1 border border-gray-300 rounded min-w-[220px] ${fromCorporate && selectedCompany ? 'bg-gray-100' : ''}`}
-                    disabled={companiesLoading || !companies.length || (fromCorporate && !!selectedCompany)}
+                    className={`text-xs px-2 py-1 border border-gray-300 rounded min-w-[280px] ${fromCorporate && selectedCompany ? 'bg-gray-100' : ''}`}
+                    disabled={
+                      uploadTab==='recruitment'
+                        ? recruitmentCompaniesLoading || !recruitmentCompanies.length
+                        : (companiesLoading || !companies.length || (fromCorporate && !!selectedCompany))
+                    }
                   >
-                    {fromCorporate && selectedCompany ? (
-                      <option value={selectedCompany}>
-                        {companies.find((c) => c._id === selectedCompany)?.CompanyName ||
-                          companies.find((c) => c._id === selectedCompany)?.companyName ||
-                          companyFromUrl || 'Selected Company'}
-                      </option>
-                    ) : (
+                    {uploadTab==='recruitment' ? (
                       <>
                         <option value="" disabled>
-                          {companiesLoading ? "Loading companies..." : "Select company"}
+                          {recruitmentCompaniesLoading ? 'Loading companies...' : 'Select recruitment company'}
                         </option>
-                        {companies.map((c) => (
-                          <option key={c._id} value={c._id}>
-                            {c.CompanyName || c.companyName || c.name || "Unnamed Company"}
-                          </option>
-                        ))}
+                        {recruitmentCompanies.map((c) => {
+                          const shown = (Array.isArray(c.positions) ? c.positions : []).slice(0,3);
+                          const more = Math.max(0, (c.positions?.length || 0) - shown.length);
+                          const roles = shown.length ? ` – Position : ${shown.join(', ')}${more ? ` (+${more} more)` : ''}` : '';
+                          const jobsSuffix = typeof c.jobCount === 'number' ? ` (${c.jobCount} jobs)` : '';
+                          return (
+                            <option key={c._id} value={c._id}>
+                              {`${c.companyName}${roles}${c.hrName ? ' — ' + c.hrName : ''}${c.email ? ' · ' + c.email : ''}${c.mobile ? ' · ' + c.mobile : ''}${jobsSuffix}`}
+                            </option>
+                          );
+                        })}
                       </>
+                    ) : (
+                      (fromCorporate && selectedCompany ? (
+                        <option value={selectedCompany}>
+                          {companies.find((c) => c._id === selectedCompany)?.CompanyName ||
+                            companies.find((c) => c._id === selectedCompany)?.companyName ||
+                            companyFromUrl || 'Selected Company'}
+                        </option>
+                      ) : (
+                        <>
+                          <option value="" disabled>
+                            {companiesLoading ? "Loading companies..." : "Select company"}
+                          </option>
+                          {companies.map((c) => (
+                            <option key={c._id} value={c._id}>
+                              {(c.CompanyName || c.companyName || c.name || 'Unnamed Company')}
+                            </option>
+                          ))}
+                        </>
+                      ))
                     )}
                   </select>
                   <button
@@ -375,12 +649,15 @@ const NaukriParser = () => {
                   onClick={() => {
                     if (!selectedIds.length) return showToast("Please select at least one profile", "error");
                     if (!selectedCompany) return showToast("Please select a company", "error");
+                    setToRecruitment(uploadTab === 'recruitment');
                     setConfirmOpen(true);
                   }}
                   disabled={!selectedIds.length || !selectedCompany || uploading}
-                  className={`py-1 px-2 rounded border border-gray-300 text-white text-xs ${(!selectedIds.length || !selectedCompany || uploading) ? 'bg-emerald-600/60 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+                  className={`py-1 px-2 rounded border border-gray-300 text-white text-xs ${(!selectedIds.length || !selectedCompany || uploading)
+                    ? (uploadTab==='recruitment' ? 'bg-indigo-600/60 cursor-not-allowed' : 'bg-emerald-600/60 cursor-not-allowed')
+                    : (uploadTab==='recruitment' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-emerald-600 hover:bg-emerald-700')}`}
                 >
-                  {uploading ? 'Uploading...' : 'Submit Data'}
+                  {uploading ? 'Uploading...' : (uploadTab==='recruitment' ? 'Submit (Recruitment)' : 'Submit (Public)')}
                 </button>
 
                 <span className="text-[11px] bg-gray-100 border border-gray-200 text-gray-700 px-2 py-0.5 rounded">
@@ -411,7 +688,22 @@ const NaukriParser = () => {
                   <thead className="bg-gray-50 sticky top-0 z-10">
                   <tr>
                     <th className="px-2 py-1 text-left font-medium text-gray-600 border-b border-gray-200 sticky left-0 bg-gray-50 z-10">S.No.</th>
-                    <th className="px-2 py-1 text-left font-medium text-gray-600 border-b border-gray-200">Select</th>
+                    <th className="px-2 py-1 text-left font-medium text-gray-600 border-b border-gray-200">
+                      <input
+                        ref={masterRef}
+                        type="checkbox"
+                        className="cursor-pointer"
+                        checked={allSelected}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedIds(profiles.map((_, idx) => idx));
+                          } else {
+                            setSelectedIds([]);
+                          }
+                        }}
+                        aria-label="Select all"
+                      />
+                    </th>
                     {columns.map((key) => (
                       <th key={key} className="px-2 py-1 text-left font-medium text-gray-600 border-b border-gray-200">
                         {key.replace('activity.', '').replace(/_/g, ' ')}
@@ -540,19 +832,38 @@ const NaukriParser = () => {
                       try {
                         setUploading(true);
                         const toUpload = selectedIds.map((idx) => profiles[idx]);
+                        let companyIdToSend = selectedCompany;
+                        if (toRecruitment) {
+                          const corp = recruitmentCompanies.find(c => c._id === selectedCompany);
+                          if (!corp?.recruitmentCompanyId) {
+                            showToast('No matching Recruitment Company found. Please add it first in Recruitment Companies.', 'error');
+                            setUploading(false);
+                            return;
+                          }
+                          companyIdToSend = corp.recruitmentCompanyId;
+                        }
                         const payload = {
-                          companyId: selectedCompany,
+                          companyId: companyIdToSend,
                           source: 'naukri',
                           profiles: toUpload,
                         };
                         console.log('[Naukri] Upload payload', payload);
-                        const res = await axios.post(`${BASE_URL}/api/recruitment/save/parsed-profiles`, payload);
+                        const endpoint = toRecruitment
+                          ? `${BASE_URL}/api/admin/save/parsed/profiles/recruitment`
+                          : `${BASE_URL}/api/recruitment/save/parsed-profiles`;
+                        const res = await axios.post(endpoint, payload);
                         console.log('[Naukri] Upload response', res?.data);
                         if (res?.data?.success) {
-                          showToast(`Profiles uploaded successfully (saved: ${res.data.count})`);
-                          setLastUpload({ count: res.data.count, source: 'naukri', companyId: selectedCompany, ts: Date.now() });
+                          const savedCount = res.data.count;
+                          showToast(`Uploaded ${savedCount} profile(s) successfully`);
+                          setLastUpload({ count: savedCount, source: 'naukri', companyId: companyIdToSend, ts: Date.now() });
                           setConfirmOpen(false);
+                          // Clear UI state
                           setSelectedIds([]);
+                          setProfiles([]);
+                          setRawData("");
+                          setSelectedCompany("");
+                          try { localStorage.removeItem("naukri_profiles_v1"); } catch (_) {}
                         } else {
                           const msg = res?.data?.message || 'Failed to upload profiles';
                           showToast(msg, 'error');

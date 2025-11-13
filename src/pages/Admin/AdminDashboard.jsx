@@ -25,7 +25,7 @@ const DASHBOARD_ITEMS = [
     title: "Recruitment & HR",
     description: "View job openings, applicants, and employee records.",
     icon: <BsPeople className="text-3xl text-green-600" />,
-    path: "/admin/employees",
+    path: "/admin/recruitment",
   },
   {
     title: "Tools & Resource Management",

@@ -48,6 +48,9 @@ import TeamStats from "./pages/CRE-CRM/TeamStats.jsx";
 import AdminTeamDashboard from "./pages/AdminTeam/AdminTeamDashboard.jsx"; 
 import DisabledLGRejectedLeads from "./pages/AdminTeam/DisabledLGRejectedLeads.jsx";
 import DisabledLGWrongNumber from "./pages/AdminTeam/DisabledLGWrongNumber.jsx";
+import RecruitmentDashboard from "./pages/Admin/Recruitment/RecruitmentDashboard.jsx";
+import PositionMIS from "./pages/Admin/Recruitment/PositionMIS.jsx";
+import PositionDashboard from "./pages/Admin/Recruitment/PositionDashboard.jsx";
 
 function App() {
   const location = useLocation();
@@ -409,7 +412,30 @@ function App() {
             </ProtectedRoute>
           }
         />
-      
+        <Route
+          path="/admin/recruitment"
+          element={
+            <ProtectedRoute role="admin">
+              <RecruitmentDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/recruitment/position-mis"
+          element={
+            <ProtectedRoute role="admin">
+              <PositionMIS />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/recruitment/position/:id"
+          element={
+            <ProtectedRoute role="admin">
+              <PositionDashboard />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </AnimatePresence>
   );
