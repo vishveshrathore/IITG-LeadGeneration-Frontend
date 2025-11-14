@@ -58,6 +58,8 @@ export default function CRELeadsApprovalDashboard() {
     'Mobile Number is not right',
     'Productline not mentioned',
     'Employee Strength is not Mentioned',
+    'Company Name Not mentioned',
+    'Not from the targeted industry',
     'Other',
   ];
 
