@@ -514,10 +514,10 @@ export default function CRELeadsApprovalDashboard() {
                 {[
                   "Name",
                   "Company",
-                  "Industry",
                   "Designation",
-                  "Actions",
                   "Mobile",
+                  "Industry",
+                  "Actions",
                   "Email",
                   "Location",
                   "Remarks",
@@ -559,6 +559,12 @@ export default function CRELeadsApprovalDashboard() {
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600">
                       {lead.companyName || "—"}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {lead.designation}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {lead.mobile.join(", ")}
                     </td>
                     {/* Industry Dropdown */}
                     <td className="px-4 py-3 text-sm text-gray-600">
@@ -671,10 +677,7 @@ export default function CRELeadsApprovalDashboard() {
                       )}
                     </td>
 
-                    <td className="px-4 py-3 text-sm text-gray-600">
-                      {lead.designation}
-                    </td>
-                      <td className="px-4 py-3">
+                    <td className="px-4 py-3">
                       <div className="flex flex-col gap-2 items-start">
                         {lead.status !== 'approved for calling' && (
                           <div className="mb-1 text-xs text-gray-600">
@@ -795,9 +798,6 @@ export default function CRELeadsApprovalDashboard() {
                       </div>
                     </td>
 
-                    <td className="px-4 py-3 text-sm text-gray-600">
-                      {lead.mobile.join(", ")}
-                    </td>
                     <td className="px-4 py-3 text-sm text-gray-600">
                       {lead.email || "—"}
                     </td>
