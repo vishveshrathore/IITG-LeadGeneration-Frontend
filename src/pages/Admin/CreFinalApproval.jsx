@@ -46,11 +46,14 @@ export default function CRELeadsApprovalDashboard() {
   const [industryQuery, setIndustryQuery] = useState("");
   const [industrySearchResults, setIndustrySearchResults] = useState([]);
   const [industryLoading, setIndustryLoading] = useState(false);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
 
   // Reject UI state
   const [rejectForId, setRejectForId] = useState(null);
   const [rejectReasons, setRejectReasons] = useState([]); // array of selected reasons
   const [rejectNote, setRejectNote] = useState(''); // only used when "Other" is selected
+  const [bulkRejectOpen, setBulkRejectOpen] = useState(false);
 
   const REJECT_OPTIONS = [
     'HR level is Below Senior Manager',
@@ -72,6 +75,8 @@ export default function CRELeadsApprovalDashboard() {
       params.set("limit", String(limit));
       if (searchTerm) params.set("search", searchTerm);
       if (activeTab) params.set('tab', activeTab);
+      if (fromDate) params.set('from', fromDate);
+      if (toDate) params.set('to', toDate);
 
       const { data } = await axios.get(`${API_BASE}?${params.toString()}`);
       setLeads(data.data);
@@ -150,6 +155,112 @@ export default function CRELeadsApprovalDashboard() {
     setRejectNote('');
   };
 
+  // Bulk actions
+  const getSelectedLeads = () => leads.filter(l => selected.has(l._id));
+
+  const bulkApproveSelected = async () => {
+    const chosen = getSelectedLeads();
+    if (chosen.length === 0) return;
+    const ids = chosen.map(l => l._id);
+    setBusyIds((s) => new Set([...s, ...ids]));
+    try {
+      await Promise.all(chosen.map(async (lead) => {
+        await axios.put(`${BASE_URL}/api/admin/leads/approve/forcre/${lead._id}`, {
+          type: lead.type || 'RawLead',
+        });
+      }));
+      toast.success(`Approved ${chosen.length} lead(s)`);
+      // Update UI locally
+      setLeads(prev => prev.map(l => selected.has(l._id) ? { ...l, status: 'approved for calling' } : l));
+      fetchCounts();
+      // Optionally refetch current page to sync
+      fetchLeads(1, debouncedSearch);
+      setPage(1);
+      setSelected(new Set());
+    } catch (e) {
+      toast.error(e?.response?.data?.message || 'Bulk approve failed');
+    } finally {
+      setBusyIds((s) => {
+        const n = new Set(s);
+        ids.forEach(id => n.delete(id));
+        return n;
+      });
+    }
+  };
+
+  const bulkPendingSelected = async () => {
+    const chosen = getSelectedLeads();
+    if (chosen.length === 0) return;
+    const ids = chosen.map(l => l._id);
+    setBusyIds((s) => new Set([...s, ...ids]));
+    try {
+      await Promise.all(chosen.map(async (lead) => {
+        await axios.put(`${BASE_URL}/api/admin/leads/pending/forcre/${lead._id}`, {
+          type: lead.type || 'RawLead',
+        });
+      }));
+      toast.success(`Marked ${chosen.length} lead(s) as pending`);
+      setLeads(prev => prev.map(l => selected.has(l._id) ? { ...l, status: 'pending' } : l));
+      fetchCounts();
+      fetchLeads(1, debouncedSearch);
+      setPage(1);
+      setSelected(new Set());
+    } catch (e) {
+      toast.error(e?.response?.data?.message || 'Bulk pending failed');
+    } finally {
+      setBusyIds((s) => {
+        const n = new Set(s);
+        ids.forEach(id => n.delete(id));
+        return n;
+      });
+    }
+  };
+
+  const openBulkReject = () => {
+    setBulkRejectOpen(true);
+    setRejectReasons([]);
+    setRejectNote('');
+  };
+  const cancelBulkReject = () => {
+    setBulkRejectOpen(false);
+    setRejectReasons([]);
+    setRejectNote('');
+  };
+  const submitBulkReject = async () => {
+    const chosen = getSelectedLeads();
+    if (chosen.length === 0) return;
+    const selectedReasons = Array.isArray(rejectReasons) ? rejectReasons : [];
+    const hasOther = selectedReasons.includes('Other');
+    if (selectedReasons.length === 0 || (hasOther && !rejectNote.trim())) return;
+    const reasonsString = selectedReasons.join('; ');
+    const ids = chosen.map(l => l._id);
+    setBusyIds((s) => new Set([...s, ...ids]));
+    try {
+      await Promise.all(chosen.map(async (lead) => {
+        await axios.put(
+          `${BASE_URL}/api/admin/leads/reject/forcre/${lead._id}`,
+          { type: lead.type || 'RawLead', reason: reasonsString, note: hasOther ? (rejectNote || '') : '' },
+          { headers: authToken ? { Authorization: `Bearer ${authToken}` } : {} }
+        );
+      }));
+      toast.success(`Rejected ${chosen.length} lead(s)`);
+      setLeads(prev => prev.map(l => selected.has(l._id) ? { ...l, status: 'rejected', rejectionReason: reasonsString, rejectionNote: hasOther ? (rejectNote || '') : '' } : l));
+      fetchCounts();
+      setSelected(new Set());
+      setPage(1);
+      fetchLeads(1, debouncedSearch);
+      cancelBulkReject();
+    } catch (e) {
+      toast.error(e?.response?.data?.message || 'Bulk reject failed');
+    } finally {
+      setBusyIds((s) => {
+        const n = new Set(s);
+        ids.forEach(id => n.delete(id));
+        return n;
+      });
+    }
+  };
+
   const submitReject = async (lead) => {
     const selected = Array.isArray(rejectReasons) ? rejectReasons : [];
     const hasOther = selected.includes('Other');
@@ -219,7 +330,7 @@ export default function CRELeadsApprovalDashboard() {
     fetchLeads(page, debouncedSearch);
     fetchIndustries();
     fetchCounts();
-  }, [page, debouncedSearch, limit, activeTab]);
+  }, [page, debouncedSearch, limit, activeTab, fromDate, toDate]);
 
   // Debounce search input
   useEffect(() => {
@@ -232,6 +343,10 @@ export default function CRELeadsApprovalDashboard() {
     setPage(1);
   }, [debouncedSearch]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [fromDate, toDate]);
+
   // Approve lead
   const approveLead = async (lead) => {
     const id = lead._id;
@@ -241,8 +356,8 @@ export default function CRELeadsApprovalDashboard() {
         type: lead.type || "RawLead",
       });
       toast.success("Lead approved successfully");
-      setPage(1);
-      fetchLeads(1, debouncedSearch);
+      // Update locally to avoid full refetch and preserve current view
+      setLeads((prev) => prev.map((l) => l._id === id ? { ...l, status: 'approved for calling' } : l));
       fetchCounts();
     } catch (e) {
       toast.error(e?.response?.data?.message || "Approve failed");
@@ -266,8 +381,8 @@ export default function CRELeadsApprovalDashboard() {
         type: lead.type || "RawLead",
       });
       toast.success("Lead marked pending");
-      setPage(1);
-      fetchLeads(1, debouncedSearch);
+      // Update locally to avoid full refetch and preserve current view
+      setLeads((prev) => prev.map((l) => l._id === id ? { ...l, status: 'pending' } : l));
       fetchCounts();
     } catch (e) {
       toast.error(e?.response?.data?.message || "Pending failed");
@@ -425,6 +540,22 @@ export default function CRELeadsApprovalDashboard() {
           placeholder="Search by name, designation..."
           className="w-full md:w-64 rounded-xl border border-gray-300 px-3 py-2 text-sm focus:ring focus:ring-blue-200"
         />
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-gray-600">From</label>
+          <input
+            type="date"
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
+            className="rounded-xl border border-gray-300 px-3 py-2 text-sm focus:ring focus:ring-blue-200"
+          />
+          <label className="text-sm text-gray-600">To</label>
+          <input
+            type="date"
+            value={toDate}
+            onChange={(e) => setToDate(e.target.value)}
+            className="rounded-xl border border-gray-300 px-3 py-2 text-sm focus:ring focus:ring-blue-200"
+          />
+        </div>
         <button
           onClick={selectAllOnPage}
           className={`${buttonBase} bg-white border border-gray-300 hover:bg-gray-50 text-gray-700`}
@@ -450,7 +581,7 @@ export default function CRELeadsApprovalDashboard() {
             }}
             className="border border-gray-300 rounded-lg px-2 py-1 text-sm"
           >
-            {[5, 10, 20, 50].map((n) => (
+            {[5, 10, 20, 50, 100, 150].map((n) => (
               <option key={n} value={n}>
                 {n}
               </option>
@@ -830,6 +961,81 @@ export default function CRELeadsApprovalDashboard() {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Bottom Bulk Actions Bar */}
+      {selected.size > 0 && (
+        <div className="sticky bottom-0 mt-4 bg-white border-t shadow-md p-3 flex items-center gap-3">
+          <span className="text-sm text-gray-700">Bulk actions for {selected.size} selected</span>
+          <button
+            onClick={bulkApproveSelected}
+            className={`${buttonBase} bg-green-600 text-white hover:bg-green-700`}
+          >
+            <FiCheckCircle /> Approve Selected
+          </button>
+          <button
+            onClick={bulkPendingSelected}
+            className={`${buttonBase} bg-gray-500 text-white hover:bg-gray-600`}
+          >
+            <FiRefreshCw /> Pending Selected
+          </button>
+          <button
+            onClick={openBulkReject}
+            className={`${buttonBase} bg-red-600 text-white hover:bg-red-700`}
+          >
+            <FiXCircle /> Reject Selected
+          </button>
+        </div>
+      )}
+
+      {/* Bulk Reject Modal */}
+      {bulkRejectOpen && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-lg p-4 w-[420px]">
+            <div className="text-base font-semibold mb-2">Reject Selected Leads</div>
+            <label className="block text-xs text-gray-600 mb-1">Select reasons</label>
+            <div className="max-h-48 overflow-auto space-y-1 mb-2">
+              {REJECT_OPTIONS.map((opt) => (
+                <label key={opt} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={rejectReasons.includes(opt)}
+                    onChange={(e) => {
+                      setRejectReasons((prev) => {
+                        const set = new Set(prev);
+                        if (e.target.checked) set.add(opt); else set.delete(opt);
+                        return Array.from(set);
+                      });
+                    }}
+                  />
+                  <span>{opt}</span>
+                </label>
+              ))}
+            </div>
+            {rejectReasons.includes('Other') && (
+              <>
+                <label className="block text-xs text-gray-600 mb-1">Details for "Other"</label>
+                <input
+                  type="text"
+                  value={rejectNote}
+                  onChange={(e) => setRejectNote(e.target.value)}
+                  placeholder="Enter details"
+                  className="w-full border rounded px-2 py-1 text-sm mb-2"
+                />
+              </>
+            )}
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={cancelBulkReject} className="px-3 py-1 text-sm rounded border bg-white hover:bg-slate-50">Cancel</button>
+              <button
+                onClick={submitBulkReject}
+                disabled={rejectReasons.length === 0 || (rejectReasons.includes('Other') && !rejectNote.trim())}
+                className="px-3 py-1 text-sm rounded bg-red-600 text-white disabled:opacity-50"
+              >
+                Submit
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
