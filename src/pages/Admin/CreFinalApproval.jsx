@@ -89,6 +89,29 @@ export default function CRELeadsApprovalDashboard() {
     }
   };
 
+  // Mark Non-Approved (single row)
+  const nonApproveLead = async (lead) => {
+    const id = lead._id;
+    setBusyIds((s) => new Set([...s, id]));
+    try {
+      await axios.put(`${BASE_URL}/api/admin/leads/nonapproved/forcre/${id}`, {
+        type: lead.type || "RawLead",
+      });
+      toast.success("Lead marked as Non-Approved");
+      // Update locally to avoid full refetch and preserve current view
+      setLeads((prev) => prev.map((l) => l._id === id ? { ...l, status: 'Non-Approved' } : l));
+      fetchCounts();
+    } catch (e) {
+      toast.error(e?.response?.data?.message || "Non-Approved action failed");
+    } finally {
+      setBusyIds((s) => {
+        const n = new Set(s);
+        n.delete(id);
+        return n;
+      });
+    }
+  };
+
   
 
   // Reject lead -> send back to LG dashboard
@@ -162,16 +185,33 @@ export default function CRELeadsApprovalDashboard() {
     const chosen = getSelectedLeads();
     if (chosen.length === 0) return;
     const ids = chosen.map(l => l._id);
-    setBusyIds((s) => new Set([...s, ...ids]));
+    // Remaining leads on current page that were NOT selected
+    const selectedIdSet = new Set(ids);
+    const remainingOnPage = filteredLeads.filter(l => !selectedIdSet.has(l._id));
+
+    setBusyIds((s) => new Set([...s, ...ids, ...remainingOnPage.map(l => l._id)]));
     try {
       await Promise.all(chosen.map(async (lead) => {
         await axios.put(`${BASE_URL}/api/admin/leads/approve/forcre/${lead._id}`, {
           type: lead.type || 'RawLead',
         });
       }));
-      toast.success(`Approved ${chosen.length} lead(s)`);
-      // Update UI locally
-      setLeads(prev => prev.map(l => selected.has(l._id) ? { ...l, status: 'approved for calling' } : l));
+      // Now mark all remaining leads on this page as Non-Approved
+      await Promise.all(remainingOnPage.map(async (lead) => {
+        await axios.put(`${BASE_URL}/api/admin/leads/nonapproved/forcre/${lead._id}`, {
+          type: lead.type || 'RawLead',
+        });
+      }));
+
+      toast.success(`Approved ${chosen.length} lead(s); moved ${remainingOnPage.length} to Non-Approved`);
+
+      // Update UI locally: selected -> approved, remainingOnPage -> Non-Approved
+      const remainingIdSet = new Set(remainingOnPage.map(l => l._id));
+      setLeads(prev => prev.map(l => {
+        if (selected.has(l._id)) return { ...l, status: 'approved for calling' };
+        if (remainingIdSet.has(l._id)) return { ...l, status: 'Non-Approved' };
+        return l;
+      }));
       fetchCounts();
       // Optionally refetch current page to sync
       fetchLeads(1, debouncedSearch);
@@ -182,7 +222,7 @@ export default function CRELeadsApprovalDashboard() {
     } finally {
       setBusyIds((s) => {
         const n = new Set(s);
-        ids.forEach(id => n.delete(id));
+        [...ids, ...remainingOnPage.map(l => l._id)].forEach(id => n.delete(id));
         return n;
       });
     }
@@ -207,6 +247,34 @@ export default function CRELeadsApprovalDashboard() {
       setSelected(new Set());
     } catch (e) {
       toast.error(e?.response?.data?.message || 'Bulk pending failed');
+    } finally {
+      setBusyIds((s) => {
+        const n = new Set(s);
+        ids.forEach(id => n.delete(id));
+        return n;
+      });
+    }
+  };
+
+  const bulkNonApprovedSelected = async () => {
+    const chosen = getSelectedLeads();
+    if (chosen.length === 0) return;
+    const ids = chosen.map(l => l._id);
+    setBusyIds((s) => new Set([...s, ...ids]));
+    try {
+      await Promise.all(chosen.map(async (lead) => {
+        await axios.put(`${BASE_URL}/api/admin/leads/nonapproved/forcre/${lead._id}`, {
+          type: lead.type || 'RawLead',
+        });
+      }));
+      toast.success(`Marked ${chosen.length} lead(s) as Non-Approved`);
+      setLeads(prev => prev.map(l => selected.has(l._id) ? { ...l, status: 'Non-Approved' } : l));
+      fetchCounts();
+      fetchLeads(1, debouncedSearch);
+      setPage(1);
+      setSelected(new Set());
+    } catch (e) {
+      toast.error(e?.response?.data?.message || 'Bulk Non-Approved failed');
     } finally {
       setBusyIds((s) => {
         const n = new Set(s);
@@ -437,13 +505,22 @@ export default function CRELeadsApprovalDashboard() {
     Unassigned: creCounts.freshUnassigned?.total || 0,
     Rejected: creCounts.rejected?.total || 0,
     Approved: creCounts.approved?.total || 0,
+    NonApproved: creCounts.nonApproved?.total || 0,
   }), [creCounts]);
 
   const filteredLeads = React.useMemo(() => {
-    if (activeTab === 'Approved') return leads.filter((l) => l.status === 'approved for calling');
-    if (activeTab === 'Rejected') return leads.filter((l) => l.status === 'rejected');
-    // Unassigned: status is neither approved nor rejected
-    return leads.filter((l) => l.status !== 'approved for calling' && l.status !== 'rejected');
+    if (activeTab === 'Approved') {
+      return leads.filter((l) => l.status === 'approved for calling');
+    }
+    if (activeTab === 'Rejected') {
+      return leads.filter((l) => l.status === 'rejected');
+    }
+    if (activeTab === 'NonApproved') {
+      // Explicit Non-Approved status from backend
+      return leads.filter((l) => l.status === 'Non-Approved');
+    }
+    // Unassigned: status is neither approved, rejected, nor Non-Approved
+    return leads.filter((l) => l.status !== 'approved for calling' && l.status !== 'rejected' && l.status !== 'Non-Approved');
   }, [leads, activeTab]);
 
   return (
@@ -463,6 +540,7 @@ export default function CRELeadsApprovalDashboard() {
           { key: 'Unassigned', label: 'Unassigned' },
           { key: 'Rejected', label: 'Rejected' },
           { key: 'Approved', label: 'Approved for Calling' },
+          { key: 'NonApproved', label: 'Non-Approved' },
         ].map((t) => {
           const isActive = activeTab === t.key;
           return (
@@ -887,6 +965,14 @@ export default function CRELeadsApprovalDashboard() {
                               <FiRefreshCw /> Pending
                             </button>
                             <button
+                              onClick={() => nonApproveLead(lead)}
+                              disabled={isBusy}
+                              className={`${buttonBase} bg-yellow-500 text-white hover:bg-yellow-600`}
+                              title="Move to Non-Approved bucket"
+                            >
+                              Non-Approved
+                            </button>
+                            <button
                               onClick={() => openReject(lead)}
                               disabled={isBusy}
                               className={`${buttonBase} bg-red-600 text-white hover:bg-red-700`}
@@ -996,6 +1082,12 @@ export default function CRELeadsApprovalDashboard() {
             className={`${buttonBase} bg-gray-500 text-white hover:bg-gray-600`}
           >
             <FiRefreshCw /> Pending Selected
+          </button>
+          <button
+            onClick={bulkNonApprovedSelected}
+            className={`${buttonBase} bg-yellow-500 text-white hover:bg-yellow-600`}
+          >
+            Non-Approved Selected
           </button>
           <button
             onClick={openBulkReject}
