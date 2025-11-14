@@ -305,8 +305,12 @@ export default function CRELeadsApprovalDashboard() {
   // Fetch counts for approved and fresh-unassigned
   const fetchCounts = async () => {
     try {
+      const params = new URLSearchParams();
+      params.set('onlyWithMobile', 'true');
+      if (fromDate) params.set('from', fromDate);
+      if (toDate) params.set('to', toDate);
       const { data } = await axios.get(
-        `${BASE_URL}/api/admin/cre/lead-counts?onlyWithMobile=true`
+        `${BASE_URL}/api/admin/cre/lead-counts?${params.toString()}`
       );
       if (data?.success) setCreCounts(data);
     } catch (err) {
@@ -418,6 +422,15 @@ export default function CRELeadsApprovalDashboard() {
   const totalPages = Math.ceil(globalStats.total / limit);
   const handlePrevPage = () => setPage((p) => Math.max(p - 1, 1));
   const handleNextPage = () => setPage((p) => Math.min(p + 1, totalPages));
+
+  // Row click selection helper: ignore clicks on interactive controls
+  const isClickOnInteractive = (target) => {
+    if (!target) return false;
+    const el = target.closest
+      ? target.closest('button, a, input, select, textarea, label, [role="button"]')
+      : null;
+    return !!el;
+  };
 
   // Tabbed filtering helpers
   const tabCounts = React.useMemo(() => ({
@@ -674,6 +687,9 @@ export default function CRELeadsApprovalDashboard() {
                 return (
                   <tr
                     key={id}
+                    onClick={(e) => {
+                      if (!isClickOnInteractive(e.target)) toggleSelect(id);
+                    }}
                     className={`${
                       isSelected ? "bg-blue-50" : "hover:bg-gray-50"
                     }`}
@@ -682,6 +698,7 @@ export default function CRELeadsApprovalDashboard() {
                       <input
                         type="checkbox"
                         checked={isSelected}
+                        onClick={(e) => e.stopPropagation()}
                         onChange={() => toggleSelect(id)}
                       />
                     </td>
