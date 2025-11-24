@@ -91,9 +91,9 @@ const DataAnalystDashboard = () => {
             className="cursor-pointer p-6 rounded-xl shadow-lg bg-white border border-slate-200 flex flex-col justify-between hover:shadow-xl transition"
           >
             <div>
-              <h2 className="text-xl font-bold text-slate-800">LinkedIn Parser</h2>
+              <h2 className="text-xl font-bold text-slate-800">Table 12</h2>
               <p className="mt-2 text-sm text-slate-600">
-                Open LinkedIn parser to extract profiles from recruiter results.
+                Open parser to extract profiles from recruiter results.
               </p>
             </div>
             <div className="mt-4 text-right">
@@ -108,9 +108,9 @@ const DataAnalystDashboard = () => {
             className="cursor-pointer p-6 rounded-xl shadow-lg bg-white border border-slate-200 flex flex-col justify-between hover:shadow-xl transition"
           >
             <div>
-              <h2 className="text-xl font-bold text-slate-800">Naukri Parser</h2>
+              <h2 className="text-xl font-bold text-slate-800">Table 14</h2>
               <p className="mt-2 text-sm text-slate-600">
-                Open Naukri parser to extract structured profile information.
+                Open parser to extract structured profile information.
               </p>
             </div>
             <div className="mt-4 text-right">
