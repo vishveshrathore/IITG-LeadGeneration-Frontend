@@ -131,6 +131,7 @@ const AuthScreen = () => {
           else if (rn === 'nationalhead') navigate('/CRE-CRMDashboard');
           else if (rn === 'deputynationalhead') navigate('/CRE-CRMDashboard');
           else if (rn === 'adminteam') navigate('/adminteam/dashboard');
+          else if (rn === 'dataanalyst') navigate('/dataanalyst/dashboard');
           else toast.error(`Unknown role: ${role}`);
         }, 500);
 

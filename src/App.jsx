@@ -51,6 +51,7 @@ import DisabledLGWrongNumber from "./pages/AdminTeam/DisabledLGWrongNumber.jsx";
 import RecruitmentDashboard from "./pages/Admin/Recruitment/RecruitmentDashboard.jsx";
 import PositionMIS from "./pages/Admin/Recruitment/PositionMIS.jsx";
 import PositionDashboard from "./pages/Admin/Recruitment/PositionDashboard.jsx";
+import DataAnalystDashboard from "./pages/DataAnalyst/DataAnalystDashboard.jsx";
 
 function App() {
   const location = useLocation();
@@ -362,6 +363,14 @@ function App() {
           }
         />
         <Route
+          path="/dataanalyst/dashboard"
+          element={
+            <ProtectedRoute role="dataanalyst">
+              <DataAnalystDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/adminteam/disabled-lg-rejected"
           element={
             <ProtectedRoute role="adminteam">
@@ -389,7 +398,7 @@ function App() {
         <Route
           path="/naukri-parser"
           element={
-            <ProtectedRoute role="admin">
+            <ProtectedRoute roles={["admin", "dataanalyst"]}>
               <NaukriParser />
             </ProtectedRoute>
           }
@@ -399,7 +408,7 @@ function App() {
         <Route
           path="/linkedin-parser"
           element={
-            <ProtectedRoute role="admin">
+            <ProtectedRoute roles={["admin", "dataanalyst"]}>
               <LinkedInPParser />
             </ProtectedRoute>
           }
