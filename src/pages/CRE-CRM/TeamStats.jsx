@@ -12,6 +12,7 @@ const TeamStats = () => {
   const location = useLocation();
   const params = new URLSearchParams(location.search);
   const scope = params.get('scope');
+  const memberId = params.get('memberId');
   const forceSelf = scope === 'self';
   const isLeader = [
     'CRM-TeamLead',
@@ -139,14 +140,63 @@ const TeamStats = () => {
     return totals;
   }, [dailyByMember, monthDays]);
 
+  // Per-member KPI summary for individual view (lifetime over teamLeadsData)
+  const memberKpi = useMemo(() => {
+    if (!memberId) return null;
+    const idStr = String(memberId);
+    const summary = {
+      total: 0,
+      positive: 0,
+      negative: 0,
+      rnr: 0,
+      pending: 0,
+      fuToday: 0,
+      conduction: 0,
+      closureProspects: 0,
+      closed: 0,
+    };
+
+    const start = new Date(); start.setHours(0, 0, 0, 0);
+    const end = new Date(start); end.setDate(end.getDate() + 1);
+
+    for (const a of teamLeadsData) {
+      const uid = String(a.Calledbycre?._id || a.Calledbycre || '');
+      if (!uid || uid !== idStr) continue;
+
+      summary.total += 1;
+
+      const status = (a.currentStatus || '').toLowerCase();
+      if (status === 'positive') summary.positive += 1;
+      else if (status === 'negative') summary.negative += 1;
+      else if (status === 'rnr') summary.rnr += 1;
+      else if (status === 'pending') summary.pending += 1;
+      else if (status === 'closure prospects' || status === 'closure prospect') summary.closureProspects += 1;
+
+      if (a?.conductionDone === true) summary.conduction += 1;
+      if (a?.closureStatus === 'Closed') summary.closed += 1;
+
+      if (Array.isArray(a.followUps) && a.followUps.length > 0) {
+        const latestFU = a.followUps[a.followUps.length - 1];
+        const d = latestFU?.followUpDate ? new Date(latestFU.followUpDate) : null;
+        if (d && d >= start && d < end) summary.fuToday += 1;
+      }
+    }
+    return summary;
+  }, [memberId, teamLeadsData]);
+
   // Filters
+  const baseMembers = useMemo(() => {
+    if (!memberId) return teamMembers;
+    return teamMembers.filter((m) => String(m._id) === String(memberId));
+  }, [teamMembers, memberId]);
+
   const membersFiltered = useMemo(() => {
-    if (!hideZeroMembers) return teamMembers;
-    return teamMembers.filter((m) => {
+    if (!hideZeroMembers) return baseMembers;
+    return baseMembers.filter((m) => {
       const t = totalsByMember[String(m._id)] || { conduction: 0, prospects: 0, closed: 0 };
       return (t.conduction + t.prospects + t.closed) > 0;
     });
-  }, [teamMembers, totalsByMember, hideZeroMembers]);
+  }, [baseMembers, totalsByMember, hideZeroMembers]);
 
   const monthDaysFiltered = useMemo(() => {
     if (!hideZeroDays) return [...monthDays].reverse();
@@ -172,7 +222,7 @@ const TeamStats = () => {
   };
 
   const downloadCsv = () => {
-    const members = teamMembers;
+    const members = baseMembers;
     const header1 = ['S.no', 'Date', ...members.flatMap((m) => [m.name || '—', ''])];
     const header2 = ['', '', ...members.flatMap(() => ['Gmeet Conduction', 'New Client Acquisition'])];
 
@@ -224,7 +274,7 @@ const TeamStats = () => {
       <div className="pt-20 px-6 w-full">
         <div className="mb-4 flex items-center justify-between">
           <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-2xl font-bold">
-            Team Stats
+            {memberId && baseMembers.length === 1 ? 'Individual Stats' : 'Team Stats'}
           </motion.h1>
           <div className="flex items-center gap-2">
             <input type="month" value={month} onChange={(e)=> setMonth(e.target.value)} className="border rounded-md px-2 py-1 text-sm" />
@@ -237,6 +287,65 @@ const TeamStats = () => {
           </div>
         </div>
 
+        {memberId && memberKpi && baseMembers.length === 1 && (
+          <div className="mb-4 rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50/70">
+              <div>
+                <div className="text-sm font-semibold text-slate-800">Individual Summary</div>
+                <div className="text-xs text-slate-500">Key metrics for {baseMembers[0].name || 'Selected CRE-CRM'}</div>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-xs md:text-sm">
+                <thead>
+                  <tr className="bg-slate-50 text-slate-600 border-b border-slate-200">
+                    <th className="px-3 py-2 text-right font-semibold whitespace-nowrap">Total Leads Consumed</th>
+                    <th className="px-3 py-2 text-right font-semibold whitespace-nowrap">Positive</th>
+                    <th className="px-3 py-2 text-right font-semibold whitespace-nowrap">Negative</th>
+                    <th className="px-3 py-2 text-right font-semibold whitespace-nowrap">RNR</th>
+                    <th className="px-3 py-2 text-right font-semibold whitespace-nowrap">Pending</th>
+                    <th className="px-3 py-2 text-right font-semibold whitespace-nowrap">FU Today</th>
+                    <th className="px-3 py-2 text-right font-semibold whitespace-nowrap">Conduction</th>
+                    <th className="px-3 py-2 text-right font-semibold whitespace-nowrap">Closure Prospects</th>
+                    <th className="px-3 py-2 text-right font-semibold whitespace-nowrap">Closed</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="bg-white">
+                    <td className="px-3 py-2 text-right">
+                      <span className="inline-flex min-w-[2.5rem] justify-end font-semibold text-slate-800">{memberKpi.total}</span>
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 border border-emerald-100">{memberKpi.positive}</span>
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-700 border border-rose-100">{memberKpi.negative}</span>
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 border border-amber-100">{memberKpi.rnr}</span>
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-700 border border-slate-100">{memberKpi.pending}</span>
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700 border border-sky-100">{memberKpi.fuToday}</span>
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700 border border-indigo-100">{memberKpi.conduction}</span>
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700 border border-violet-100">{memberKpi.closureProspects}</span>
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-emerald-600 text-white px-2 py-0.5 text-[11px] font-semibold">{memberKpi.closed}</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow">
           <div className="overflow-x-auto">
             {loading ? (
@@ -247,7 +356,7 @@ const TeamStats = () => {
                   <tr className="bg-gradient-to-b from-slate-50 to-white">
                     <th className={`border-b border-r text-left align-bottom font-semibold text-slate-700 ${compact ? 'px-2 py-1 w-12' : 'px-3 py-2 w-16'} sticky left-0 bg-white z-20`}>S.no</th>
                     <th className={`border-b border-r text-left align-bottom font-semibold text-slate-700 ${compact ? 'px-2 py-1 w-24' : 'px-3 py-2 w-32'} sticky`} style={{left: compact ? 48 : 64, background: 'white', zIndex: 20}}>Date</th>
-                    {teamMembers.map((m) => (
+                    {baseMembers.map((m) => (
                       <th key={m._id} className="px-3 py-2 border-b border-r text-center font-semibold text-slate-800" colSpan={2}>
                         <div className="truncate max-w-[12rem] mx-auto">{m.name || '—'}</div>
                       </th>
@@ -256,7 +365,7 @@ const TeamStats = () => {
                   <tr className="bg-slate-50/70">
                     <th className="px-3 py-2 border-b border-r"></th>
                     <th className="px-3 py-2 border-b border-r"></th>
-                    {teamMembers.map((m) => (
+                    {baseMembers.map((m) => (
                       <React.Fragment key={m._id}>
                         <th className="px-3 py-2 border-b border-r text-center text-slate-600">Gmeet Conduction</th>
                         <th className="px-3 py-2 border-b border-r text-center text-slate-600">New Client Acquisition</th>
@@ -268,7 +377,7 @@ const TeamStats = () => {
                   <tr className="font-semibold">
                     <td className={`${compact ? 'px-2 py-1' : 'px-3 py-2'} border-t border-r sticky left-0 bg-white z-10`}>Total</td>
                     <td className={`${compact ? 'px-2 py-1' : 'px-3 py-2'} border-t border-r sticky`} style={{left: compact ? 48 : 64, background: 'white', zIndex: 10}}></td>
-                    {teamMembers.map((m) => {
+                    {baseMembers.map((m) => {
                       const t = totalsByMember[String(m._id)] || { conduction: 0, prospects: 0, closed: 0 };
                       return (
                         <React.Fragment key={m._id}>

@@ -116,6 +116,20 @@ const MyTeam = () => {
     return map;
   }, [teamLeadsData]);
 
+  // Derive per-member RNR counts from teamLeadsData (currentStatus === 'RNR')
+  const memberRnrCounts = useMemo(() => {
+    const map = {};
+    for (const a of teamLeadsData) {
+      const uid = String(a.Calledbycre?._id || a.Calledbycre || '');
+      if (!uid) continue;
+      const status = (a.currentStatus || '').toLowerCase();
+      if (status === 'rnr') {
+        map[uid] = (map[uid] || 0) + 1;
+      }
+    }
+    return map;
+  }, [teamLeadsData]);
+
   const teamTotals = useMemo(() => {
     const sum = {
       closed: 0,
@@ -124,6 +138,7 @@ const MyTeam = () => {
       positive: 0,
       pending: 0,
       negative: 0,
+      rnr: 0,
       total: 0,
       todaysFollowups: 0,
     };
@@ -133,13 +148,14 @@ const MyTeam = () => {
       sum.closureProspects += Number(m?.metrics?.closureProspects || 0);
       sum.conduction += Number(memberConductionCounts[id] || 0);
       sum.positive += Number(m?.metrics?.positive || 0);
-      sum.pending += Number(m?.metrics?.pending || 0);
       sum.negative += Number(m?.metrics?.negative || 0);
+      sum.rnr += Number(memberRnrCounts[id] || 0);
+      sum.pending += Number(m?.metrics?.pending || 0);
       sum.total += Number(m?.metrics?.total || 0);
       sum.todaysFollowups += Number(m?.metrics?.todaysFollowups || 0);
     }
     return sum;
-  }, [teamMembers, memberClosedCounts, memberConductionCounts]);
+  }, [teamMembers, memberClosedCounts, memberConductionCounts, memberRnrCounts]);
 
   const filteredLeads = useMemo(() => {
     let rows = [...teamLeadsData];
@@ -296,58 +312,132 @@ const MyTeam = () => {
 
         {/* Team members */}
         <div className="mb-8">
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead className="bg-slate-50 text-slate-600">
-                  <tr>
-                    <th className="px-4 py-3 text-left">Name</th>
-                    <th className="px-4 py-3 text-left">Role</th>
-                    <th className="px-4 py-3 text-left">Email</th>
-                    <th className="px-4 py-3 text-left">Closed</th>
-                    <th className="px-4 py-3 text-left">Closure Prospects</th>
-                    <th className="px-4 py-3 text-left">Conduction</th>
-                    <th className="px-4 py-3 text-left">Positive</th>
-                    <th className="px-4 py-3 text-left">Pending</th>
-                    <th className="px-4 py-3 text-left">Negative</th>
-                    <th className="px-4 py-3 text-left">Total Leads Consumed</th>
-                    <th className="px-4 py-3 text-left">FU Today</th>
+              <table className="min-w-full text-xs md:text-sm">
+                <thead>
+                  <tr className="bg-gradient-to-r from-slate-50 via-slate-50 to-slate-100 text-slate-600 border-b border-slate-200">
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Name</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Role</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Email</th>
+                    <th className="px-4 py-3 text-right font-semibold text-slate-700 whitespace-nowrap">Total Leads Consumed</th>
+                    <th className="px-4 py-3 text-right font-semibold text-slate-700 whitespace-nowrap">Positive</th>
+                    <th className="px-4 py-3 text-right font-semibold text-slate-700 whitespace-nowrap">Negative</th>
+                    <th className="px-4 py-3 text-right font-semibold text-slate-700 whitespace-nowrap">RNR</th>
+                    <th className="px-4 py-3 text-right font-semibold text-slate-700 whitespace-nowrap">Pending</th>
+                    <th className="px-4 py-3 text-right font-semibold text-slate-700 whitespace-nowrap">FU Today</th>
+                    <th className="px-4 py-3 text-right font-semibold text-slate-700 whitespace-nowrap">Conduction</th>
+                    <th className="px-4 py-3 text-right font-semibold text-slate-700 whitespace-nowrap">Closure Prospects</th>
+                    <th className="px-4 py-3 text-right font-semibold text-slate-700 whitespace-nowrap">Closed</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-slate-100">
                   {loadingMembers ? (
-                    <tr><td className="px-4 py-4" colSpan={11}>Loading team members…</td></tr>
+                    <tr>
+                      <td className="px-4 py-5 text-sm text-slate-500" colSpan={12}>Loading team members…</td>
+                    </tr>
                   ) : (
                     <>
-                      <tr className="bg-green-100 font-semibold">
-                        <td className="px-4 py-3">{`${user?.name || 'Reporting Manager'} (TLC: ${teamTotals.total})`}</td>
-                        <td className="px-4 py-3">{role || user?.role || '—'}</td>
-                        <td className="px-4 py-3">{user?.email || '—'}</td>
-                        <td className="px-4 py-3">{teamTotals.closed}</td>
-                        <td className="px-4 py-3">{teamTotals.closureProspects}</td>
-                        <td className="px-4 py-3">{teamTotals.conduction}</td>
-                        <td className="px-4 py-3">{teamTotals.positive}</td>
-                        <td className="px-4 py-3">{teamTotals.pending}</td>
-                        <td className="px-4 py-3">{teamTotals.negative}</td>
-                        <td className="px-4 py-3">{teamTotals.total}</td>
-                        <td className="px-4 py-3">{teamTotals.todaysFollowups}</td>
+                      <tr className="bg-emerald-50/80 font-semibold text-slate-800">
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <span>{user?.name || 'Reporting Manager'}</span>
+                            <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700 border border-emerald-200">
+                              TLC: {teamTotals.total}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-slate-700">{role || user?.role || '—'}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-slate-700">{user?.email || '—'}</td>
+                        <td className="px-4 py-3 text-right">
+                          <span className="inline-flex min-w-[2.5rem] justify-end font-semibold text-slate-800">{teamTotals.total}</span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 border border-emerald-100">{teamTotals.positive}</span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-700 border border-rose-100">{teamTotals.negative}</span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 border border-amber-100">{teamTotals.rnr}</span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-700 border border-slate-100">{teamTotals.pending}</span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700 border border-sky-100">{teamTotals.todaysFollowups}</span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700 border border-indigo-100">{teamTotals.conduction}</span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700 border border-violet-100">{teamTotals.closureProspects}</span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-emerald-600 text-white px-2 py-0.5 text-[11px] font-semibold">{teamTotals.closed}</span>
+                        </td>
                       </tr>
                       {teamMembers.length === 0 ? (
-                        <tr><td className="px-4 py-6 text-slate-500" colSpan={11}>No team members found.</td></tr>
+                        <tr>
+                          <td className="px-4 py-6 text-slate-500 text-sm" colSpan={12}>No team members found.</td>
+                        </tr>
                       ) : (
-                        teamMembers.map(m => (
-                          <tr key={m._id} className="border-t border-slate-100 hover:bg-slate-50/60 cursor-pointer" onClick={() => { setSelectedUserId(m._id); setPage(1); }}>
-                            <td className="px-4 py-3">{m.name || '—'}</td>
-                            <td className="px-4 py-3">{m.role || '—'}</td>
-                            <td className="px-4 py-3">{m.email || '—'}</td>
-                            <td className="px-4 py-3">{memberClosedCounts[String(m._id)] || 0}</td>
-                            <td className="px-4 py-3">{m.metrics?.closureProspects ?? 0}</td>
-                            <td className="px-4 py-3">{memberConductionCounts[String(m._id)] || 0}</td>
-                            <td className="px-4 py-3">{m.metrics?.positive ?? 0}</td>
-                            <td className="px-4 py-3">{m.metrics?.pending ?? 0}</td>
-                            <td className="px-4 py-3">{m.metrics?.negative ?? 0}</td>
-                            <td className="px-4 py-3">{m.metrics?.total ?? 0}</td>
-                            <td className="px-4 py-3">{m.metrics?.todaysFollowups ?? 0}</td>
+                        teamMembers.map((m, idx) => (
+                          <tr
+                            key={m._id}
+                            className={`border-t border-slate-100 hover:bg-slate-50/70 cursor-pointer transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'}`}
+                            onClick={() => { setSelectedUserId(m._id); setPage(1); }}
+                          >
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <div className="flex items-center gap-3">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-[11px] font-semibold text-slate-700">
+                                  {(m.name || '—').slice(0, 2).toUpperCase()}
+                                </div>
+                                <div className="flex flex-col">
+                                  <span className="font-medium text-slate-800 text-xs md:text-sm">{m.name || '\u2014'}</span>
+                                  <span className="text-[10px] text-slate-500">{m.email || '—'}</span>
+                                </div>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/cre/team-stats?memberId=${m._id}`);
+                                  }}
+                                  className="ml-auto inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 border border-emerald-100 hover:bg-emerald-100 hover:border-emerald-200"
+                                >
+                                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                  Detailed Stats
+                                </button>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[11px] text-slate-600">{m.role || '—'}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[11px] text-slate-500 md:table-cell hidden">{m.email || '—'}</td>
+                            <td className="px-4 py-3 text-right text-slate-800">
+                              <span className="inline-flex min-w-[2.5rem] justify-end font-semibold">{m.metrics?.total ?? 0}</span>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 border border-emerald-100">{m.metrics?.positive ?? 0}</span>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-700 border border-rose-100">{m.metrics?.negative ?? 0}</span>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 border border-amber-100">{memberRnrCounts[String(m._id)] || 0}</span>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-700 border border-slate-100">{m.metrics?.pending ?? 0}</span>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700 border border-sky-100">{m.metrics?.todaysFollowups ?? 0}</span>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700 border border-indigo-100">{memberConductionCounts[String(m._id)] || 0}</span>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700 border border-violet-100">{m.metrics?.closureProspects ?? 0}</span>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-emerald-600 text-white px-2 py-0.5 text-[11px] font-semibold">{memberClosedCounts[String(m._id)] || 0}</span>
+                            </td>
                           </tr>
                         ))
                       )}
