@@ -340,7 +340,7 @@ const MyTeam = () => {
                             <td className="px-4 py-3">{m.name || '—'}</td>
                             <td className="px-4 py-3">{m.role || '—'}</td>
                             <td className="px-4 py-3">{m.email || '—'}</td>
-                             <td className="px-4 py-3">{memberConductionCounts[String(m._id)] || 0}</td>
+                            <td className="px-4 py-3">{memberConductionCounts[String(m._id)] || 0}</td>
                             <td className="px-4 py-3">{m.metrics?.closureProspects ?? 0}</td>
                             <td className="px-4 py-3">{memberClosedCounts[String(m._id)] || 0}</td> 
                             <td className="px-4 py-3">{m.metrics?.positive ?? 0}</td>
