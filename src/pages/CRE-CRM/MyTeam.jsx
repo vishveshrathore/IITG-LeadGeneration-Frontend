@@ -330,10 +330,11 @@ const MyTeam = () => {
                         <td className="px-4 py-3">{teamTotals.closureProspects}</td>
 
                         <td className="px-4 py-3">{teamTotals.closed}</td>   
-                        <td className="px-4 py-3">{teamTotals.total}</td>    
+                         <td className="px-4 py-3">{teamTotals.pending}</td>
                         <td className="px-4 py-3">{teamTotals.positive}</td>
                         <td className="px-4 py-3">{teamTotals.negative}</td>
-                        <td className="px-4 py-3">{teamTotals.pending}</td>
+                        
+                        <td className="px-4 py-3">{teamTotals.total}</td>   
                         
                         
                         <td className="px-4 py-3">{teamTotals.todaysFollowups}</td>
