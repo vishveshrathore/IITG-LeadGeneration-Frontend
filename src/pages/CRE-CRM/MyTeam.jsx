@@ -307,12 +307,13 @@ const MyTeam = () => {
                     <th className="px-4 py-3 text-left">Conduction</th>
                     <th className="px-4 py-3 text-left">Closure Prospects</th>
                     <th className="px-4 py-3 text-left">Closed</th>
-                  
+                  <th className="px-4 py-3 text-left">Total Leads Consumed</th>
                     
                     <th className="px-4 py-3 text-left">Positive</th>
-                    <th className="px-4 py-3 text-left">Pending</th>
                     <th className="px-4 py-3 text-left">Negative</th>
-                    <th className="px-4 py-3 text-left">Total Leads Consumed</th>
+                    <th className="px-4 py-3 text-left">Pending</th>
+                    
+                    
                     <th className="px-4 py-3 text-left">FU Today</th>
                   </tr>
                 </thead>
@@ -327,11 +328,14 @@ const MyTeam = () => {
                         <td className="px-4 py-3">{user?.email || '—'}</td>
                         <td className="px-4 py-3">{teamTotals.conduction}</td>
                         <td className="px-4 py-3">{teamTotals.closureProspects}</td>
-                        <td className="px-4 py-3">{teamTotals.closed}</td>       
+
+                        <td className="px-4 py-3">{teamTotals.closed}</td>   
+                        <td className="px-4 py-3">{teamTotals.total}</td>    
                         <td className="px-4 py-3">{teamTotals.positive}</td>
-                        <td className="px-4 py-3">{teamTotals.pending}</td>
                         <td className="px-4 py-3">{teamTotals.negative}</td>
-                        <td className="px-4 py-3">{teamTotals.total}</td>
+                        <td className="px-4 py-3">{teamTotals.pending}</td>
+                        
+                        
                         <td className="px-4 py-3">{teamTotals.todaysFollowups}</td>
                       </tr>
                       {teamMembers.length === 0 ? (
