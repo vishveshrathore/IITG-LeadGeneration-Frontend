@@ -304,9 +304,11 @@ const MyTeam = () => {
                     <th className="px-4 py-3 text-left">Name</th>
                     <th className="px-4 py-3 text-left">Role</th>
                     <th className="px-4 py-3 text-left">Email</th>
-                    <th className="px-4 py-3 text-left">Closed</th>
-                    <th className="px-4 py-3 text-left">Closure Prospects</th>
                     <th className="px-4 py-3 text-left">Conduction</th>
+                    <th className="px-4 py-3 text-left">Closure Prospects</th>
+                    <th className="px-4 py-3 text-left">Closed</th>
+                  
+                    
                     <th className="px-4 py-3 text-left">Positive</th>
                     <th className="px-4 py-3 text-left">Pending</th>
                     <th className="px-4 py-3 text-left">Negative</th>
