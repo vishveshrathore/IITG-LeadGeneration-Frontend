@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import axios from "axios";
 import { BASE_URL } from "../../config";
 import { toast, Toaster } from "react-hot-toast";
@@ -9,6 +9,9 @@ import { FiFilter } from "react-icons/fi";
 const PriorityAssignLeads = () => {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const scrollContainerRef = useRef(null);
   const [filters, setFilters] = useState({
     name: "",
     designation: "",
@@ -26,7 +29,6 @@ const PriorityAssignLeads = () => {
   const [selectedCre, setSelectedCre] = useState("");
   const [selectedLeads, setSelectedLeads] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
   const [totalLeads, setTotalLeads] = useState(0);
   const leadsPerPage = 50;
   const [excludeCalled, setExcludeCalled] = useState(true);
@@ -57,18 +59,27 @@ const PriorityAssignLeads = () => {
     }
   };
 
-  const fetchLeads = async (pageOverride) => {
+  const fetchLeads = async (pageOverride = 1, append = false) => {
     setLoading(true);
     try {
       const cleanFilters = Object.fromEntries(
         Object.entries(filters).filter(([_, v]) => v && v.trim() !== "")
       );
+      // Fetch all approved leads from backend for accurate per-tab counts
       const { data } = await axios.get(
         `${BASE_URL}/api/admin/getApprovedForCallingLeads`,
-        { params: { ...cleanFilters, page: pageOverride ?? currentPage, limit: leadsPerPage, excludeCalled, excludeAlreadyAssigned } }
+        {
+          params: {
+            ...cleanFilters,
+            fetchAll: true, // Get all approved leads
+          },
+        }
       );
-      setLeads(data.leads || []);
+      const allLeads = data.leads || [];
+      setLeads((prev) => (append ? [...prev, ...allLeads] : allLeads));
       setTotalLeads(data.total || 0);
+      setHasMore(false); // No more pages when fetching all
+      setCurrentPage(1);
     } catch (err) {
       console.error("Error fetching leads:", err);
       toast.error("Failed to fetch leads");
@@ -89,10 +100,18 @@ const PriorityAssignLeads = () => {
     }
   };
 
+  // Reset and fetch leads when filters, tab, or exclude flags change
   useEffect(() => {
-    fetchLeads();
+    setLeads([]);
+    setHasMore(false);
+    setCurrentPage(1);
+    fetchLeads(1, false);
+  }, [excludeCalled, excludeAlreadyAssigned, activeTab]);
+
+  // Initial load
+  useEffect(() => {
     fetchCREs();
-  }, [currentPage, excludeCalled, excludeAlreadyAssigned]);
+  }, []);
 
   const handleAssign = async () => {
     if (!selectedCre) return toast.error("Please select a CRE");
@@ -121,12 +140,12 @@ const PriorityAssignLeads = () => {
     );
   };
 
-  const totalPages = Math.ceil(totalLeads / leadsPerPage);
-  const displayLeads = leads.filter((l) =>
+  const filteredLeads = leads.filter((l) =>
     activeTab === 'assigned'
       ? (l.exclusiveToSpecificCRE || l.calledByCre)
       : (!l.exclusiveToSpecificCRE && !l.calledByCre)
   );
+  const displayLeads = filteredLeads;
 
   const resetFilters = () => {
     setFilters({
@@ -257,15 +276,19 @@ const PriorityAssignLeads = () => {
         )}
 
         {/* Leads Table */}
-        <div className="bg-white rounded-xl shadow overflow-hidden">
-          {loading ? (
+        <div
+          ref={scrollContainerRef}
+          className="bg-white rounded-xl shadow overflow-hidden"
+          style={{ maxHeight: '70vh', overflowY: 'auto' }}
+        >
+          {loading && leads.length === 0 ? (
             <p className="p-4 text-gray-500 text-center">Loading leads...</p>
-          ) : displayLeads.length === 0 ? (
+          ) : displayLeads.length === 0 && !loading ? (
             <p className="p-4 text-gray-400 text-center">No leads found</p>
           ) : (
             <div className="w-full">
               <table className="min-w-full w-full table-auto text-left text-xs md:text-sm">
-                <thead className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
+                <thead className="bg-gradient-to-r from-blue-500 to-blue-600 text-white sticky top-0 z-10">
                 <tr>
                   <th className="p-3 whitespace-normal break-words">#</th>
                   <th className="p-3 whitespace-normal break-words">Name</th>
@@ -367,32 +390,16 @@ const PriorityAssignLeads = () => {
           )}
         </div>
 
-        {/* Pagination */}
+        {/* Status */}
         <div className="flex justify-between items-center mt-6">
           <div className="text-sm text-gray-600">
-            Showing {leads.length} of {totalLeads} leads
+            Showing {displayLeads.length} of {totalLeads} leads
           </div>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-              disabled={currentPage === 1}
-              className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50"
-            >
-              Previous
-            </button>
-            <span className="text-sm text-gray-700">
-              Page {totalPages === 0 ? 0 : currentPage} of {totalPages}
-            </span>
-            <button
-              onClick={() =>
-                setCurrentPage((p) => Math.min(p + 1, totalPages))
-              }
-              disabled={currentPage === totalPages}
-              className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
+          {displayLeads.length > 0 && (
+            <div className="text-sm text-gray-500">
+              {activeTab === 'assigned' ? 'Assigned' : 'Unassigned'} tab
+            </div>
+          )}
         </div>
       </motion.div>
     </div>
