@@ -184,6 +184,125 @@ const TeamStats = () => {
     return summary;
   }, [memberId, teamLeadsData]);
 
+  const memberDailyKpi = useMemo(() => {
+    if (!memberId) return null;
+    const idStr = String(memberId);
+    const result = {};
+    const inMonth = (dateStr) => dateStr && dateStr.startsWith(month);
+
+    for (const d of monthDays) {
+      result[d] = {
+        total: 0,
+        positive: 0,
+        negative: 0,
+        rnr: 0,
+        pending: 0,
+        fuToday: 0,
+        wrongNumber: 0,
+        conduction: 0,
+        closureProspects: 0,
+        closed: 0,
+      };
+    }
+
+    for (const a of teamLeadsData) {
+      const uid = String(a.Calledbycre?._id || a.Calledbycre || '');
+      if (!uid || uid !== idStr) continue;
+
+      const assigned = ymd(a.assignedAt);
+      if (assigned && inMonth(assigned) && result[assigned]) {
+        result[assigned].total += 1;
+      }
+
+      const cd = ymd(a.conductionDoneAt);
+      if (cd && inMonth(cd) && result[cd]) {
+        result[cd].conduction += 1;
+      }
+
+      const closedAt = ymd(a.closureStatusAt);
+      if (closedAt && inMonth(closedAt) && result[closedAt]) {
+        result[closedAt].closed += 1;
+      }
+
+      const hist = Array.isArray(a.statusHistory) ? a.statusHistory : [];
+      for (const h of hist) {
+        const st = (h?.status || '').toLowerCase();
+        const hd = ymd(h?.date || h?.updatedAt || h?.createdAt);
+        if (!hd || !inMonth(hd) || !result[hd]) continue;
+        if (st === 'positive') result[hd].positive += 1;
+        else if (st === 'negative') result[hd].negative += 1;
+        else if (st === 'rnr') result[hd].rnr += 1;
+        else if (st === 'pending') result[hd].pending += 1;
+        else if (st === 'wrong number') result[hd].wrongNumber += 1;
+        else if (st === 'closure prospects' || st === 'closure prospect') result[hd].closureProspects += 1;
+      }
+
+      const fuList = Array.isArray(a.followUps) ? a.followUps : [];
+      for (const fu of fuList) {
+        const fd = ymd(fu.followUpDate);
+        if (!fd || !inMonth(fd) || !result[fd]) continue;
+        result[fd].fuToday += 1;
+      }
+    }
+
+    return result;
+  }, [memberId, teamLeadsData, month, monthDays]);
+
+  const memberDailyDays = useMemo(() => {
+    if (!memberDailyKpi) return [];
+    if (!hideZeroDays) return [...monthDays].reverse();
+    const arr = [];
+    for (const d of [...monthDays].reverse()) {
+      const v = memberDailyKpi[d];
+      if (!v) continue;
+      const sum =
+        (v.total || 0) +
+        (v.positive || 0) +
+        (v.negative || 0) +
+        (v.rnr || 0) +
+        (v.pending || 0) +
+        (v.fuToday || 0) +
+        (v.wrongNumber || 0) +
+        (v.conduction || 0) +
+        (v.closureProspects || 0) +
+        (v.closed || 0);
+      if (sum > 0) arr.push(d);
+    }
+    return arr;
+  }, [memberDailyKpi, monthDays, hideZeroDays]);
+
+  const memberDailyTotal = useMemo(() => {
+    if (!memberDailyKpi) return null;
+    const total = {
+      total: 0,
+      positive: 0,
+      negative: 0,
+      rnr: 0,
+      pending: 0,
+      fuToday: 0,
+      wrongNumber: 0,
+      conduction: 0,
+      closureProspects: 0,
+      closed: 0,
+    };
+    const days = memberDailyDays.length > 0 ? memberDailyDays : [...monthDays];
+    for (const d of days) {
+      const v = memberDailyKpi[d];
+      if (!v) continue;
+      total.total += v.total || 0;
+      total.positive += v.positive || 0;
+      total.negative += v.negative || 0;
+      total.rnr += v.rnr || 0;
+      total.pending += v.pending || 0;
+      total.fuToday += v.fuToday || 0;
+      total.wrongNumber += v.wrongNumber || 0;
+      total.conduction += v.conduction || 0;
+      total.closureProspects += v.closureProspects || 0;
+      total.closed += v.closed || 0;
+    }
+    return total;
+  }, [memberDailyKpi, memberDailyDays, monthDays]);
+
   // Filters
   const baseMembers = useMemo(() => {
     if (!memberId) return teamMembers;
@@ -274,7 +393,9 @@ const TeamStats = () => {
       <div className="pt-20 px-6 w-full">
         <div className="mb-4 flex items-center justify-between">
           <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-2xl font-bold">
-            {memberId && baseMembers.length === 1 ? 'Individual Stats' : 'Team Stats'}
+            {memberId && baseMembers.length === 1
+              ? `Individual Stats - ${baseMembers[0].name || ''}`
+              : 'Team Stats'}
           </motion.h1>
           <div className="flex items-center gap-2">
             <input type="month" value={month} onChange={(e)=> setMonth(e.target.value)} className="border rounded-md px-2 py-1 text-sm" />
@@ -287,71 +408,139 @@ const TeamStats = () => {
           </div>
         </div>
 
-        {memberId && memberKpi && baseMembers.length === 1 && (
+        {memberId && memberDailyKpi && baseMembers.length === 1 && (
           <div className="mb-4 rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50/70">
               <div>
-                <div className="text-sm font-semibold text-slate-800">Individual Summary</div>
-                <div className="text-xs text-slate-500">Key metrics for {baseMembers[0].name || 'Selected CRE-CRM'}</div>
+                <div className="text-sm font-semibold text-slate-800">Date-wise Record</div>
+                <div className="text-xs text-slate-500">Daily stats for {baseMembers[0].name || 'Selected CRE-CRM'}</div>
               </div>
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full text-xs md:text-sm">
                 <thead>
                   <tr className="bg-slate-50 text-slate-600 border-b border-slate-200">
+                    <th className="px-3 py-2 text-left font-semibold whitespace-nowrap">Date</th>
                     <th className="px-3 py-2 text-right font-semibold whitespace-nowrap">Total Leads Consumed</th>
                     <th className="px-3 py-2 text-right font-semibold whitespace-nowrap">Positive</th>
                     <th className="px-3 py-2 text-right font-semibold whitespace-nowrap">Negative</th>
                     <th className="px-3 py-2 text-right font-semibold whitespace-nowrap">RNR</th>
                     <th className="px-3 py-2 text-right font-semibold whitespace-nowrap">Pending</th>
                     <th className="px-3 py-2 text-right font-semibold whitespace-nowrap">FU Today</th>
+                    <th className="px-3 py-2 text-right font-semibold whitespace-nowrap">Wrong Number</th>
                     <th className="px-3 py-2 text-right font-semibold whitespace-nowrap">Conduction</th>
                     <th className="px-3 py-2 text-right font-semibold whitespace-nowrap">Closure Prospects</th>
                     <th className="px-3 py-2 text-right font-semibold whitespace-nowrap">Closed</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="bg-white">
-                    <td className="px-3 py-2 text-right">
-                      <span className="inline-flex min-w-[2.5rem] justify-end font-semibold text-slate-800">{memberKpi.total}</span>
-                    </td>
-                    <td className="px-3 py-2 text-right">
-                      <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 border border-emerald-100">{memberKpi.positive}</span>
-                    </td>
-                    <td className="px-3 py-2 text-right">
-                      <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-700 border border-rose-100">{memberKpi.negative}</span>
-                    </td>
-                    <td className="px-3 py-2 text-right">
-                      <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 border border-amber-100">{memberKpi.rnr}</span>
-                    </td>
-                    <td className="px-3 py-2 text-right">
-                      <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-700 border border-slate-100">{memberKpi.pending}</span>
-                    </td>
-                    <td className="px-3 py-2 text-right">
-                      <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700 border border-sky-100">{memberKpi.fuToday}</span>
-                    </td>
-                    <td className="px-3 py-2 text-right">
-                      <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700 border border-indigo-100">{memberKpi.conduction}</span>
-                    </td>
-                    <td className="px-3 py-2 text-right">
-                      <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700 border border-violet-100">{memberKpi.closureProspects}</span>
-                    </td>
-                    <td className="px-3 py-2 text-right">
-                      <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-emerald-600 text-white px-2 py-0.5 text-[11px] font-semibold">{memberKpi.closed}</span>
-                    </td>
-                  </tr>
+                  {memberDailyDays.length === 0 ? (
+                    <tr>
+                      <td className="px-3 py-3 text-center text-slate-500 text-xs" colSpan={10}>
+                        No activity in the selected month.
+                      </td>
+                    </tr>
+                  ) : (
+                    <>
+                      {memberDailyTotal && (
+                        <tr className="bg-emerald-50/60 border-b border-emerald-100 font-semibold">
+                          <td className="px-3 py-2 text-left whitespace-nowrap">Total</td>
+                          <td className="px-3 py-2 text-right">
+                            <span className="inline-flex min-w-[2.5rem] justify-end font-semibold text-slate-800">{memberDailyTotal.total}</span>
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 border border-emerald-100">{memberDailyTotal.positive}</span>
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-700 border border-rose-100">{memberDailyTotal.negative}</span>
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 border border-amber-100">{memberDailyTotal.rnr}</span>
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-700 border border-slate-100">{memberDailyTotal.pending}</span>
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700 border border-sky-100">{memberDailyTotal.fuToday}</span>
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700 border border-red-100">{memberDailyTotal.wrongNumber}</span>
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700 border border-indigo-100">{memberDailyTotal.conduction}</span>
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700 border border-violet-100">{memberDailyTotal.closureProspects}</span>
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-red-600 text-white px-2 py-0.5 text-[11px] font-semibold">{memberDailyTotal.closed}</span>
+                          </td>
+                        </tr>
+                      )}
+                      {memberDailyDays.map((d) => {
+                      const v = memberDailyKpi[d] || {
+                        total: 0,
+                        positive: 0,
+                        negative: 0,
+                        rnr: 0,
+                        pending: 0,
+                        fuToday: 0,
+                        wrongNumber: 0,
+                        conduction: 0,
+                        closureProspects: 0,
+                        closed: 0,
+                      };
+                      return (
+                        <tr key={d} className="bg-white border-b border-slate-100">
+                          <td className="px-3 py-2 text-left whitespace-nowrap">{new Date(d).toLocaleDateString()}</td>
+                          <td className="px-3 py-2 text-right">
+                            <span className="inline-flex min-w-[2.5rem] justify-end font-semibold text-slate-800">{v.total}</span>
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 border border-emerald-100">{v.positive}</span>
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-700 border border-rose-100">{v.negative}</span>
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 border border-amber-100">{v.rnr}</span>
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-700 border border-slate-100">{v.pending}</span>
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700 border border-sky-100">{v.fuToday}</span>
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700 border border-red-100">{v.wrongNumber}</span>
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700 border border-indigo-100">{v.conduction}</span>
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700 border border-violet-100">{v.closureProspects}</span>
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-red-600 text-white px-2 py-0.5 text-[11px] font-semibold">{v.closed}</span>
+                          </td>
+                        </tr>
+                        );
+                      })}
+                    </>
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
         )}
 
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow">
-          <div className="overflow-x-auto">
-            {loading ? (
-              <div className="p-6 text-sm">Loading…</div>
-            ) : (
-              <table className={`min-w-full ${compact ? 'text-[11px]' : 'text-xs'} border-collapse` }>
+        {!memberId && (
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow">
+            <div className="overflow-x-auto">
+              {loading ? (
+                <div className="p-6 text-sm">Loading…</div>
+              ) : (
+                <table className={`min-w-full ${compact ? 'text-[11px]' : 'text-xs'} border-collapse` }>
                 <thead className="sticky top-0 z-10">
                   <tr className="bg-gradient-to-b from-slate-50 to-white">
                     <th className={`border-b border-r text-left align-bottom font-semibold text-slate-700 ${compact ? 'px-2 py-1 w-12' : 'px-3 py-2 w-16'} sticky left-0 bg-white z-20`}>S.no</th>
@@ -417,10 +606,11 @@ const TeamStats = () => {
                     </tr>
                   ))}
                 </tbody>
-              </table>
-            )}
+                </table>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
