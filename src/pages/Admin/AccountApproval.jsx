@@ -144,6 +144,7 @@ export default function AccountsApproval() {
   const [managerSearch, setManagerSearch] = useState({});
   // Global search across name/email
   const [searchQuery, setSearchQuery] = useState("");
+  const [creUsageByUser, setCreUsageByUser] = useState({});
 
   const roleLevels = {
     "CRE-CRM": 1,
@@ -160,6 +161,16 @@ export default function AccountsApproval() {
       setLoading(true);
       const { data } = await axios.get(`${BASE_URL}/api/getall/accounts`);
       setAccounts(data);
+      try {
+        const usageRes = await axios.get(`${BASE_URL}/api/admin/cre/current-usage`);
+        if (usageRes?.data?.success && usageRes.data.data) {
+          setCreUsageByUser(usageRes.data.data);
+        } else {
+          setCreUsageByUser({});
+        }
+      } catch {
+        setCreUsageByUser({});
+      }
     } catch (err) {
       toast.error("Failed to fetch accounts");
     } finally {
@@ -359,7 +370,12 @@ export default function AccountsApproval() {
                   <th className="px-4 py-3 text-left w-[22%]">User</th>
                   <th className="px-4 py-3 text-left w-[14%]">Role</th>
                   <th className="px-4 py-3 text-left w-[30%]">Reports To</th>
-                  <th className="px-4 py-3 text-left w-[14%]">Lead Quota</th>
+                  <th className="px-4 py-3 text-left w-[16%]">
+                    <div className="flex flex-col">
+                      <span>Lead Usage / Quota</span>
+                      <span className="text-[11px] text-gray-500 font-normal">Current in use vs allowed</span>
+                    </div>
+                  </th>
                   <th className="px-4 py-3 text-left w-[10%]">Status</th>
                   <th className="px-4 py-3 text-center w-[10%]">Actions</th>
                 </tr>
@@ -433,58 +449,67 @@ export default function AccountsApproval() {
                     </td>
 
                     {/* LEAD QUOTA */}
-                    <td className="px-4 py-3 flex items-center gap-2">
-                      <button
-                        onClick={() => {
-                          const newQuota = (user.leadQuota || 0) - 1;
-                          if (newQuota >= 0) updateAccessForCRE(user._id, newQuota, undefined);
-                        }}
-                        disabled={user.leadQuota <= 0}
-                        className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded-lg text-sm disabled:opacity-50"
-                        title="Decrease Quota"
-                      >
-                        -
-                      </button>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            const newQuota = (user.leadQuota || 0) - 1;
+                            if (newQuota >= 0) updateAccessForCRE(user._id, newQuota, undefined);
+                          }}
+                          disabled={user.leadQuota <= 0}
+                          className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded-lg text-xs md:text-sm disabled:opacity-50"
+                          title="Decrease Quota"
+                        >
+                          -
+                        </button>
 
-                      <span className="font-medium w-12 text-center">{user.leadQuota || 0}</span>
+                        <div className="flex flex-col items-center justify-center px-2">
+                          <span className="font-semibold text-sm">
+                            {(creUsageByUser[String(user._id)] || 0)} / {user.leadQuota || 0}
+                          </span>
+                          <span className="text-[11px] text-gray-500">in use / allowed</span>
+                        </div>
 
-                      <button
-                        onClick={() => updateAccessForCRE(user._id, (user.leadQuota || 0) + 1, undefined)}
-                        className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded-lg text-sm"
-                        title="Increase Quota"
-                      >
-                        +
-                      </button>
+                        <button
+                          onClick={() => updateAccessForCRE(user._id, (user.leadQuota || 0) + 1, undefined)}
+                          className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded-lg text-xs md:text-sm"
+                          title="Increase Quota"
+                        >
+                          +
+                        </button>
+                      </div>
 
-                      <input
-                        type="number"
-                        min="0"
-                        value={user.newLeadQuota ?? ""}
-                        onChange={(e) => {
-                          const value = parseInt(e.target.value);
-                          setAccounts((prev) =>
-                            prev.map((u) => u._id === user._id ? { ...u, newLeadQuota: isNaN(value) ? "" : value } : u)
-                          );
-                        }}
-                        className="border rounded-lg px-2 py-1 text-sm w-20"
-                        placeholder="Add..."
-                      />
-
-                      <button
-                        onClick={() => {
-                          const increment = user.newLeadQuota || 0;
-                          if (increment > 0) {
-                            updateAccessForCRE(user._id, (user.leadQuota || 0) + increment, undefined);
+                      <div className="mt-2 flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          value={user.newLeadQuota ?? ""}
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value);
                             setAccounts((prev) =>
-                              prev.map((u) => (u._id === user._id ? { ...u, newLeadQuota: "" } : u))
+                              prev.map((u) => u._id === user._id ? { ...u, newLeadQuota: isNaN(value) ? "" : value } : u)
                             );
-                          }
-                        }}
-                        className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded-lg text-sm"
-                        title="Add custom quota"
-                      >
-                        Add
-                      </button>
+                          }}
+                          className="border rounded-lg px-2 py-1 text-xs md:text-sm w-20"
+                          placeholder="Add..."
+                        />
+
+                        <button
+                          onClick={() => {
+                            const increment = user.newLeadQuota || 0;
+                            if (increment > 0) {
+                              updateAccessForCRE(user._id, (user.leadQuota || 0) + increment, undefined);
+                              setAccounts((prev) =>
+                                prev.map((u) => (u._id === user._id ? { ...u, newLeadQuota: "" } : u))
+                              );
+                            }
+                          }}
+                          className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-xs md:text-sm"
+                          title="Add custom quota"
+                        >
+                          Add
+                        </button>
+                      </div>
                     </td>
 
                     {/* STATUS */}
