@@ -41,6 +41,11 @@ export default function CRELeadsApprovalDashboard() {
   const [creCounts, setCreCounts] = useState({
     approved: { total: 0 },
     freshUnassigned: { total: 0 },
+    rejected: { total: 0 },
+    nonApproved: { total: 0 },
+    total: { total: 0 },
+    assigned: { total: 0 },
+    currentUsage: { total: 0 },
   });
   const [activeTab, setActiveTab] = useState('Unassigned');
   const [industryQuery, setIndustryQuery] = useState("");
@@ -591,6 +596,20 @@ export default function CRELeadsApprovalDashboard() {
           </div>
           <div className="text-3xl md:text-4xl font-bold text-green-900">
             {creCounts.approved?.total || 0}
+          </div>
+        </motion.div>
+
+        <motion.div
+          variants={cardVariants}
+          initial="initial"
+          animate="animate"
+          className="rounded-3xl bg-gradient-to-r from-indigo-200 to-indigo-400 flex flex-col items-start gap-2 p-6"
+        >
+          <div className="text-sm font-medium text-indigo-900 uppercase tracking-wide">
+            Current Usage number
+          </div>
+          <div className="text-3xl md:text-4xl font-bold text-indigo-900">
+            {creCounts.currentUsage?.total || 0}
           </div>
         </motion.div>
 
