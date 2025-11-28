@@ -47,6 +47,8 @@ const LgDashboard = () => {
   skippedToday: 0,
   submittedTotal: 0,
   submittedToday: 0,
+  rejectedLeads: 0,
+  wrongNumberLeads: 0,
 });
 
 
@@ -67,21 +69,35 @@ const LgDashboard = () => {
   useEffect(() => {
   const fetchCounts = async () => {
     try {
+      const headers = { Authorization: `Bearer ${authToken}` };
+
       // Existing count fetch
       const res = await fetch(
         `${BASE_URL}/api/lg/count`,
-        { headers: { Authorization: `Bearer ${authToken}` } }
+        { headers }
       );
       const data = await res.json();
 
       // New rawcount fetch
       const rawRes = await fetch(
         `${BASE_URL}/api/lg/rawcount`,
-        { headers: { Authorization: `Bearer ${authToken}` } }
+        { headers }
       );
       const rawData = await rawRes.json();
 
-  
+      // Rejected leads count (uses same endpoint as rejected leads page)
+      const rejRes = await fetch(
+        `${BASE_URL}/api/lg/rejected?page=1&limit=1`,
+        { headers }
+      );
+      const rejData = await rejRes.json();
+
+      // Wrong Number leads count
+      const wnRes = await fetch(
+        `${BASE_URL}/api/lg/wrong-number`,
+        { headers }
+      );
+      const wnData = await wnRes.json();
 
       setCounts({
         totalLeads: data.totalLeads || 0,
@@ -92,6 +108,8 @@ const LgDashboard = () => {
         skippedToday: rawData.skippedToday || 0,
         submittedTotal: rawData.submittedTotal || 0,
         submittedToday: rawData.submittedToday || 0,
+        rejectedLeads: (rejData && (rejData.total || rejData.count)) || 0,
+        wrongNumberLeads: (wnData && (wnData.count || (Array.isArray(wnData.data) ? wnData.data.length : 0))) || 0,
       });
     } catch (err) {
       console.error('Failed to fetch dashboard counts:', err);
@@ -229,6 +247,7 @@ useEffect(() => {
       path: '/lg/rejected',
       glow: 'from-rose-400 to-pink-500',
       tooltip: 'Open rejected leads list',
+      count: counts.rejectedLeads,
     },
     {
       title: 'Wrong Number Leads',
@@ -237,6 +256,7 @@ useEffect(() => {
       path: '/lg/wrong-number',
       glow: 'from-amber-400 to-yellow-500',
       tooltip: 'View all Wrong Number leads',
+      count: counts.wrongNumberLeads,
     },
   ];
 
@@ -351,6 +371,12 @@ const hour = now.getHours();
                     <h4 className={`text-lg font-bold text-gray-800`}>
                       {item.title}
                     </h4>
+                    {typeof item.count === 'number' && (
+                      <p className="text-sm font-semibold text-gray-700 mt-1">
+                        <span className="text-xs uppercase tracking-wide text-gray-500 mr-1">Count:</span>
+                        <CountUp end={item.count} duration={1.2} />
+                      </p>
+                    )}
                   </div>
                 </div>
                 <p className={`text-sm text-gray-600`}>{item.description}</p>
