@@ -25,6 +25,12 @@ const RawLeadsDashboard = () => {
       route: '/admin/view/rawleads',
       color: 'bg-pink-100',
     },
+    {
+      title: 'LG Stats',
+      icon: <FaChartBar size={30} />,
+      route: '/admin/lg-stats',
+      color: 'bg-emerald-100',
+    },
   ];
 
   return (

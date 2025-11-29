@@ -52,6 +52,7 @@ import RecruitmentDashboard from "./pages/Admin/Recruitment/RecruitmentDashboard
 import PositionMIS from "./pages/Admin/Recruitment/PositionMIS.jsx";
 import PositionDashboard from "./pages/Admin/Recruitment/PositionDashboard.jsx";
 import DataAnalystDashboard from "./pages/DataAnalyst/DataAnalystDashboard.jsx";
+import LGStats from "./pages/Admin/LGStats.jsx";
 
 function App() {
   const location = useLocation();
@@ -151,6 +152,14 @@ function App() {
           element={
             <ProtectedRoute role="admin">
               <TempRawLeadsDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/lg-stats"
+          element={
+            <ProtectedRoute role="admin">
+              <LGStats />
             </ProtectedRoute>
           }
         />
