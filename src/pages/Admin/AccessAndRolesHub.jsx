@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FiUsers } from "react-icons/fi";
 import { FaSitemap } from "react-icons/fa";
+import { MdWeb } from "react-icons/md";
 import AdminNavbar from "../../components/AdminNavbar";
 
 export default function AccessAndRolesHub() {
@@ -23,6 +24,13 @@ export default function AccessAndRolesHub() {
       route: "/admin/accountapproval",
       color: "bg-cyan-50",
     },
+    {
+      title: "Accounts Transfer ",
+      desc: "Review & transfer accounts data",
+      icon: <MdWeb size={28} />,
+      route: "/admin/frontend-accounts",
+      color: "bg-amber-50",
+    },
   ];
 
   const handleLogout = () => {
@@ -37,7 +45,7 @@ export default function AccessAndRolesHub() {
         <h2 className="text-2xl font-semibold mb-2">Manage Access & Roles</h2>
         <p className="text-gray-600 mb-6">Choose what you want to manage.</p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 p-6 max-w-5xl">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 p-2 max-w-8xl">
           {tiles.map((t, i) => (
             <motion.div
               key={i}

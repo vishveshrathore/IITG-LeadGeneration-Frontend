@@ -21,11 +21,11 @@ import RawLeadsDashboard from "./pages/Admin/RawLeadsDashboard.jsx";
 import TempRawLeadsDashboard from "./pages/Admin/RawLeadsUpload&Approve.jsx";
 import AccountsApproval from "./pages/Admin/AccountApproval.jsx"; //Admin Side
 import CRELeadsApprovalDashboard from "./pages/Admin/CreFinalApproval.jsx"; //Admin Side
-import CreDashboard from "./pages/Admin/CreDashboard.jsx"; //Admin Side
 import PriorityAssignLeads from "./pages/Admin/Prioritypage.jsx"; //Admin Side
 import LGAccessControl from "./pages/Admin/LGAccessControl.jsx"; //Admin Side
 import AdminDashboard from "./pages/Admin/AdminDashboard.jsx"; //Admin Side - New Dashboard
 import AccessAndRolesHub from "./pages/Admin/AccessAndRolesHub.jsx";
+import FrontendAccounts from "./pages/Admin/FrontendAccounts.jsx"; // Admin Side
 import ToolsDashboard from "./pages/Admin/Tools/ToolsDashboard.jsx"; //Tools Dashboard
 import NaukriParser from "./components/NaukriParser.jsx"; //Naukri Parser Component
 import LinkedInPParser from "./components/LinkedInPParser.jsx"; //LinkedIn Parser Component
@@ -53,6 +53,7 @@ import PositionMIS from "./pages/Admin/Recruitment/PositionMIS.jsx";
 import PositionDashboard from "./pages/Admin/Recruitment/PositionDashboard.jsx";
 import DataAnalystDashboard from "./pages/DataAnalyst/DataAnalystDashboard.jsx";
 import LGStats from "./pages/Admin/LGStats.jsx";
+import CreDashboard from "./pages/Admin/CreDashboard.jsx";
 
 function App() {
   const location = useLocation();
@@ -276,6 +277,14 @@ function App() {
           element={
             <ProtectedRoute role="admin">
               <AccessAndRolesHub />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/frontend-accounts"
+          element={
+            <ProtectedRoute role="admin">
+              <FrontendAccounts />
             </ProtectedRoute>
           }
         />

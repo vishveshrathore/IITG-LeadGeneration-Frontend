@@ -9,6 +9,8 @@ const LGStats = () => {
   const [lgRows, setLgRows] = useState([]);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [statusFilter, setStatusFilter] = useState('enable');
+
   const [loadingList, setLoadingList] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [selectedLG, setSelectedLG] = useState(null);
@@ -28,6 +30,8 @@ const LGStats = () => {
     try {
       const params = new URLSearchParams();
       params.append('view', 'list');
+      params.append('status', statusFilter);
+
       if (from) params.append('from', from);
       if (to) params.append('to', to);
       const qs = `?${params.toString()}`;
@@ -58,6 +62,8 @@ const LGStats = () => {
       const params = new URLSearchParams();
       params.append('view', 'detail');
       params.append('lgId', lg.id);
+      params.append('status', statusFilter);
+
       if (from) params.append('from', from);
       if (to) params.append('to', to);
       const qs = `?${params.toString()}`;
@@ -116,6 +122,8 @@ const LGStats = () => {
       params.append('lgId', lg.id);
       params.append('page', page);
       params.append('limit', badDataLimit);
+      params.append('status', statusFilter);
+
       if (from) params.append('from', from);
       if (to) params.append('to', to);
       const res = await fetch(`${BASE_URL}/api/admin/lg/bad-data?${params.toString()}`, {
@@ -150,6 +158,34 @@ const LGStats = () => {
     }
   };
 
+  const sortedDetailDaily = detailDaily
+    .slice()
+    .sort((a, b) => (new Date(b.date) > new Date(a.date) ? 1 : new Date(b.date) < new Date(a.date) ? -1 : 0));
+  const detailTotals = sortedDetailDaily.reduce(
+    (totals, row) => {
+      const lgTillDate = Number(row.lgTillDate || 0);
+      const wrongNumber = Number(row.wrongNumber || 0);
+      const rejected = Number(row.rejected || 0);
+      const badData = Number(row.badData || 0);
+      return {
+        lgTillDate: totals.lgTillDate + lgTillDate,
+        wrongNumber: totals.wrongNumber + wrongNumber,
+        rejected: totals.rejected + rejected,
+        badData: totals.badData + badData,
+        total: totals.total + lgTillDate + wrongNumber + rejected + badData,
+      };
+    },
+    { lgTillDate: 0, wrongNumber: 0, rejected: 0, badData: 0, total: 0 }
+  );
+
+  const detailRowTotal = (row) => {
+    const lgTillDate = Number(row.lgTillDate || 0);
+    const wrongNumber = Number(row.wrongNumber || 0);
+    const rejected = Number(row.rejected || 0);
+    const badData = Number(row.badData || 0);
+    return lgTillDate + wrongNumber + rejected + badData;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <AdminNavbar />
@@ -169,6 +205,18 @@ const LGStats = () => {
               value={from}
               onChange={(e) => setFrom(e.target.value)}
             />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">LG Status</label>
+            <select
+              className="border rounded px-2 py-1 text-sm"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="enable">Enabled</option>
+              <option value="disable">Disabled</option>
+              <option value="all">All</option>
+            </select>
           </div>
           <div>
             <label className="block text-xs text-gray-600 mb-1">To</label>
@@ -263,6 +311,18 @@ const LGStats = () => {
               </div>
             </div>
           )}
+          {selectedLG && detailDaily.length > 0 && (
+            <div className="px-4 py-3 border-b bg-gray-50 text-sm text-gray-700">
+              <div className="flex flex-wrap gap-4 items-center">
+                <span className="font-semibold">Total</span>
+                <span>LG Till Date: <span className="font-semibold text-gray-900">{detailTotals.lgTillDate}</span></span>
+                <span>Wrong Number: <span className="font-semibold text-gray-900">{detailTotals.wrongNumber}</span></span>
+                <span>Rejected: <span className="font-semibold text-gray-900">{detailTotals.rejected}</span></span>
+                <span>Data Not Filled Properly: <span className="font-semibold text-gray-900">{detailTotals.badData}</span></span>
+                <span>Grand Total: <span className="font-semibold text-gray-900">{detailTotals.total}</span></span>
+              </div>
+            </div>
+          )}
           {loadingDetail ? (
             <div className="p-6 text-center text-gray-500">Loading detail...</div>
           ) : !selectedLG ? (
@@ -282,19 +342,31 @@ const LGStats = () => {
                   <th className="px-4 py-2 text-right">Wrong Number</th>
                   <th className="px-4 py-2 text-right">Rejected</th>
                   <th className="px-4 py-2 text-right">Data Not Filled Properly</th>
+                  <th className="px-4 py-2 text-right">Total</th>
                 </tr>
               </thead>
               <tbody>
-                {detailDaily.map((row) => (
+                {sortedDetailDaily.map((row) => (
                   <tr key={row.date} className="border-t">
                     <td className="px-4 py-2">{row.date}</td>
                     <td className="px-4 py-2 text-right">{row.lgTillDate}</td>
                     <td className="px-4 py-2 text-right">{row.wrongNumber}</td>
                     <td className="px-4 py-2 text-right">{row.rejected}</td>
                     <td className="px-4 py-2 text-right">{row.badData}</td>
+                    <td className="px-4 py-2 text-right">{detailRowTotal(row)}</td>
                   </tr>
                 ))}
               </tbody>
+              <tfoot className="bg-white border-t">
+                <tr className="text-sm font-semibold text-gray-700">
+                  <td className="px-4 py-2">Total</td>
+                  <td className="px-4 py-2 text-right">{detailTotals.lgTillDate}</td>
+                  <td className="px-4 py-2 text-right">{detailTotals.wrongNumber}</td>
+                  <td className="px-4 py-2 text-right">{detailTotals.rejected}</td>
+                  <td className="px-4 py-2 text-right">{detailTotals.badData}</td>
+                  <td className="px-4 py-2 text-right">{detailTotals.total}</td>
+                </tr>
+              </tfoot>
             </table>
           )}
         </div>

@@ -17,7 +17,7 @@ export default function CorporateAccountApproval() {
       const { data } = await axios.get(`${API_BASE}/getAccounts/all`);
       // Expecting { success, count, data: [...] }
       const list = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
-      setAccounts(list);
+      setAccounts(list.slice().reverse());
       // Fetch counts per companyName in parallel (best-effort)
       try {
         const queries = list
