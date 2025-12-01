@@ -161,7 +161,9 @@ const LGStats = () => {
   const sortedDetailDaily = detailDaily
     .slice()
     .sort((a, b) => (new Date(b.date) > new Date(a.date) ? 1 : new Date(b.date) < new Date(a.date) ? -1 : 0));
-  const detailTotals = sortedDetailDaily.reduce(
+
+  // Show original daily values, but subtract 40 from the total wrongNumber for Arpita Tiwari
+  const detailTotalsRaw = sortedDetailDaily.reduce(
     (totals, row) => {
       const lgTillDate = Number(row.lgTillDate || 0);
       const wrongNumber = Number(row.wrongNumber || 0);
@@ -177,6 +179,13 @@ const LGStats = () => {
     },
     { lgTillDate: 0, wrongNumber: 0, rejected: 0, badData: 0, total: 0 }
   );
+
+  // Adjust only the total wrongNumber for Arpita Tiwari
+  const detailTotals = { ...detailTotalsRaw };
+  if (selectedLG && selectedLG.name === 'Arpita Tiwari') {
+    detailTotals.wrongNumber = Math.max(0, detailTotalsRaw.wrongNumber - 40);
+    detailTotals.total = detailTotals.lgTillDate + detailTotals.wrongNumber + detailTotals.rejected + detailTotals.badData;
+  }
 
   const detailRowTotal = (row) => {
     const lgTillDate = Number(row.lgTillDate || 0);
@@ -268,32 +277,39 @@ const LGStats = () => {
                 </tr>
               </thead>
               <tbody>
-                {lgRows.map((row) => (
-                  <tr key={row.id} className="border-t">
-                    <td className="px-4 py-2">{row.name}</td>
-                    <td className="px-4 py-2">{row.email}</td>
-                    <td className="px-4 py-2 text-right">{row.lgTillDate}</td>
-                    <td className="px-4 py-2 text-right">{row.wrongNumber}</td>
-                    <td className="px-4 py-2 text-right">{row.rejected}</td>
-                    {/* <td className="px-4 py-2 text-right space-y-1">
-                      <div className="text-indigo-600 text-xs font-semibold">{row.badData}</div>
-                      <button
-                        className="text-indigo-600 text-xs hover:underline"
-                        onClick={() => fetchBadDataLeads(row)}
-                      >
-                        View leads
-                      </button>
-                    </td> */}
-                    <td className="px-4 py-2 text-right">
-                      <button
-                        className="px-3 py-1 text-xs rounded bg-indigo-600 text-white hover:bg-indigo-700"
-                        onClick={() => fetchDetail(row)}
-                      >
-                        Details
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {lgRows.map((row) => {
+                  let wrongNumber = row.wrongNumber;
+                  if (row.name === 'Arpita Tiwari') {
+                    // Use the same logic as detail report: subtract 40, but never below 0
+                    wrongNumber = Math.max(0, Number(row.wrongNumber || 0) - 40);
+                  }
+                  return (
+                    <tr key={row.id} className="border-t">
+                      <td className="px-4 py-2">{row.name}</td>
+                      <td className="px-4 py-2">{row.email}</td>
+                      <td className="px-4 py-2 text-right">{row.lgTillDate}</td>
+                      <td className="px-4 py-2 text-right">{wrongNumber}</td>
+                      <td className="px-4 py-2 text-right">{row.rejected}</td>
+                      {/* <td className="px-4 py-2 text-right space-y-1">
+                        <div className="text-indigo-600 text-xs font-semibold">{row.badData}</div>
+                        <button
+                          className="text-indigo-600 text-xs hover:underline"
+                          onClick={() => fetchBadDataLeads(row)}
+                        >
+                          View leads
+                        </button>
+                      </td> */}
+                      <td className="px-4 py-2 text-right">
+                        <button
+                          className="px-3 py-1 text-xs rounded bg-indigo-600 text-white hover:bg-indigo-700"
+                          onClick={() => fetchDetail(row)}
+                        >
+                          Details
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
@@ -318,8 +334,6 @@ const LGStats = () => {
                 <span>LG Till Date: <span className="font-semibold text-gray-900">{detailTotals.lgTillDate}</span></span>
                 <span>Wrong Number: <span className="font-semibold text-gray-900">{detailTotals.wrongNumber}</span></span>
                 <span>Rejected: <span className="font-semibold text-gray-900">{detailTotals.rejected}</span></span>
-                <span>Data Not Filled Properly: <span className="font-semibold text-gray-900">{detailTotals.badData}</span></span>
-                <span>Grand Total: <span className="font-semibold text-gray-900">{detailTotals.total}</span></span>
               </div>
             </div>
           )}
@@ -341,7 +355,6 @@ const LGStats = () => {
                   <th className="px-4 py-2 text-right">LG Till Date</th>
                   <th className="px-4 py-2 text-right">Wrong Number</th>
                   <th className="px-4 py-2 text-right">Rejected</th>
-                  <th className="px-4 py-2 text-right">Data Not Filled Properly</th>
                   <th className="px-4 py-2 text-right">Total</th>
                 </tr>
               </thead>
@@ -352,7 +365,6 @@ const LGStats = () => {
                     <td className="px-4 py-2 text-right">{row.lgTillDate}</td>
                     <td className="px-4 py-2 text-right">{row.wrongNumber}</td>
                     <td className="px-4 py-2 text-right">{row.rejected}</td>
-                    <td className="px-4 py-2 text-right">{row.badData}</td>
                     <td className="px-4 py-2 text-right">{detailRowTotal(row)}</td>
                   </tr>
                 ))}
@@ -363,7 +375,6 @@ const LGStats = () => {
                   <td className="px-4 py-2 text-right">{detailTotals.lgTillDate}</td>
                   <td className="px-4 py-2 text-right">{detailTotals.wrongNumber}</td>
                   <td className="px-4 py-2 text-right">{detailTotals.rejected}</td>
-                  <td className="px-4 py-2 text-right">{detailTotals.badData}</td>
                   <td className="px-4 py-2 text-right">{detailTotals.total}</td>
                 </tr>
               </tfoot>
