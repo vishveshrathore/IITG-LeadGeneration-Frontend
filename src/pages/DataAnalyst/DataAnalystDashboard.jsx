@@ -83,7 +83,7 @@ const DataAnalystDashboard = () => {
           <p className="text-right text-sm text-gray-600">- {quote.author}</p>
         </motion.div>
 
-        <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           <motion.div
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.97 }}
@@ -111,6 +111,23 @@ const DataAnalystDashboard = () => {
               <h2 className="text-xl font-bold text-slate-800">Table 14</h2>
               <p className="mt-2 text-sm text-slate-600">
                 Open parser to extract structured profile information.
+              </p>
+            </div>
+            <div className="mt-4 text-right">
+              <span className="text-sm font-semibold text-indigo-600 hover:underline">Open →</span>
+            </div>
+          </motion.div>
+
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => navigate("/admin/recruiters/companies")}
+            className="cursor-pointer p-6 rounded-xl shadow-lg bg-white border border-slate-200 flex flex-col justify-between hover:shadow-xl transition"
+          >
+            <div>
+              <h2 className="text-xl font-bold text-slate-800">Recruiters Companies</h2>
+              <p className="mt-2 text-sm text-slate-600">
+                Open the admin screen to view and manage BDE & Recruitment companies.
               </p>
             </div>
             <div className="mt-4 text-right">
