@@ -339,7 +339,7 @@ const hour = now.getHours();
 
 
         {/* Action Grids */}
-        <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {actionGrids.map((item, i) => (
             <motion.div
               key={i}
@@ -359,7 +359,7 @@ const hour = now.getHours();
               onMouseEnter={() => { ensureAudio(); sounds.hover.play(); }}
               data-tooltip-id={`grid-${i}`}
               data-tooltip-content={item.tooltip}
-              className={`relative cursor-pointer overflow-hidden rounded-xl shadow-lg transition bg-white`}
+              className={`relative cursor-pointer overflow-hidden rounded-xl shadow-md border border-gray-200 transition-all duration-300 bg-white hover:shadow-xl`}
             >
               <div
                 className={`absolute inset-0 bg-gradient-to-tr ${item.glow} opacity-10 animate-pulse blur-xl`}
@@ -397,7 +397,7 @@ const hour = now.getHours();
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay: i * 0.05 }}
     whileHover={{ y: -3, scale: 1.01, boxShadow: '0 18px 28px -18px rgba(0,0,0,0.25)' }}
-    className={`relative overflow-hidden rounded-xl shadow-md cursor-pointer bg-white`}
+    className={`relative overflow-hidden rounded-xl shadow-md border border-gray-200 cursor-pointer bg-white transition-all duration-300 hover:shadow-xl`}
     data-tooltip-id={`tooltip-${i}`}
     data-tooltip-content={item.tooltip}
     onMouseEnter={() => { ensureAudio(); sounds.hover.play(); }}

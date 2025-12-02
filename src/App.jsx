@@ -16,6 +16,7 @@ import ViewLeads from "./pages/Admin/ViewLeads.jsx";
 import RawLeadsLG from "./pages/LG/RawLeads.jsx";
 import RawLeadManager from "./pages/Admin/RawLeads.jsx";
 import DashboardAddLeads from "./pages/LG/DashboardAddLeads.jsx";
+import MyLeadsNew from "./pages/LG/MyLeadsNew.jsx";
 import Profile from "./pages/LG/Profile.jsx";
 import RawLeadsDashboard from "./pages/Admin/RawLeadsDashboard.jsx";
 import TempRawLeadsDashboard from "./pages/Admin/RawLeadsUpload&Approve.jsx";
@@ -36,6 +37,8 @@ import CRECalledData from "./pages/Admin/CRECalledData.jsx"; // Admin - CRE Lead
 
 import CreCrmDashboard from "./pages/CRE-CRM/CRE-CRMDashboard.jsx"; //CRE Side
 import LeadAssignment from "./pages/CRE-CRM/GetAssignedLeads.jsx"; //CRE Side
+import CreAddLead from "./pages/CRE-CRM/CreAddLead.jsx"; //CRE Side - manual add lead
+import MyGeneratedLeads from "./pages/CRE-CRM/MyGeneratedLeads.jsx"; //CRE Side - my generated leads
 import TodaysFollowup from "./pages/CRE-CRM/TodaysFollowup.jsx"; //CRE Side
 import PositiveLead from "./pages/CRE-CRM/PositiveLead.jsx"; //CRE Side
 import MyWorksheet from "./pages/CRE-CRM/Worksheet.jsx"; //CRE Side
@@ -191,6 +194,14 @@ function App() {
         />
         <Route path="/lg/addlead" element={<AddHrForm />} />
         <Route
+          path="/lg/myleads-new"
+          element={
+            <ProtectedRoute role="lg">
+              <MyLeadsNew />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/lg/viewtodaysleads"
           element={
             <ProtectedRoute role="lg">
@@ -325,6 +336,22 @@ function App() {
           element={
             <ProtectedRoute role="cre-crm">
               <LeadAssignment />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/cre/add-lead"
+          element={
+            <ProtectedRoute role="cre-crm">
+              <CreAddLead />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/cre/my-generated-leads"
+          element={
+            <ProtectedRoute role="cre-crm">
+              <MyGeneratedLeads />
             </ProtectedRoute>
           }
         />

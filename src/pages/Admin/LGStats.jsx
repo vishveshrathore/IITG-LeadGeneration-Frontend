@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+
 import { useAuth } from '../../context/AuthContext';
 import { BASE_URL } from '../../config';
 import AdminNavbar from '../../components/AdminNavbar';
@@ -22,6 +23,7 @@ const LGStats = () => {
   const [badDataTotal, setBadDataTotal] = useState(0);
   const [badDataLoading, setBadDataLoading] = useState(false);
   const [showBadDataModal, setShowBadDataModal] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
   const fetchList = async () => {
     if (!authToken) return;
@@ -83,6 +85,12 @@ const LGStats = () => {
     } finally {
       setLoadingDetail(false);
     }
+  };
+
+  const handleDetailsClick = (lg) => {
+    if (!lg) return;
+    setShowDetailModal(true);
+    fetchDetail(lg);
   };
 
   const mandatoryFields = [
@@ -162,13 +170,14 @@ const LGStats = () => {
     .slice()
     .sort((a, b) => (new Date(b.date) > new Date(a.date) ? 1 : new Date(b.date) < new Date(a.date) ? -1 : 0));
 
-  // Show original daily values, but subtract 40 from the total wrongNumber for Arpita Tiwari
+  // Calculate totals from raw detail values (no special-case adjustments)
   const detailTotalsRaw = sortedDetailDaily.reduce(
     (totals, row) => {
       const lgTillDate = Number(row.lgTillDate || 0);
       const wrongNumber = Number(row.wrongNumber || 0);
       const rejected = Number(row.rejected || 0);
       const badData = Number(row.badData || 0);
+
       return {
         lgTillDate: totals.lgTillDate + lgTillDate,
         wrongNumber: totals.wrongNumber + wrongNumber,
@@ -180,12 +189,8 @@ const LGStats = () => {
     { lgTillDate: 0, wrongNumber: 0, rejected: 0, badData: 0, total: 0 }
   );
 
-  // Adjust only the total wrongNumber for Arpita Tiwari
-  const detailTotals = { ...detailTotalsRaw };
-  if (selectedLG && selectedLG.name === 'Arpita Tiwari') {
-    detailTotals.wrongNumber = Math.max(0, detailTotalsRaw.wrongNumber - 40);
-    detailTotals.total = detailTotals.lgTillDate + detailTotals.wrongNumber + detailTotals.rejected + detailTotals.badData;
-  }
+  // Use the calculated totals directly
+  const detailTotals = detailTotalsRaw;
 
   const detailRowTotal = (row) => {
     const lgTillDate = Number(row.lgTillDate || 0);
@@ -265,122 +270,100 @@ const LGStats = () => {
                   <th className="px-4 py-2 text-right">LG Till Date</th>
                   <th className="px-4 py-2 text-right">Wrong Number</th>
                   <th className="px-4 py-2 text-right">Rejected</th>
-                  {/* <th className="px-4 py-2 text-right">
-                    <button
-                      className="text-indigo-600 text-xs hover:underline"
-                      onClick={() => fetchBadDataLeads(selectedLG)}
-                    >
-                      Data Not Filled Properly
-                    </button>
-                  </th> */}
                   <th className="px-4 py-2 text-right">Action</th>
                 </tr>
               </thead>
               <tbody>
-                {lgRows.map((row) => {
-                  let wrongNumber = row.wrongNumber;
-                  if (row.name === 'Arpita Tiwari') {
-                    // Use the same logic as detail report: subtract 40, but never below 0
-                    wrongNumber = Math.max(0, Number(row.wrongNumber || 0) - 40);
-                  }
-                  return (
-                    <tr key={row.id} className="border-t">
-                      <td className="px-4 py-2">{row.name}</td>
-                      <td className="px-4 py-2">{row.email}</td>
-                      <td className="px-4 py-2 text-right">{row.lgTillDate}</td>
-                      <td className="px-4 py-2 text-right">{wrongNumber}</td>
-                      <td className="px-4 py-2 text-right">{row.rejected}</td>
-                      {/* <td className="px-4 py-2 text-right space-y-1">
-                        <div className="text-indigo-600 text-xs font-semibold">{row.badData}</div>
-                        <button
-                          className="text-indigo-600 text-xs hover:underline"
-                          onClick={() => fetchBadDataLeads(row)}
-                        >
-                          View leads
-                        </button>
-                      </td> */}
-                      <td className="px-4 py-2 text-right">
-                        <button
-                          className="px-3 py-1 text-xs rounded bg-indigo-600 text-white hover:bg-indigo-700"
-                          onClick={() => fetchDetail(row)}
-                        >
-                          Details
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {lgRows.map((row) => (
+                  <tr key={row.id} className="border-t">
+                    <td className="px-4 py-2">{row.name}</td>
+                    <td className="px-4 py-2">{row.email}</td>
+                    <td className="px-4 py-2 text-right">{row.lgTillDate}</td>
+                    <td className="px-4 py-2 text-right">{row.wrongNumber}</td>
+                    <td className="px-4 py-2 text-right">{row.rejected}</td>
+                    <td className="px-4 py-2 text-right">
+                      <button
+                        className="px-3 py-1 text-xs rounded bg-indigo-600 text-white hover:bg-indigo-700"
+                        onClick={() => handleDetailsClick(row)}
+                      >
+                        Details
+                      </button>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           )}
         </div>
 
-        {/* Detail table */}
-        <div className="bg-white border rounded-lg shadow-sm overflow-x-auto">
-          {selectedLG && (
-            <div className="border-b px-4 py-3 flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold text-gray-800">
-                  Date-wise summary for {selectedLG.name}
-                </p>
-                <p className="text-xs text-gray-500">{selectedLG.email}</p>
+        {/* Detail modal (triggered by Details button) */}
+        {showDetailModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+            <div className="absolute inset-0 bg-slate-900/60" onClick={() => setShowDetailModal(false)} />
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="relative z-10 w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-3xl bg-white shadow-2xl"
+            >
+              <div className="flex items-center justify-between border-b px-6 py-4">
+                <div>
+                  <p className="text-lg font-semibold text-slate-900">Detail Report</p>
+                  {selectedLG && (
+                    <p className="text-xs text-slate-500">{selectedLG.name} • {selectedLG.email}</p>
+                  )}
+                </div>
+                <button
+                  className="px-3 py-1 rounded border bg-slate-50 text-xs text-slate-600 hover:bg-slate-100"
+                  onClick={() => setShowDetailModal(false)}
+                >
+                  Close
+                </button>
               </div>
-            </div>
-          )}
-          {selectedLG && detailDaily.length > 0 && (
-            <div className="px-4 py-3 border-b bg-gray-50 text-sm text-gray-700">
-              <div className="flex flex-wrap gap-4 items-center">
-                <span className="font-semibold">Total</span>
-                <span>LG Till Date: <span className="font-semibold text-gray-900">{detailTotals.lgTillDate}</span></span>
-                <span>Wrong Number: <span className="font-semibold text-gray-900">{detailTotals.wrongNumber}</span></span>
-                <span>Rejected: <span className="font-semibold text-gray-900">{detailTotals.rejected}</span></span>
+              <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 64px)' }}>
+                                {loadingDetail ? (
+                  <div className="py-10 text-center text-sm text-slate-500">Loading detail report…</div>
+                ) : !selectedLG ? (
+                  <div className="py-10 text-center text-sm text-slate-500">Select an LG to view details.</div>
+                ) : detailDaily.length === 0 ? (
+                  <div className="py-10 text-center text-sm text-slate-500">No detail data for the selected period.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-slate-100 text-slate-700">
+                        <tr>
+                          <th className="px-4 py-2 text-left">Date</th>
+                          <th className="px-4 py-2 text-right">LG Till Date</th>
+                          <th className="px-4 py-2 text-right">Wrong Number</th>
+                          <th className="px-4 py-2 text-right">Rejected</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {/* Totals row as first row */}
+                        <tr className="border-t bg-slate-50 font-semibold text-slate-800">
+                          <td className="px-4 py-2">Totals</td>
+                          <td className="px-4 py-2 text-right">{detailTotals.lgTillDate}</td>
+                          <td className="px-4 py-2 text-right">{detailTotals.wrongNumber}</td>
+                          <td className="px-4 py-2 text-right">{detailTotals.rejected}</td>
+                        </tr>
+                        {sortedDetailDaily.map((row, idx) => (
+                          <React.Fragment key={row.date}>
+                            <tr className="border-t">
+                              <td className="px-4 py-2 text-slate-600">{row.date}</td>
+                              <td className="px-4 py-2 text-right">{row.lgTillDate}</td>
+                              <td className="px-4 py-2 text-right">{row.wrongNumber}</td>
+                              <td className="px-4 py-2 text-right">{row.rejected}</td>
+                            </tr>
+                          </React.Fragment>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
-            </div>
-          )}
-          {loadingDetail ? (
-            <div className="p-6 text-center text-gray-500">Loading detail...</div>
-          ) : !selectedLG ? (
-            <div className="p-6 text-center text-gray-500">
-              Select an LG from the list above to see date-wise details.
-            </div>
-          ) : detailDaily.length === 0 ? (
-            <div className="p-6 text-center text-gray-500">
-              No data for selected LG and period.
-            </div>
-          ) : (
-            <table className="min-w-full text-sm">
-              <thead className="bg-gray-100 text-gray-700">
-                <tr>
-                  <th className="px-4 py-2 text-left">Date</th>
-                  <th className="px-4 py-2 text-right">LG Till Date</th>
-                  <th className="px-4 py-2 text-right">Wrong Number</th>
-                  <th className="px-4 py-2 text-right">Rejected</th>
-                  <th className="px-4 py-2 text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedDetailDaily.map((row) => (
-                  <tr key={row.date} className="border-t">
-                    <td className="px-4 py-2">{row.date}</td>
-                    <td className="px-4 py-2 text-right">{row.lgTillDate}</td>
-                    <td className="px-4 py-2 text-right">{row.wrongNumber}</td>
-                    <td className="px-4 py-2 text-right">{row.rejected}</td>
-                    <td className="px-4 py-2 text-right">{detailRowTotal(row)}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot className="bg-white border-t">
-                <tr className="text-sm font-semibold text-gray-700">
-                  <td className="px-4 py-2">Total</td>
-                  <td className="px-4 py-2 text-right">{detailTotals.lgTillDate}</td>
-                  <td className="px-4 py-2 text-right">{detailTotals.wrongNumber}</td>
-                  <td className="px-4 py-2 text-right">{detailTotals.rejected}</td>
-                  <td className="px-4 py-2 text-right">{detailTotals.total}</td>
-                </tr>
-              </tfoot>
-            </table>
-          )}
-        </div>
+            </motion.div>
+          </div>
+        )}
 
         {/* Bad-data leads panel */}
         {showBadDataModal && (

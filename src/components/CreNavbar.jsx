@@ -6,8 +6,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 
 const navItems = [
   { name: 'Home', icon: <FiHome />, path: '/CRE-CRMDashboard' },
-  { name: 'New Lead', icon: <BsFillPersonPlusFill />, path: '/creassignedlead' },
-  { name: 'Lead Generation', icon: <FiUser />, path: '' },
+  { name: 'Get Next Lead', icon: <BsFillPersonPlusFill />, path: '/creassignedlead' },
+  { name: 'Add Lead', icon: <FiUser />, path: '/cre/add-lead' },
 ];
 
 const CRENavbar = () => {

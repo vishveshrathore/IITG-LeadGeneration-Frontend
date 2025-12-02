@@ -24,12 +24,10 @@ const MyTeam = () => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [selectedUserId, setSelectedUserId] = useState('');
-  const [viewOpen, setViewOpen] = useState(false);
-  const [viewLead, setViewLead] = useState(null);
-  const [activeTab, setActiveTab] = useState('overview');
   const [conductionDone, setConductionDone] = useState({});
   const navigate = useNavigate();
   const [confirmToggle, setConfirmToggle] = useState({ open: false, id: null, next: false });
+  const [statusUpdate, setStatusUpdate] = useState({ open: false, id: null, status: '' });
 
   useEffect(() => {
     if (!token || !isLeader) return;
@@ -70,6 +68,19 @@ const MyTeam = () => {
     } catch (e) {
       // rollback on failure
       setConductionDone(prev => ({ ...prev, [String(assignmentId)]: !value }));
+    }
+  };
+
+  const persistStatusUpdate = async (assignmentId, newStatus) => {
+    try {
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      await axios.put(`${BASE_URL}/api/cre/lead/${assignmentId}`, { currentStatus: newStatus }, { headers });
+      // Update local state
+      setTeamLeadsData(prev => prev.map(lead => 
+        lead._id === assignmentId ? { ...lead, currentStatus: newStatus } : lead
+      ));
+    } catch (e) {
+      console.error('Failed to update status:', e);
     }
   };
 
@@ -141,6 +152,8 @@ const MyTeam = () => {
       rnr: 0,
       total: 0,
       todaysFollowups: 0,
+      leadUsage: 0,
+      leadQuota: 0,
     };
     for (const m of teamMembers) {
       const id = String(m._id);
@@ -153,6 +166,8 @@ const MyTeam = () => {
       sum.pending += Number(m?.metrics?.pending || 0);
       sum.total += Number(m?.metrics?.total || 0);
       sum.todaysFollowups += Number(m?.metrics?.todaysFollowups || 0);
+      sum.leadUsage += Number(m?.currentUsage || 0);
+      sum.leadQuota += Number(m?.leadQuota || 0);
     }
     return sum;
   }, [teamMembers, memberClosedCounts, memberConductionCounts, memberRnrCounts]);
@@ -187,7 +202,7 @@ const MyTeam = () => {
       });
     }
     if (followUpTodayOnly) {
-      const start = new Date(); start.setHours(0,0,0,0);
+      const start = new Date(); start.setHours(0, 0, 0, 0);
       const end = new Date(start); end.setDate(end.getDate() + 1);
       rows = rows.filter(a => {
         if (!a.followUps || a.followUps.length === 0) return false;
@@ -216,7 +231,7 @@ const MyTeam = () => {
       .trim()
       .replace(/^\w/, (c) => c.toUpperCase());
   };
-  const excludedCompanyKeys = new Set(['Address','City','State','Pin','GST']);
+  const excludedCompanyKeys = new Set(['Address', 'City', 'State', 'Pin', 'GST']);
   const isLikelyId = (v) => typeof v === 'string' && /^[a-f0-9]{24}$/i.test(v);
   const isIdKey = (k) => {
     if (!k) return false;
@@ -227,7 +242,7 @@ const MyTeam = () => {
     if (value === null || value === undefined) {
       return (
         <div className="grid grid-cols-3 gap-2 text-xs">
-          <div className="text-slate-500 col-span-1">{prettyLabel(path[path.length-1])}</div>
+          <div className="text-slate-500 col-span-1">{prettyLabel(path[path.length - 1])}</div>
           <div className="col-span-2">—</div>
         </div>
       );
@@ -237,13 +252,13 @@ const MyTeam = () => {
         <div className="space-y-2">
           {value.length === 0 ? (
             <div className="grid grid-cols-3 gap-2 text-xs">
-              <div className="text-slate-500 col-span-1">{prettyLabel(path[path.length-1])}</div>
+              <div className="text-slate-500 col-span-1">{prettyLabel(path[path.length - 1])}</div>
               <div className="col-span-2">—</div>
             </div>
           ) : (
             value.map((v, i) => (
               <div key={i} className="rounded-md border border-slate-200 p-3">
-                <div className="text-[11px] text-slate-500 mb-2">{prettyLabel(path[path.length-1])} #{i+1}</div>
+                <div className="text-[11px] text-slate-500 mb-2">{prettyLabel(path[path.length - 1])} #{i + 1}</div>
                 {typeof v === 'object' && v !== null ? (
                   <div className="space-y-1">{Object.entries(v)
                     .filter(([k, vv]) => !(isIdKey(k) || isLikelyId(vv)))
@@ -267,7 +282,7 @@ const MyTeam = () => {
       );
     }
     if (typeof value === 'object') {
-      const isCompany = path[path.length-1] === 'company' || path.includes('company');
+      const isCompany = path[path.length - 1] === 'company' || path.includes('company');
       const entries = Object.entries(value).filter(([k, v]) => {
         if (isCompany && excludedCompanyKeys.has(k)) return false;
         if (isIdKey(k)) return false;
@@ -290,12 +305,12 @@ const MyTeam = () => {
         </div>
       );
     }
-    if (isLikelyId(value) || isIdKey(path[path.length-1])) {
+    if (isLikelyId(value) || isIdKey(path[path.length - 1])) {
       return null;
     }
     return (
       <div className="grid grid-cols-3 gap-2 text-xs">
-        <div className="text-slate-500 col-span-1">{prettyLabel(path[path.length-1])}</div>
+        <div className="text-slate-500 col-span-1">{prettyLabel(path[path.length - 1])}</div>
         <div className="col-span-2">{String(value ?? '—')}</div>
       </div>
     );
@@ -306,7 +321,7 @@ const MyTeam = () => {
       <CRENavbar />
       <div className="pt-20 px-6 w-full">
         <div className="mb-4 flex items-center justify-between">
-          <motion.h1 initial={{opacity:0,y:10}} animate={{opacity:1,y:0}} className="text-2xl font-bold">My Team</motion.h1>
+          <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-2xl font-bold">My Team</motion.h1>
           <button onClick={() => navigate('/cre/team-stats')} className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-3 py-1.5 text-white text-xs hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500">Detailed Stats</button>
         </div>
 
@@ -320,7 +335,8 @@ const MyTeam = () => {
                     <th className="px-4 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Name</th>
                     <th className="px-4 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Role</th>
                     <th className="px-4 py-3 text-left font-semibold text-slate-700 whitespace-nowrap">Email</th>
-                    <th className="px-4 py-3 text-right font-semibold text-slate-700 whitespace-nowrap">Total Leads Consumed</th>
+                    <th className="px-4 py-3 text-right font-semibold text-slate-700 whitespace-nowrap">Alloted Leads</th>
+                    <th className="px-4 py-3 text-right font-semibold text-slate-700 whitespace-nowrap">Used Leads</th>
                     <th className="px-4 py-3 text-right font-semibold text-slate-700 whitespace-nowrap">Positive</th>
                     <th className="px-4 py-3 text-right font-semibold text-slate-700 whitespace-nowrap">Negative</th>
                     <th className="px-4 py-3 text-right font-semibold text-slate-700 whitespace-nowrap">RNR</th>
@@ -334,7 +350,7 @@ const MyTeam = () => {
                 <tbody className="divide-y divide-slate-100">
                   {loadingMembers ? (
                     <tr>
-                      <td className="px-4 py-5 text-sm text-slate-500" colSpan={12}>Loading team members…</td>
+                      <td className="px-4 py-5 text-sm text-slate-500" colSpan={13}>Loading team members…</td>
                     </tr>
                   ) : (
                     <>
@@ -349,6 +365,9 @@ const MyTeam = () => {
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-slate-700">{role || user?.role || '—'}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-slate-700">{user?.email || '—'}</td>
+                        <td className="px-4 py-3 text-right">
+                          <span className="inline-flex min-w-[3rem] justify-end font-semibold text-slate-800">{teamTotals.leadQuota}</span>
+                        </td>
                         <td className="px-4 py-3 text-right">
                           <span className="inline-flex min-w-[2.5rem] justify-end font-semibold text-slate-800">{teamTotals.total}</span>
                         </td>
@@ -379,7 +398,7 @@ const MyTeam = () => {
                       </tr>
                       {teamMembers.length === 0 ? (
                         <tr>
-                          <td className="px-4 py-6 text-slate-500 text-sm" colSpan={12}>No team members found.</td>
+                          <td className="px-4 py-6 text-slate-500 text-sm" colSpan={13}>No team members found.</td>
                         </tr>
                       ) : (
                         teamMembers.map((m, idx) => (
@@ -411,6 +430,9 @@ const MyTeam = () => {
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap text-[11px] text-slate-600">{m.role || '—'}</td>
                             <td className="px-4 py-3 whitespace-nowrap text-[11px] text-slate-500 md:table-cell hidden">{m.email || '—'}</td>
+                            <td className="px-4 py-3 text-right text-slate-800">
+                              <span className="inline-flex min-w-[3rem] justify-end font-semibold">{m.leadQuota ?? 0}</span>
+                            </td>
                             <td className="px-4 py-3 text-right text-slate-800">
                               <span className="inline-flex min-w-[2.5rem] justify-end font-semibold">{m.metrics?.total ?? 0}</span>
                             </td>
@@ -453,7 +475,7 @@ const MyTeam = () => {
         <div className="mb-3 flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
             <label className="text-xs text-slate-600">Filter by member</label>
-            <select value={selectedUserId} onChange={(e)=>{ setSelectedUserId(e.target.value); setPage(1); }} className="border rounded-md px-2 py-1 text-sm">
+            <select value={selectedUserId} onChange={(e) => { setSelectedUserId(e.target.value); setPage(1); }} className="border rounded-md px-2 py-1 text-sm">
               <option value="">All</option>
               {teamMembers.map(m => (
                 <option key={m._id} value={m._id}>{m.name} ({m.role})</option>
@@ -462,7 +484,7 @@ const MyTeam = () => {
           </div>
           <div className="flex items-center gap-2">
             <label className="text-xs text-slate-600">Status</label>
-            <select value={statusFilter} onChange={(e)=>{ setStatusFilter(e.target.value); setPage(1); }} className="border rounded-md px-2 py-1 text-sm">
+            <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} className="border rounded-md px-2 py-1 text-sm">
               <option value="">All</option>
               <option value="Pending">Pending</option>
               <option value="Positive">Positive</option>
@@ -473,12 +495,12 @@ const MyTeam = () => {
           </div>
           <div className="flex items-center gap-2">
             <label className="text-xs text-slate-600">Follow-up Today</label>
-            <input type="checkbox" checked={followUpTodayOnly} onChange={(e)=>{ setFollowUpTodayOnly(e.target.checked); setPage(1); }} />
+            <input type="checkbox" checked={followUpTodayOnly} onChange={(e) => { setFollowUpTodayOnly(e.target.checked); setPage(1); }} />
           </div>
           <div className="flex items-center gap-2">
-            <input value={search} onChange={(e)=>{ setSearch(e.target.value); setPage(1); }} placeholder="Search lead/company/CRE…" className="w-64 border rounded-md px-3 py-1 text-sm" />
+            <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Search lead/company/CRE…" className="w-64 border rounded-md px-3 py-1 text-sm" />
             <label className="text-xs text-slate-600">Page size</label>
-            <select value={pageSize} onChange={(e)=>{ setPageSize(Number(e.target.value)); setPage(1); }} className="border rounded-md px-2 py-1 text-sm">
+            <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className="border rounded-md px-2 py-1 text-sm">
               <option value={10}>10</option>
               <option value={20}>20</option>
               <option value={50}>50</option>
@@ -540,11 +562,28 @@ const MyTeam = () => {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             <button
-                              onClick={() => { setViewLead(a); setViewOpen(true); }}
+                              onClick={() => navigate(`/cre/lead/${a._id}`, { state: { assignment: a } })}
                               className="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-3 py-1.5 text-white text-xs hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             >
                               View
                             </button>
+                            <select
+                              value={status}
+                              onChange={(e) => {
+                                const newStatus = e.target.value;
+                                if (newStatus && newStatus !== status) {
+                                  setStatusUpdate({ open: true, id: a._id, status: newStatus });
+                                }
+                              }}
+                              className="border rounded-md px-2 py-1 text-xs bg-white text-slate-700 border-slate-300 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            >
+                              <option value="">Change Status</option>
+                              <option value="Pending">Pending</option>
+                              <option value="Positive">Positive</option>
+                              <option value="Negative">Negative</option>
+                              <option value="Closure Prospects">Closure Prospects</option>
+                              <option value="Closed">Closed</option>
+                            </select>
                             <div className="flex items-center gap-2 text-xs">
                               <span className="text-slate-600">Conduction done</span>
                               <button
@@ -572,200 +611,59 @@ const MyTeam = () => {
           <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-t border-slate-200">
             <div className="text-xs text-slate-500">Page {currentPage} of {totalPages} · {filteredLeads.length} result(s)</div>
             <div className="flex gap-2">
-              <button onClick={()=>setPage(p=>Math.max(1,p-1))} disabled={currentPage<=1} className="px-3 py-1.5 text-xs rounded-md bg-white border border-slate-300 text-slate-700 disabled:opacity-50">Prev</button>
-              <button onClick={()=>setPage(p=>Math.min(totalPages,p+1))} disabled={currentPage>=totalPages} className="px-3 py-1.5 text-xs rounded-md bg-white border border-slate-300 text-slate-700 disabled:opacity-50">Next</button>
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={currentPage <= 1} className="px-3 py-1.5 text-xs rounded-md bg-white border border-slate-300 text-slate-700 disabled:opacity-50">Prev</button>
+              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages} className="px-3 py-1.5 text-xs rounded-md bg-white border border-slate-300 text-slate-700 disabled:opacity-50">Next</button>
             </div>
           </div>
         </div>
       </div>
-      {viewOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-slate-900/50" onClick={() => { setViewOpen(false); setViewLead(null); }} />
-          <motion.div initial={{opacity:0, y:12}} animate={{opacity:1, y:0}} className="relative z-10 w-[90vw] max-w-5xl max-h-[85vh] overflow-hidden rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
-              <div className="min-w-0">
-                <div className="text-base font-semibold truncate">Lead Details</div>
-                <div className="text-xs text-slate-500 truncate">{viewLead?.lead?.name || '—'}{viewLead?.lead?.email ? ` • ${viewLead.lead.email}` : ''}</div>
-              </div>
-              <button onClick={() => { setViewOpen(false); setViewLead(null); }} className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50">Close</button>
-            </div>
-            <div className="p-5 overflow-y-auto" style={{maxHeight: 'calc(85vh - 48px)'}}>
-              <div className="mb-4 flex items-center justify-between">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="h-10 w-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-semibold">
-                    {(viewLead?.lead?.name || '—').slice(0,1).toUpperCase()}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-sm font-semibold truncate">{viewLead?.lead?.name || '—'}</div>
-                    <div className="text-xs text-slate-500 truncate">{viewLead?.lead?.designation || '—'} {viewLead?.lead?.company?.CompanyName ? `• ${viewLead.lead.company.CompanyName}` : ''}</div>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-700">{viewLead?.currentStatus || '—'}</span>
-                  <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-700">Closure: {viewLead?.closureStatus || '—'}</span>
-                </div>
-              </div>
-              <div className="border-b border-slate-200 mb-4">
-                <nav className="-mb-px flex gap-4 text-xs">
-                  {['overview','history','followups','all'].map(tab => (
-                    <button key={tab} onClick={() => setActiveTab(tab)} className={`${activeTab===tab ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'} whitespace-nowrap border-b-2 px-2.5 py-2 font-medium`}>{
-                      tab === 'overview' ? 'Overview' : tab === 'history' ? 'History' : tab === 'followups' ? 'Follow-ups' : 'All Details'
-                    }</button>
-                  ))}
-                </nav>
-              </div>
-              {activeTab === 'overview' && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-3">
-                    <div className="rounded-lg border border-slate-200">
-                      <div className="px-4 py-2 text-sm font-medium bg-slate-50 border-b border-slate-200">Lead</div>
-                      <div className="p-4 text-xs space-y-1">
-                        <div><span className="text-slate-500">Name:</span> {viewLead?.lead?.name || '—'}</div>
-                        <div><span className="text-slate-500">Designation:</span> {viewLead?.lead?.designation || '—'}</div>
-                        <div><span className="text-slate-500">Location:</span> {viewLead?.lead?.location || '—'}</div>
-                        <div><span className="text-slate-500">Email:</span> {viewLead?.lead?.email || '—'}</div>
-                        <div><span className="text-slate-500">Mobile:</span> {Array.isArray(viewLead?.lead?.mobile) ? viewLead.lead.mobile.join(', ') : (viewLead?.lead?.mobile || '—')}</div>
-                        <div><span className="text-slate-500">Product Line:</span> {viewLead?.lead?.productLine || '—'}</div>
-                        <div><span className="text-slate-500">Turnover:</span> {viewLead?.lead?.turnover || viewLead?.lead?.turnOver || '—'}</div>
-                      </div>
-                    </div>
-                    <div className="rounded-lg border border-slate-200">
-                      <div className="px-4 py-2 text-sm font-medium bg-slate-50 border-b border-slate-200">Company</div>
-                      <div className="p-4 text-xs space-y-1">
-                        <div><span className="text-slate-500">Name:</span> {viewLead?.lead?.company?.CompanyName || '—'}</div>
-                      </div>
-                    </div>
-                    <div className="rounded-lg border border-slate-200">
-                      <div className="px-4 py-2 text-sm font-medium bg-slate-50 border-b border-slate-200">Assignment</div>
-                      <div className="p-4 text-xs space-y-1">
-                        <div><span className="text-slate-500">Assigned CRE:</span> {viewLead?.Calledbycre?.name || '—'}</div>
-                        <div><span className="text-slate-500">Manager(s):</span> {Array.isArray(viewLead?.reportingManagers) && viewLead.reportingManagers.length > 0 ? viewLead.reportingManagers.map(rm => `${rm?.name || ''}${rm?.email ? ` (${rm.email})` : ''}`).filter(Boolean).join(', ') : (viewLead?.reportingManager?.name || '—')}</div>
-                        <div><span className="text-slate-500">Current Status:</span> {viewLead?.currentStatus || (Array.isArray(viewLead?.statusHistory) && viewLead.statusHistory.length > 0 ? viewLead.statusHistory[viewLead.statusHistory.length - 1]?.status : '—')}</div>
-                        <div><span className="text-slate-500">Closure Status:</span> {viewLead?.closureStatus || '—'}</div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="md:col-span-2 space-y-4">
-                    <div className="rounded-lg border border-slate-200">
-                      <div className="px-4 py-2 text-sm font-medium bg-slate-50 border-b border-slate-200">Status History</div>
-                      <div className="p-4">
-                        {Array.isArray(viewLead?.statusHistory) && viewLead.statusHistory.length > 0 ? (
-                          <ul className="space-y-2 text-xs">
-                            {viewLead.statusHistory.map((s, idx) => (
-                              <li key={idx} className="rounded-md border border-slate-200 p-3">
-                                <div className="flex items-center justify-between">
-                                  <div className="font-medium">{s?.status || '—'}</div>
-                                  <div className="text-slate-500">{s?.date ? new Date(s.date).toLocaleString() : '—'}</div>
-                                </div>
-                                <div className="mt-1 text-slate-600">{s?.remarks || s?.note || '—'}</div>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <div className="text-xs text-slate-500">No status history.</div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="rounded-lg border border-slate-200">
-                      <div className="px-4 py-2 text-sm font-medium bg-slate-50 border-b border-slate-200">Follow-ups</div>
-                      <div className="p-4">
-                        {Array.isArray(viewLead?.followUps) && viewLead.followUps.length > 0 ? (
-                          <ul className="space-y-2 text-xs">
-                            {viewLead.followUps.map((fu, idx) => (
-                              <li key={idx} className="rounded-md border border-slate-200 p-3">
-                                <div className="flex items-center justify-between">
-                                  <div className="font-medium">{fu?.status || fu?.type || '—'}</div>
-                                  <div className="text-slate-500">{fu?.followUpDate ? new Date(fu.followUpDate).toLocaleString() : (fu?.date ? new Date(fu.date).toLocaleString() : '—')}</div>
-                                </div>
-                                <div className="mt-1 text-slate-600">{fu?.remarks || fu?.note || '—'}</div>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <div className="text-xs text-slate-500">No follow-ups.</div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {activeTab === 'history' && (
-                <div className="rounded-lg border border-slate-200">
-                  <div className="px-4 py-2 text-sm font-medium bg-slate-50 border-b border-slate-200">Status History</div>
-                  <div className="p-4">
-                    {Array.isArray(viewLead?.statusHistory) && viewLead.statusHistory.length > 0 ? (
-                      <ul className="space-y-2 text-xs">
-                        {viewLead.statusHistory.map((s, idx) => (
-                          <li key={idx} className="rounded-md border border-slate-200 p-3">
-                            <div className="flex items-center justify-between">
-                              <div className="font-medium">{s?.status || '—'}</div>
-                              <div className="text-slate-500">{s?.date ? new Date(s.date).toLocaleString() : '—'}</div>
-                            </div>
-                            <div className="mt-1 text-slate-600">{s?.remarks || s?.note || '—'}</div>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <div className="text-xs text-slate-500">No status history.</div>
-                    )}
-                  </div>
-                </div>
-              )}
-              {activeTab === 'followups' && (
-                <div className="rounded-lg border border-slate-200">
-                  <div className="px-4 py-2 text-sm font-medium bg-slate-50 border-b border-slate-200">Follow-ups</div>
-                  <div className="p-4">
-                    {Array.isArray(viewLead?.followUps) && viewLead.followUps.length > 0 ? (
-                      <ul className="space-y-2 text-xs">
-                        {viewLead.followUps.map((fu, idx) => (
-                          <li key={idx} className="rounded-md border border-slate-200 p-3">
-                            <div className="flex items-center justify-between">
-                              <div className="font-medium">{fu?.status || fu?.type || '—'}</div>
-                              <div className="text-slate-500">{fu?.followUpDate ? new Date(fu.followUpDate).toLocaleString() : (fu?.date ? new Date(fu.date).toLocaleString() : '—')}</div>
-                            </div>
-                            <div className="mt-1 text-slate-600">{fu?.remarks || fu?.note || '—'}</div>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <div className="text-xs text-slate-500">No follow-ups.</div>
-                    )}
-                  </div>
-                </div>
-              )}
-              {activeTab === 'all' && (
-                <div className="rounded-lg border border-slate-200">
-                  <div className="px-4 py-2 text-sm font-medium bg-slate-50 border-b border-slate-200">All Details</div>
-                  <div className="p-4">
-                    {renderEntries(viewLead || {}, ['root'])}
-                  </div>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        </div>
-      )}
       {confirmToggle.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-slate-900/50" onClick={() => setConfirmToggle({ open:false, id:null, next:false })} />
-          <motion.div initial={{opacity:0, y:12}} animate={{opacity:1, y:0}} className="relative z-10 w-[90vw] max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl">
+          <div className="absolute inset-0 bg-slate-900/50" onClick={() => setConfirmToggle({ open: false, id: null, next: false })} />
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 w-[90vw] max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
               <div className="text-base font-semibold">Confirm</div>
-              <button onClick={() => setConfirmToggle({ open:false, id:null, next:false })} className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50">Close</button>
+              <button onClick={() => setConfirmToggle({ open: false, id: null, next: false })} className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50">Close</button>
             </div>
             <div className="p-5 space-y-4">
               <div className="text-sm text-slate-700">Are you sure you want to mark Conduction done to {confirmToggle.next ? 'Yes' : 'No'}?</div>
               <div className="flex justify-end gap-2">
-                <button onClick={() => setConfirmToggle({ open:false, id:null, next:false })} className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50">Cancel</button>
+                <button onClick={() => setConfirmToggle({ open: false, id: null, next: false })} className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50">Cancel</button>
                 <button
                   onClick={() => {
                     const id = confirmToggle.id;
                     const val = confirmToggle.next;
                     setConductionDone(prev => ({ ...prev, [String(id)]: val }));
                     persistConductionDone(id, val);
-                    setConfirmToggle({ open:false, id:null, next:false });
+                    setConfirmToggle({ open: false, id: null, next: false });
                   }}
                   className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-3 py-1.5 text-white text-xs hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >Confirm</button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+      {statusUpdate.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-slate-900/50" onClick={() => setStatusUpdate({ open: false, id: null, status: '' })} />
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 w-[90vw] max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+              <div className="text-base font-semibold">Confirm Status Change</div>
+              <button onClick={() => setStatusUpdate({ open: false, id: null, status: '' })} className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50">Close</button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="text-sm text-slate-700">Are you sure you want to change the status to <span className="font-semibold text-indigo-600">{statusUpdate.status}</span>?</div>
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setStatusUpdate({ open: false, id: null, status: '' })} className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50">Cancel</button>
+                <button
+                  onClick={() => {
+                    const id = statusUpdate.id;
+                    const newStatus = statusUpdate.status;
+                    persistStatusUpdate(id, newStatus);
+                    setStatusUpdate({ open: false, id: null, status: '' });
+                  }}
+                  className="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-3 py-1.5 text-white text-xs hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >Confirm</button>
               </div>
             </div>

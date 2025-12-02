@@ -17,6 +17,16 @@ const cardVariants = {
 const buttonBase =
   "px-3 py-2 rounded-xl text-sm font-medium transition focus:outline-none focus:ring disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1";
 
+// Leader roles, treating Deputies same as their heads (shared with OrgChartNode)
+const leaderRoles = [
+  "CRM-TeamLead",
+  "DeputyCRMTeamLead",
+  "RegionalHead",
+  "DeputyRegionalHead",
+  "NationalHead",
+  "DeputyNationalHead",
+];
+
 const Badge = ({ children, className = "" }) => (
   <span
     className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${className}`}
@@ -511,6 +521,7 @@ export default function CRELeadsApprovalDashboard() {
     Rejected: creCounts.rejected?.total || 0,
     Approved: creCounts.approved?.total || 0,
     NonApproved: creCounts.nonApproved?.total || 0,
+    CREGenerated: creCounts.creGenerated?.total || 0,
   }), [creCounts]);
 
   const filteredLeads = React.useMemo(() => {
@@ -523,6 +534,10 @@ export default function CRELeadsApprovalDashboard() {
     if (activeTab === 'NonApproved') {
       // Explicit Non-Approved status from backend
       return leads.filter((l) => l.status === 'Non-Approved');
+    }
+    if (activeTab === 'CREGenerated') {
+      // For CRE-generated tab, rely on backend filtering (tab=CREGenerated)
+      return leads;
     }
     // Unassigned: status is neither approved, rejected, nor Non-Approved
     return leads.filter((l) => l.status !== 'approved for calling' && l.status !== 'rejected' && l.status !== 'Non-Approved');
@@ -539,13 +554,14 @@ export default function CRELeadsApprovalDashboard() {
         </h1>
       </div>
 
-      {/* Tabs: Unassigned, Rejected, Approved */}
+      {/* Tabs: Unassigned, Rejected, Approved, Non-Approved, CRE Generated */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {[
           { key: 'Unassigned', label: 'Unassigned' },
           { key: 'Rejected', label: 'Rejected' },
           { key: 'Approved', label: 'Approved for Calling' },
           { key: 'NonApproved', label: 'Non-Approved' },
+          { key: 'CREGenerated', label: 'CRE-CRM Generated' },
         ].map((t) => {
           const isActive = activeTab === t.key;
           return (
