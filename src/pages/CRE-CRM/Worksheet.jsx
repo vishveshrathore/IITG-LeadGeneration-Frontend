@@ -274,7 +274,7 @@ const MyWorksheet = () => {
 
   const openWhatsApp = async (assignmentId, number, recipientName, senderName) => {
     if (!number) { toast.error("Mobile number not found"); return; }
-    const message = `Hello ${recipientName},\n\nThis is ${senderName} from IITGJobs.com Pvt.Ltd. We have recently launched a tech-driven product to help organizations control attrition, and I would like to seek an appointment with you.\n\nYour insights would mean a lot. Kindly let me know your comfortable timings for a telephonic discussion. I look forward to hearing from you.\n\nBest regards,  \n${senderName}  \nIITGJobs.com`;
+    const message = `Hello ${recipientName},\nHope you're doing well.\nWe’ve launched a tech-driven solution that can reduce attrition by up to 80%. Until attrition is controlled, we’re also offering hiring services at just 2% of CTC across levels. I’d appreciate a short GMeet to discuss this in detail.\nPlease share a convenient date and time.\nWarm regards,\n${senderName}\nCRE-CRM,\nhttps://iitgjobs.co.in/attrition-demo`;
     const url = `https://web.whatsapp.com/send?phone=91${number}&text=${encodeURIComponent(message)}`;
     const win = window.open(url, "whatsappWindow");
     if (win) win.focus();

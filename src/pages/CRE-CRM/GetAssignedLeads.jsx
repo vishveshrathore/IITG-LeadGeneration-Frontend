@@ -368,19 +368,16 @@ const LeadAssignmentDashboard = () => {
     }
   };
 
-  
-
 
   const openWhatsApp = (number, recipientName, senderName) => {
     const message = `Hello ${recipientName},
-
-This is ${senderName} from IITGJobs.com.Pvt.Ltd. We have recently launched a tech-driven product to help organizations control attrition, and I would like to seek an appointment with you.
-
-Your insights would mean a lot. Kindly let me know your comfortable timings for a telephonic discussion. I look forward to hearing from you.
-
-Best regards,  
-${senderName}  
-IITGJobs.com`;
+Hope you're doing well.
+We’ve launched a tech-driven solution that can reduce attrition by up to 80%. Until attrition is controlled, we’re also offering hiring services at just 2% of CTC across levels. I’d appreciate a short GMeet to discuss this in detail.
+Please share a convenient date and time.
+Warm regards,
+${senderName}
+CRE-CRM,
+https://iitgjobs.co.in/attrition-demo`;
 
     const url = `https://web.whatsapp.com/send?phone=91${number}&text=${encodeURIComponent(
       message
