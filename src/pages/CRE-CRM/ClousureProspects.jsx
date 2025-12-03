@@ -252,6 +252,7 @@ const ClousureProspects = () => {
                   <th className="px-3 py-2 text-left text-sm">Company name</th>
                   <th className="px-3 py-2 text-left text-sm">Designation</th>
                   <th className="px-3 py-2 text-left text-sm">Location</th>
+                  <th className="px-3 py-2 text-left text-sm">Updated</th>
                   <th className="px-3 py-2 text-left text-sm">Latest Remark</th>
                   <th className="px-3 py-2 text-left text-sm">Followups</th>
                   <th className="px-3 py-2 text-left text-sm">Details</th>
@@ -267,6 +268,7 @@ const ClousureProspects = () => {
                     <td className="px-3 py-2 text-sm">{item?.lead?.company?.CompanyName || "N/A"}</td>
                     <td className="px-3 py-2 text-sm">{item?.lead?.designation || "N/A"}</td>
                     <td className="px-3 py-2 text-sm">{item?.lead?.location || "N/A"}</td>
+                    <td className="px-3 py-2 text-sm whitespace-nowrap">{item?.updatedAt ? new Date(item.updatedAt).toLocaleString() : "N/A"}</td>
                     <td className="px-3 py-2 text-sm">
                       {getLatestRemark(item)}
                       {item?.closureStatus==='Closed' && (
@@ -403,7 +405,6 @@ const ClousureProspects = () => {
                   <div><strong>Closure Status:</strong> {selectedItem?.closureStatus || 'N/A'}</div>
                   <div><strong>Assigned At:</strong> {selectedItem?.assignedAt ? new Date(selectedItem.assignedAt).toLocaleString() : 'N/A'}</div>
                   <div><strong>Created:</strong> {selectedItem?.createdAt ? new Date(selectedItem.createdAt).toLocaleString() : 'N/A'}</div>
-                  <div><strong>Updated:</strong> {selectedItem?.updatedAt ? new Date(selectedItem.updatedAt).toLocaleString() : 'N/A'}</div>
                 </div>
                 <div>
                   <h3 className="font-semibold mb-2">Follow-ups ({Array.isArray(selectedItem?.followUps) ? selectedItem.followUps.length : 0})</h3>
@@ -416,6 +417,10 @@ const ClousureProspects = () => {
                   ) : (
                     <div className="text-slate-500">No follow-ups</div>
                   )}
+                </div>
+                <div className="rounded border p-3 bg-slate-50">
+                  <h3 className="font-semibold mb-2">Updated</h3>
+                  <div>{selectedItem?.updatedAt ? new Date(selectedItem.updatedAt).toLocaleString() : 'N/A'}</div>
                 </div>
                 {/* Latest Remark edit */}
                 <div className="rounded border p-3 bg-slate-50">

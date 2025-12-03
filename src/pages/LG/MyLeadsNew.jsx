@@ -31,6 +31,7 @@ const MyLeadsNew = () => {
   const [companySearchTerm, setCompanySearchTerm] = useState("");
   const [hrLeads, setHrLeads] = useState([]);
   const [highlightedLeadId, setHighlightedLeadId] = useState(null);
+  const [industries, setIndustries] = useState([]);
   const { authToken } = useAuth();
   const token = localStorage.getItem("token");
   const [searchQuery, setSearchQuery] = useState("");
@@ -41,11 +42,9 @@ const MyLeadsNew = () => {
   useEffect(() => {
     const fetchAllCompanies = async () => {
       try {
-        const res = await axios.get(`${BASE_URL}/api/admin/companies`, {
+        const res = await axios.get(`${BASE_URL}/api/lg/companies/available`, {
           headers: { Authorization: `Bearer ${authToken}` },
-          params: { page: 1, limit: 0 },
         });
-
         const { companies: allCompanies = [], total: backendTotal = 0 } = res.data || {};
         setCompanies(allCompanies);
         setFilteredCompanies(allCompanies);
@@ -60,6 +59,23 @@ const MyLeadsNew = () => {
     }
   }, [authToken]);
 
+  useEffect(() => {
+    const fetchIndustries = async () => {
+      try {
+        const res = await axios.get(`${BASE_URL}/api/lg/industry`, {
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+        setIndustries(res.data.industries || []);
+      } catch (error) {
+        toast.error("❌ Failed to load industries");
+      }
+    };
+
+    if (authToken) {
+      fetchIndustries();
+    }
+  }, [authToken]);
+
   const fetchCompanyLeads = async (companyId) => {
     if (!companyId) return;
     try {
@@ -68,25 +84,7 @@ const MyLeadsNew = () => {
       });
       const leads = res.data.leads || [];
       setHrLeads(leads);
-      if (leads.length > 0) {
-        const latest = leads[0];
-        setFormData((prev) => ({
-          ...prev,
-          division: latest.division || "",
-          productLine: latest.productLine || "",
-          turnOver: latest.turnOver || "",
-          employeeStrength: latest.employeeStrength || "",
-          location: latest.location || "",
-        }));
-      } else {
-        setFormData((prev) => ({
-          ...prev,
-          division: "",
-          productLine: "",
-          turnOver: "",
-          employeeStrength: "",
-        }));
-      }
+      // Do not auto-fill division, productLine, turnOver, employeeStrength, or location
     } catch (error) {
       toast.error("❌ Failed to fetch company leads");
     }
@@ -95,9 +93,11 @@ const MyLeadsNew = () => {
   const handleCompanySearch = (e) => {
     const term = e.target.value.toLowerCase();
     setCompanySearchTerm(e.target.value);
-    
+
     const filtered = term
-      ? companies.filter(comp => comp.CompanyName.toLowerCase().includes(term))
+      ? companies.filter((comp) =>
+          comp.CompanyName.toLowerCase().includes(term)
+        )
       : companies;
     setFilteredCompanies(filtered);
   };
@@ -129,6 +129,61 @@ const MyLeadsNew = () => {
     if (companyId) {
       fetchCompanyLeads(companyId);
     }
+  };
+
+  const handleGetNextCompany = async () => {
+    if (!authToken) {
+      toast.error("No token found. Please login again.");
+      return;
+    }
+
+    let updatedCompanies = companies;
+
+    if (formData.companyId) {
+      try {
+        await axios.post(
+          `${BASE_URL}/api/lg/company/${formData.companyId}/complete`,
+          {},
+          {
+            headers: { Authorization: `Bearer ${authToken}` },
+          }
+        );
+
+        updatedCompanies = companies.filter(
+          (comp) => comp._id !== formData.companyId
+        );
+        setCompanies(updatedCompanies);
+      } catch (error) {
+        toast.error("❌ Failed to mark company as completed");
+        return;
+      }
+    }
+
+    if (updatedCompanies.length === 0) {
+      toast.success("All companies are completed for you");
+      setFormData((prev) => ({
+        ...prev,
+        companyId: "",
+        companyName: "",
+        industryId: "",
+        industryName: "",
+      }));
+      setHrLeads([]);
+      setHighlightedLeadId(null);
+      setFilteredCompanies([]);
+      return;
+    }
+
+    const nextCompany = updatedCompanies[0];
+    handleCompanyChange({ target: { value: nextCompany._id } });
+
+    const term = companySearchTerm.toLowerCase();
+    const filtered = term
+      ? updatedCompanies.filter((comp) =>
+          comp.CompanyName.toLowerCase().includes(term)
+        )
+      : updatedCompanies;
+    setFilteredCompanies(filtered);
   };
 
   const handleChange = (e) => {
@@ -252,12 +307,23 @@ const MyLeadsNew = () => {
           onSubmit={handleSubmit}
           className="bg-white p-6 md:p-10 rounded-2xl shadow-xl space-y-6 sticky top-24"
         >
-          <h2 className="text-2xl font-bold text-blue-700 mb-2">
-            My Leads (New)
-          </h2>
-          <p className="text-sm text-gray-500 mb-4">
-            Total Companies: {totalCompanies || companies.length}
-          </p>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+            <div>
+              <h2 className="text-2xl font-bold text-blue-700 mb-2">
+                My Leads (New)
+              </h2>
+              <p className="text-sm text-gray-500">
+                Total Companies: {totalCompanies || companies.length}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleGetNextCompany}
+              className="mt-2 md:mt-0 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition"
+            >
+              Get Next Company
+            </button>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -289,14 +355,43 @@ const MyLeadsNew = () => {
             </div>
             <div>
               <label className="text-sm text-gray-600">Industry</label>
-              <input
-                type="text"
-                name="industryName"
-                value={formData.industryName}
-                readOnly
-                placeholder="Auto-filled from company"
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm bg-gray-100"
-              />
+              <select
+                name="industryId"
+                value={formData.industryId}
+                onChange={async (e) => {
+                  const value = e.target.value;
+                  const selected = industries.find((ind) => ind._id === value);
+
+                  setFormData((prev) => ({
+                    ...prev,
+                    industryId: value,
+                    industryName: selected?.name || "",
+                  }));
+
+                  if (formData.companyId && value && authToken) {
+                    try {
+                      await axios.put(
+                        `${BASE_URL}/api/lg/company/${formData.companyId}/industry`,
+                        { industryId: value },
+                        {
+                          headers: { Authorization: `Bearer ${authToken}` },
+                        }
+                      );
+                      toast.success("✅ Industry updated");
+                    } catch (error) {
+                      toast.error("❌ Failed to update company industry");
+                    }
+                  }
+                }}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white text-gray-900"
+              >
+                <option value="">Select Industry</option>
+                {industries.map((ind) => (
+                  <option key={ind._id} value={ind._id}>
+                    {ind.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -406,44 +501,10 @@ const MyLeadsNew = () => {
                   </div>
 
                   <div className="text-sm text-gray-700 space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">📧 Email:</span>
-                      <div className="flex items-center gap-1">
-                        <span className="truncate max-w-[130px]">
-                          {hr.email || "—"}
-                        </span>
-                        <FaCopy
-                          onClick={() => handleCopy(hr.email)}
-                          title="Copy Email"
-                          className="cursor-pointer text-blue-500 hover:text-blue-700 text-xs"
-                        />
-                      </div>
-                    </div>
+                   
 
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-600">📞 Mobile:</span>
-                      <div className="flex items-center gap-1">
-                        <span className="truncate max-w-[130px]">
-                          {Array.isArray(hr.mobile)
-                            ? hr.mobile.join(", ")
-                            : hr.mobile || ""}
-                        </span>
-                        <FaCopy
-                          onClick={() =>
-                            handleCopy(
-                              Array.isArray(hr.mobile)
-                                ? hr.mobile.join(", ")
-                                : hr.mobile || ""
-                            )
-                          }
-                          title="Copy Mobile"
-                          className="cursor-pointer text-blue-500 hover:text-blue-700 text-xs"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">📍 Location:</span>
+                      <span className="text-gray-600"> Location:</span>
                       <span>{hr.location || "—"}</span>
                     </div>
                   </div>
