@@ -249,9 +249,10 @@ const ClousureProspects = () => {
               <thead className="bg-gray-100 sticky top-0 z-10">
                 <tr>
                   <th className="px-3 py-2 text-left text-sm">Name</th>
-                  <th className="px-3 py-2 text-left text-sm">Company name</th>
-                  <th className="px-3 py-2 text-left text-sm">Designation</th>
                   <th className="px-3 py-2 text-left text-sm">Location</th>
+                  
+                  <th className="px-3 py-2 text-left text-sm">Designation</th>
+                  <th className="px-3 py-2 text-left text-sm">Company name</th>
                   <th className="px-3 py-2 text-left text-sm">Updated</th>
                   <th className="px-3 py-2 text-left text-sm">Latest Remark</th>
                   <th className="px-3 py-2 text-left text-sm">Followups</th>
@@ -265,9 +266,10 @@ const ClousureProspects = () => {
                     className={`hover:bg-gray-50 ${item?.closureStatus==='Closed' ? 'bg-emerald-50/60' : (item?.closureStatus==='In Progress' ? 'bg-amber-50/40' : '')}`}
                   >
                     <td className="px-3 py-2 text-sm">{item?.lead?.name || "N/A"}</td>
-                    <td className="px-3 py-2 text-sm">{item?.lead?.company?.CompanyName || "N/A"}</td>
-                    <td className="px-3 py-2 text-sm">{item?.lead?.designation || "N/A"}</td>
                     <td className="px-3 py-2 text-sm">{item?.lead?.location || "N/A"}</td>
+                    <td className="px-3 py-2 text-sm">{item?.lead?.designation || "N/A"}</td>
+                     <td className="px-3 py-2 text-sm">{item?.lead?.company?.CompanyName || "N/A"}</td>
+                   
                     <td className="px-3 py-2 text-sm whitespace-nowrap">{item?.updatedAt ? new Date(item.updatedAt).toLocaleString() : "N/A"}</td>
                     <td className="px-3 py-2 text-sm">
                       {getLatestRemark(item)}
