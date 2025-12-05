@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FiHome, FiLogOut, FiMenu } from 'react-icons/fi';
+import { FiHome, FiLogOut, FiMenu, FiTool } from 'react-icons/fi';
 import { BsBuildings, BsFillPersonPlusFill } from 'react-icons/bs';
 import { MdBusinessCenter } from 'react-icons/md';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -9,7 +9,7 @@ const adminNavItems = [
   { name: 'Dashboard', icon: <FiHome />, path: '/adminDashboard' },
   { name: 'BD', icon: <BsBuildings />, path: '/BD-Dashboard' },
   { name: 'Recruitment', icon: <MdBusinessCenter />, path: '/admin/recruitment' },
-  { name: 'Tools', icon: <BsFillPersonPlusFill />, path: '/tools/dashboard' },
+  { name: 'Tools', icon: <FiTool />, path: '/tools/dashboard' },
 ];
 
 const AdminNavbar = () => {
