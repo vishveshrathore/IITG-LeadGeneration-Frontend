@@ -136,27 +136,71 @@ export default function CorporateAccountApproval() {
       <div className="p-6 max-w-7xl mx-auto">
         <h1 className="text-2xl font-bold mb-6">Corporate Account Approval</h1>
 
-        <div className="mb-4 flex flex-wrap gap-4 items-end">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Company</label>
-            <input
-              type="text"
-              value={companyFilter}
-              onChange={(e) => setCompanyFilter(e.target.value)}
-              placeholder="Search by company"
-              className="mt-1 block w-56 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
-            />
+        <div className="mb-6 flex flex-wrap gap-4 items-end">
+          <div className="relative">
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Company</label>
+            <div className="relative">
+              <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              <input
+                type="text"
+                value={companyFilter}
+                onChange={(e) => setCompanyFilter(e.target.value)}
+                placeholder="Search by company"
+                className="pl-10 pr-10 py-2 w-64 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm transition"
+              />
+              {companyFilter && (
+                <button
+                  onClick={() => setCompanyFilter("")}
+                  type="button"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition"
+                  title="Clear company filter"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">HR Name</label>
-            <input
-              type="text"
-              value={hrFilter}
-              onChange={(e) => setHrFilter(e.target.value)}
-              placeholder="Search by HR name"
-              className="mt-1 block w-56 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
-            />
+          <div className="relative">
+            <label className="block text-sm font-semibold text-gray-700 mb-1">HR Name</label>
+            <div className="relative">
+              <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              <input
+                type="text"
+                value={hrFilter}
+                onChange={(e) => setHrFilter(e.target.value)}
+                placeholder="Search by HR name"
+                className="pl-10 pr-10 py-2 w-64 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm transition"
+              />
+              {hrFilter && (
+                <button
+                  onClick={() => setHrFilter("")}
+                  type="button"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition"
+                  title="Clear HR filter"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
+          {(companyFilter || hrFilter) && (
+            <button
+              onClick={() => { setCompanyFilter(""); setHrFilter(""); }}
+              type="button"
+              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition"
+              title="Clear all filters"
+            >
+              Clear All
+            </button>
+          )}
         </div>
 
         {loading ? (
