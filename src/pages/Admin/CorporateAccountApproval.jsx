@@ -10,6 +10,8 @@ export default function CorporateAccountApproval() {
   const [loading, setLoading] = useState(false);
   const [accounts, setAccounts] = useState([]);
   const [counts, setCounts] = useState({}); // companyName -> count
+  const [companyFilter, setCompanyFilter] = useState("");
+  const [hrFilter, setHrFilter] = useState("");
 
   const fetchAccounts = async () => {
     setLoading(true);
@@ -116,6 +118,16 @@ export default function CorporateAccountApproval() {
     }
   };
 
+  const filteredAccounts = accounts.filter((acc) => {
+    if (companyFilter && !(acc.companyName || "").toLowerCase().includes(companyFilter.toLowerCase())) {
+      return false;
+    }
+    if (hrFilter && !(acc.hrName || "").toLowerCase().includes(hrFilter.toLowerCase())) {
+      return false;
+    }
+    return true;
+  });
+
   return (
     <div className="min-h-screen bg-gray-50">
       <AdminNavbar />
@@ -123,6 +135,29 @@ export default function CorporateAccountApproval() {
 
       <div className="p-6 max-w-7xl mx-auto">
         <h1 className="text-2xl font-bold mb-6">Corporate Account Approval</h1>
+
+        <div className="mb-4 flex flex-wrap gap-4 items-end">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Company</label>
+            <input
+              type="text"
+              value={companyFilter}
+              onChange={(e) => setCompanyFilter(e.target.value)}
+              placeholder="Search by company"
+              className="mt-1 block w-56 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">HR Name</label>
+            <input
+              type="text"
+              value={hrFilter}
+              onChange={(e) => setHrFilter(e.target.value)}
+              placeholder="Search by HR name"
+              className="mt-1 block w-56 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+            />
+          </div>
+        </div>
 
         {loading ? (
           <p className="text-center text-gray-500">Loading accounts...</p>
@@ -147,7 +182,7 @@ export default function CorporateAccountApproval() {
                 </tr>
               </thead>
               <tbody>
-                {accounts.map((acc) => (
+                {filteredAccounts.map((acc) => (
                   <tr key={acc._id} className="border-b hover:bg-gray-50">
                     {/* Company */}
                     <td className="px-4 py-3 font-medium">{acc.companyName || "-"}</td>
