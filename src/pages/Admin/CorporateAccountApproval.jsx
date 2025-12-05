@@ -133,7 +133,7 @@ export default function CorporateAccountApproval() {
       <AdminNavbar />
       <Toaster position="top-right" />
 
-      <div className="p-6 max-w-7xl mx-auto">
+      <div className="p-4 md:p-6 w-full">
         <h1 className="text-2xl font-bold mb-6">Corporate Account Approval</h1>
 
         <div className="mb-6 flex flex-wrap gap-4 items-end">
@@ -208,7 +208,7 @@ export default function CorporateAccountApproval() {
         ) : accounts.length === 0 ? (
           <p className="text-center text-gray-500">No corporate accounts found</p>
         ) : (
-          <div className="overflow-x-auto bg-white shadow rounded-xl">
+          <div className="bg-white shadow rounded-xl w-full">
             <table className="min-w-full table-auto">
               <thead className="bg-gray-100 text-gray-700">
                 <tr>
