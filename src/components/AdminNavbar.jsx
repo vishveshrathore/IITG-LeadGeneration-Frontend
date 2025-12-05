@@ -7,9 +7,9 @@ import { AnimatePresence, motion } from 'framer-motion';
 
 const adminNavItems = [
   { name: 'Dashboard', icon: <FiHome />, path: '/adminDashboard' },
-  { name: 'Industries', icon: <BsBuildings />, path: '/admin/industries' },
-  { name: 'Companies', icon: <MdBusinessCenter />, path: '/admin/companies' },
-  { name: 'Leads', icon: <BsFillPersonPlusFill />, path: '/admin/leads' },
+  { name: 'BD', icon: <BsBuildings />, path: '/BD-Dashboard' },
+  { name: 'Recruitment', icon: <MdBusinessCenter />, path: '/admin/recruitment' },
+  { name: 'Tools', icon: <BsFillPersonPlusFill />, path: '/tools/dashboard' },
 ];
 
 const AdminNavbar = () => {
