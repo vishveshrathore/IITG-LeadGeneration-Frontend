@@ -876,7 +876,8 @@ const NaukriParser = () => {
                         const endpoint = toRecruitment
                           ? `${BASE_URL}/api/admin/save/parsed/profiles/recruitment`
                           : `${BASE_URL}/api/recruitment/save/parsed-profiles`;
-                        const res = await axios.post(endpoint, payload);
+                        const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
+                        const res = await axios.post(endpoint, payload, { headers });
                         console.log('[Naukri] Upload response', res?.data);
                         if (res?.data?.success) {
                           const savedCount = res.data.count;
