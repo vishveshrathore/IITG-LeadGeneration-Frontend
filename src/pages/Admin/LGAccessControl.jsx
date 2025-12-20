@@ -15,7 +15,9 @@ export default function LGAccessControl() {
   const [error, setError] = useState("");
   const [toggling, setToggling] = useState({}); // { [id]: boolean }
   const [detailItem, setDetailItem] = useState(null); // modal data
-  const ROLE_OPTIONS = ['LG','AdminTeam','CRE-CRM','CRM-TeamLead','DeputyCRMTeamLead','RegionalHead','DeputyRegionalHead','NationalHead','DeputyNationalHead','DataAnalyst'];
+  const ROLE_OPTIONS = ['LG','AdminTeam','CRE-CRM','CRM-TeamLead','DeputyCRMTeamLead','RegionalHead','DeputyRegionalHead','NationalHead','DeputyNationalHead','DataAnalyst','HR Operations','HR Recruiter'];
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
 
   // Helper: initials for avatar fallback
   const getInitials = (name) => {
@@ -130,6 +132,22 @@ export default function LGAccessControl() {
     }
   };
 
+  // Derived list with filters applied
+  const filteredItems = items.filter((r) => {
+    const txt = search.trim().toLowerCase();
+    if (txt) {
+      const hay = [r?.name, r?.fullName, r?.email, r?.mobile]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      if (!hay.includes(txt)) return false;
+    }
+    if (roleFilter) {
+      if ((r?.role || "") !== roleFilter) return false;
+    }
+    return true;
+  });
+
   // no memoized columns; table is rendered inline below
 
   return (
@@ -137,15 +155,47 @@ export default function LGAccessControl() {
       <AdminNavbar />
       <Toaster position="top-right" />
       <div style={{ padding: 16, marginTop: 64 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-          <div>
-            <h2 style={{ margin: 10 }}>Access Control</h2>
-            <p style={{ marginTop: 4, color: "#666" }}>Manage access for Local Guides. Use the toggle to enable/disable accounts.</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+            <div>
+              <h2 style={{ margin: 10 }}>Access Control</h2>
+              <p style={{ marginTop: 4, color: "#666" }}>Manage access for Local Guides. Use the toggle to enable/disable accounts.</p>
+            </div>
+            <button onClick={fetchAll} disabled={loading} style={{ padding: "8px 12px", display: "flex", alignItems: "center", gap: 8 }}>
+              <FiRefreshCw style={{ rotate: loading ? "180deg" : "0deg", transition: "transform 0.2s ease" }} />
+              {loading ? "Refreshing..." : "Refresh"}
+            </button>
           </div>
-          <button onClick={fetchAll} disabled={loading} style={{ padding: "8px 12px", display: "flex", alignItems: "center", gap: 8 }}>
-            <FiRefreshCw style={{ rotate: loading ? "180deg" : "0deg", transition: "transform 0.2s ease" }} />
-            {loading ? "Refreshing..." : "Refresh"}
-          </button>
+
+          {/* Filters */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search name, email, mobile..."
+              style={{ minWidth: 220, padding: "6px 10px", borderRadius: 8, border: "1px solid #d4d4d4", fontSize: 13 }}
+            />
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+              style={{ minWidth: 180, padding: "6px 10px", borderRadius: 8, border: "1px solid #d4d4d4", fontSize: 13 }}
+            >
+              <option value="">All roles</option>
+              {ROLE_OPTIONS.map((opt) => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
+            {(search || roleFilter) && (
+              <button
+                type="button"
+                onClick={() => { setSearch(""); setRoleFilter(""); }}
+                style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #d4d4d4", background: "#f9fafb", fontSize: 13 }}
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
         </div>
 
         {error ? (
@@ -165,16 +215,16 @@ export default function LGAccessControl() {
               </tr>
             </thead>
             <tbody>
-              {loading && items.length === 0 ? (
+              {loading && filteredItems.length === 0 ? (
                 <tr>
                   <td colSpan={7} style={{ padding: 16, color: "#666" }}>Loading accounts...</td>
                 </tr>
-              ) : items.length === 0 ? (
+              ) : filteredItems.length === 0 ? (
                 <tr>
                   <td colSpan={7} style={{ padding: 16, color: "#666" }}>No accounts found.</td>
                 </tr>
               ) : (
-                items.map((r) => {
+                filteredItems.map((r) => {
                   const id = r?._id || r?.id;
                   const enabled = !!(r?.enabled ?? r?.isEnabled ?? r?.active ?? r?.status === "enable");
                   const busy = !!toggling[id];

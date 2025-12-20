@@ -57,6 +57,12 @@ import PositionDashboard from "./pages/Admin/Recruitment/PositionDashboard.jsx";
 import DataAnalystDashboard from "./pages/DataAnalyst/DataAnalystDashboard.jsx";
 import LGStats from "./pages/Admin/LGStats.jsx";
 import CreDashboard from "./pages/Admin/CreDashboard.jsx";
+import HRRecruiterDashboard from "./pages/HR Recuriter/HrRecruiterDashboard.jsx";
+import HRRecruiterPositionMIS from "./pages/HR Recuriter/PositionMIS.jsx";
+import HRRecruiterStageSheet from "./pages/HR Recuriter/StageSheet.jsx";
+import HROperationsDashboard from "./pages/HR Operations/HrOperationsDashboard.jsx";
+import HROperationsPositionMIS from "./pages/HR Operations/PositionMIS.jsx";
+import HROperationsStageSheet from "./pages/HR Operations/StageSheet.jsx";
 
 function App() {
   const location = useLocation();
@@ -487,6 +493,58 @@ function App() {
           element={
             <ProtectedRoute role="admin">
               <PositionDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* HR Recruiter routes */}
+        <Route
+          path="/hr-recruiter/dashboard"
+          element={
+            <ProtectedRoute role="HR Recruiter">
+              <HRRecruiterDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/hr-recruiter/positions"
+          element={
+            <ProtectedRoute role="HR Recruiter">
+              <HRRecruiterPositionMIS />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/hr-recruiter/position/:id"
+          element={
+            <ProtectedRoute role="HR Recruiter">
+              <HRRecruiterStageSheet />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* HR Operations routes */}
+        <Route
+          path="/hr-operations/dashboard"
+          element={
+            <ProtectedRoute role="HR Operations">
+              <HROperationsDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/hr-operations/positions"
+          element={
+            <ProtectedRoute role="HR Operations">
+              <HROperationsPositionMIS />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/hr-operations/position/:id"
+          element={
+            <ProtectedRoute role="HR Operations">
+              <HROperationsStageSheet />
             </ProtectedRoute>
           }
         />

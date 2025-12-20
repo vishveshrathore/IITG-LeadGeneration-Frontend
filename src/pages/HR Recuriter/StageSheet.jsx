@@ -1,42 +1,25 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import axios from 'axios';
-import AdminNavbar from '../../../components/AdminNavbar';
-import { BASE_URL } from '../../../config';
-import StageSheet from './StageSheet.jsx';
-import { useAuth } from '../../../context/AuthContext.jsx';
+import { BASE_URL } from '../../config';
+import StageSheet from '../Admin/Recruitment/StageSheet.jsx';
+import AnimatedHRNavbar from '../../components/HRNavbar.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
 
 const tabs = [
-  { key: 'boolean', label: '1) Boolean Data Sheet' },
-  { key: 'booleanC', label: '2) Boolean Data Sheet (C)' },
   { key: 'fqc', label: '3) FQC Sheet' },
   { key: 'firstLineup', label: '4) First Lineup' },
-  { key: 'office', label: '5) Office Interview Sheet' },
   { key: 'finalLineup', label: '6) Final Lineup' },
-  { key: 'final', label: '7) Final Interview' },
   { key: 'interviewSheet', label: '8) Interview Sheet' },
-  { key: 'status', label: '9) Interview Status' },
   { key: 'selection', label: '10) Selection Sheet' },
-  { key: 'joining', label: '11) Joining Sheet' },
-  { key: 'joiningStatus', label: '12) Joining Status' },
-  { key: 'billing', label: '13) Forward to Billing' },
 ];
 
+// Only HR Recruiter tab group
 const tabGroups = [
-  {
-    id: 'client',
-    label: 'Client',
-    items: ['booleanC', 'firstLineup', 'finalLineup', 'interviewSheet', 'selection', 'joiningStatus'],
-  },
   {
     id: 'recruiter',
     label: 'HR Recruiter',
     items: ['fqc', 'firstLineup', 'finalLineup', 'interviewSheet', 'selection'],
-  },
-  {
-    id: 'operations',
-    label: 'HR Operations',
-    items: ['boolean', 'booleanC', 'fqc', 'firstLineup', 'office', 'finalLineup', 'final', 'interviewSheet', 'status', 'interviewStatus', 'selection', 'joining', 'joiningStatus', 'billing'],
   },
 ];
 
@@ -51,24 +34,23 @@ const HeaderStat = ({ title, value }) => (
   </div>
 );
 
-const PositionDashboard = () => {
+const HRRecruiterStageSheet = () => {
   const { state } = useLocation();
   const { id } = useParams();
   const { authToken } = useAuth();
   const [job, setJob] = useState(state?.job || null);
   const [loading, setLoading] = useState(!state?.job);
-  const [activeTab, setActiveTab] = useState('boolean');
+  const [activeTab, setActiveTab] = useState('fqc');
   const [error, setError] = useState('');
   const [counts, setCounts] = useState({});
 
   useEffect(() => {
-    if (state?.job) return; // already have job via navigation state
+    if (state?.job) return;
     if (!authToken) return;
     const load = async () => {
       setLoading(true);
       setError('');
       try {
-        // Fallback: fetch all jobs and locate by id
         const { data } = await axios.get(`${BASE_URL}/api/admin/getallpostjobs`, {
           withCredentials: true,
           headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
@@ -86,23 +68,14 @@ const PositionDashboard = () => {
     load();
   }, [state?.job, id, authToken]);
 
-  // Map activeTab to stageKey and title
   const activeStage = useMemo(() => {
     switch (activeTab) {
-      case 'boolean': return { stageKey: 'BooleanDataSheet', title: '1) Boolean Data Sheet' };
-      case 'booleanC': return { stageKey: 'BooleanDataSheet(C)', title: '2) Boolean Data Sheet (C)' };
       case 'fqc': return { stageKey: 'FQC', title: '3) FQC Sheet' };
       case 'firstLineup': return { stageKey: 'FirstLineup', title: '4) First Lineup' };
-      case 'office': return { stageKey: 'OfficeInterview', title: '5) Office Interview Sheet' };
       case 'finalLineup': return { stageKey: 'FinalLineup', title: '6) Final Lineup' };
-      case 'final': return { stageKey: 'FinalInterview', title: '7) Final Interview' };
       case 'interviewSheet': return { stageKey: 'InterviewSheet', title: '8) Interview Sheet' };
-      case 'status': return { stageKey: 'InterviewStatus', title: '9) Interview Status' };
       case 'selection': return { stageKey: 'Selection', title: '10) Selection Sheet' };
-      case 'joining': return { stageKey: 'Joining', title: '11) Joining Sheet' };
-      case 'joiningStatus': return { stageKey: 'JoiningStatus', title: '12) Joining Status' };
-      case 'billing': return { stageKey: 'Billing', title: '13) Forward to Billing' };
-      default: return { stageKey: 'BooleanDataSheet', title: '1) Boolean Data Sheet' };
+      default: return { stageKey: 'FQC', title: '3) FQC Sheet' };
     }
   }, [activeTab]);
 
@@ -121,6 +94,7 @@ const PositionDashboard = () => {
     'JoiningStatus',
     'Billing'
   ];
+
   const normalizeStage = (s) => {
     const v = String(s || '').trim();
     if (v === 'Boolean') return 'BooleanDataSheet';
@@ -129,18 +103,15 @@ const PositionDashboard = () => {
     return pipeline.includes(v) ? v : v;
   };
 
-  // Compute counts per stage for tab chips (per position, by jobId only)
   useEffect(() => {
+    if (!authToken) return;
     const loadCounts = async () => {
       try {
-        if (!job?._id || !authToken) return;
-        const { data } = await axios.get(
-          `${BASE_URL}/api/admin/recruitment/parsed-profiles`,
-          {
-            params: { jobId: job._id },
-            headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
-          }
-        );
+        if (!job?._id) return;
+        const { data } = await axios.get(`${BASE_URL}/api/admin/recruitment/parsed-profiles`, {
+          params: { jobId: job._id },
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+        });
         const list = Array.isArray(data?.data) ? data.data : [];
         const map = {};
         for (const p of list) {
@@ -157,38 +128,21 @@ const PositionDashboard = () => {
 
   const getCountForTab = (key) => {
     switch (key) {
-      case 'boolean':
-        return counts['BooleanDataSheet'] || 0;
-      case 'booleanC':
-        return counts['BooleanDataSheet(C)'] || 0;
       case 'fqc':
         return counts['FQC'] || 0;
       case 'firstLineup':
         return counts['FirstLineup'] || 0;
-      case 'office':
-        return counts['OfficeInterview'] || 0;
       case 'finalLineup':
         return counts['FinalLineup'] || 0;
-      case 'final':
-        return counts['FinalInterview'] || 0;
       case 'interviewSheet':
         return counts['InterviewSheet'] || 0;
-      case 'status':
-        return counts['InterviewStatus'] || 0;
       case 'selection':
         return counts['Selection'] || 0;
-      case 'joining':
-        return counts['Joining'] || 0;
-      case 'joiningStatus':
-        return counts['JoiningStatus'] || 0;
-      case 'billing':
-        return counts['Billing'] || 0;
       default:
         return 0;
     }
   };
 
-  // Live updates: listen to StageSheet events and adjust counts in-place
   useEffect(() => {
     const onDelta = (e) => {
       const detail = e?.detail || {};
@@ -249,14 +203,19 @@ const PositionDashboard = () => {
     ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(job.ctcUpper)
     : (job?.ctcUpper || '-');
 
+  const recruiterNavItems = [
+    { name: 'Dashboard', path: '/hr-recruiter/dashboard' },
+    { name: 'Position MIS', path: '/hr-recruiter/positions' },
+  ];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-gray-100">
-      <AdminNavbar />
+      <AnimatedHRNavbar title="HR Recruiter" navItems={recruiterNavItems} />
       <main className="pt-20 pb-6 w-full">
         <div className="px-4 md:px-6">
           <div className="mb-4">
-            <h1 className="text-2xl font-semibold text-gray-900">Position Details</h1>
-            <p className="text-sm text-gray-600">End-to-end tracking and actions for this position</p>
+            <h1 className="text-2xl font-semibold text-gray-900">Position Details (HR Recruiter)</h1>
+            <p className="text-sm text-gray-600">Work on your stages for this position</p>
           </div>
 
           {error && (
@@ -264,7 +223,6 @@ const PositionDashboard = () => {
           )}
         </div>
 
-        {/* Summary: Full-width grid */}
         <section className="w-full">
           <div className="bg-white border-y md:border rounded-none md:rounded-2xl md:mx-4 shadow-sm overflow-hidden">
             <div className="p-4 md:p-6 bg-gradient-to-r from-indigo-50 via-white to-emerald-50 border-b">
@@ -298,7 +256,6 @@ const PositionDashboard = () => {
               </div>
             </div>
 
-            {/* Sticky Tabs: grouped by role for easier navigation */}
             <div className="sticky top-16 z-30 bg-white/90 backdrop-blur border-b">
               <div className="px-4 md:px-6 py-3 space-y-3">
                 {tabGroups.map(group => (
@@ -344,7 +301,6 @@ const PositionDashboard = () => {
               </div>
             </div>
 
-            {/* Content */}
             <div className="p-0">
               <div className="px-4 md:px-6 py-4">
                 {loading ? (
@@ -363,4 +319,5 @@ const PositionDashboard = () => {
   );
 };
 
-export default PositionDashboard;
+export default HRRecruiterStageSheet;
+

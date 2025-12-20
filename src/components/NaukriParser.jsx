@@ -3,6 +3,7 @@ import axios from "axios";
 import * as XLSX from "xlsx";
 import { BASE_URL } from "../config";
 import AdminNavbar from "./AdminNavbar.jsx";
+import { useAuth as useGlobalAuth } from "../context/AuthContext.jsx";
 
 // --- Auth Context ---
 const AuthContext = createContext();
@@ -22,6 +23,7 @@ const NaukriParser = () => {
   const searchParams = new URLSearchParams(window.location.search);
   const companyFromUrl = searchParams.get('company');
   const fromCorporate = searchParams.get('fromCorporate') === 'true';
+  const jobIdFromUrl = searchParams.get('jobId') || '';
   
   const [rawData, setRawData] = useState("");
   const [profiles, setProfiles] = useState([]);
@@ -32,10 +34,10 @@ const NaukriParser = () => {
   const [selectedIds, setSelectedIds] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [companiesLoading, setCompaniesLoading] = useState(false);
-  const [recruitmentCompanies, setRecruitmentCompanies] = useState([]);
+  const [recruitmentCompanies, setRecruitmentCompanies] = useState([]); // used as flat job list for recruitment
   const [recruitmentCompaniesLoading, setRecruitmentCompaniesLoading] = useState(false);
-  // selectedCompany must be a company _id for uploads
-  const [selectedCompany, setSelectedCompany] = useState("");
+  const [recruitmentJobQuery, setRecruitmentJobQuery] = useState("");
+  const [selectedCompany, setSelectedCompany] = useState(""); // jobId in recruitment tab, companyId in public tab
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [toRecruitment, setToRecruitment] = useState(false);
@@ -64,6 +66,8 @@ const NaukriParser = () => {
     "email",
     // removed: summary, verified_phone_email, similar_profiles, activity fields
   ];
+
+  const { authToken } = useGlobalAuth();
 
   const showToast = (message, type = "success") => {
     setToast({ visible: true, message, type });
@@ -118,47 +122,55 @@ const NaukriParser = () => {
     fetchCompanies();
   }, []);
 
-  // Fetch recruitment companies when Recruitment tab is active
+  // Fetch recruitment jobs when Recruitment tab is active
   useEffect(() => {
     const fetchRecruitmentCompanies = async () => {
       if (uploadTab !== 'recruitment') return;
+      if (!authToken) return;
       setRecruitmentCompaniesLoading(true);
       try {
-        const { data } = await axios.get(`${BASE_URL}/api/admin/getallpostjobs`);
-        const jobs = Array.isArray(data?.data) ? data.data : [];
-        const map = new Map();
-        for (const j of jobs) {
-          const c = j?.createdBy;
-          if (c && c._id && !map.has(c._id)) {
-            const cName = String(c.companyName || c.CompanyName || '').toLowerCase();
-            const match = Array.isArray(companies)
-              ? companies.find(rc => String(rc.CompanyName || rc.companyName || rc.name || '').toLowerCase() === cName)
+        const { data } = await axios.get(`${BASE_URL}/api/admin/getallpostjobs`, {
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+        });
+        const allJobs = Array.isArray(data?.data) ? data.data : [];
+        const jobs = jobIdFromUrl
+          ? allJobs.filter(j => String(j?._id) === String(jobIdFromUrl))
+          : allJobs;
+
+        const list = jobs.map((j) => {
+          const corp = j?.createdBy || {};
+          const companyName = corp.companyName || corp.CompanyName || 'Company';
+          const cName = String(companyName).toLowerCase();
+          const match = Array.isArray(companies)
+            ? companies.find(rc => String(rc.CompanyName || rc.companyName || rc.name || '').toLowerCase() === cName)
+            : null;
+          const recruitmentCompanyId = match?._id || '';
+          const positionId = j.positionId || '';
+          let organisation = (j.organisationOther || j.organisation || '').trim();
+          // If organisation looks like an ObjectId, try to resolve to company name from companies list
+          if (/^[0-9a-fA-F]{24}$/.test(organisation)) {
+            const orgMatch = Array.isArray(companies)
+              ? companies.find(rc => String(rc._id) === organisation)
               : null;
-            map.set(c._id, {
-              _id: c._id,
-              companyName: c.companyName || c.CompanyName || 'Company',
-              hrName: c.hrName || c.name || '',
-              email: c.email || '',
-              mobile: c.mobile || '',
-              designation: c.designation || '',
-              recruitmentCompanyId: match?._id || '',
-              jobCount: 0,
-              positions: [],
-            });
-          }
-          if (c && c._id) {
-            const entry = map.get(c._id);
-            entry.jobCount = (entry.jobCount || 0) + 1;
-            const position = (j?.position || '').trim();
-            if (position) {
-              const key = position.toLowerCase();
-              const has = entry.positions.some(p => p.toLowerCase() === key);
-              if (!has) entry.positions.push(position);
+            if (orgMatch) {
+              organisation = orgMatch.CompanyName || orgMatch.companyName || orgMatch.name || organisation;
             }
-            map.set(c._id, entry);
           }
-        }
-        setRecruitmentCompanies(Array.from(map.values()));
+          const position = (j.position || '').trim();
+          const parts = [];
+          if (positionId) parts.push(positionId);
+          if (organisation) parts.push(organisation);
+          if (position) parts.push(position);
+          const label = parts.join(' | ') || companyName;
+          return {
+            jobId: j._id,
+            recruitmentCompanyId,
+            companyName,
+            label,
+          };
+        });
+
+        setRecruitmentCompanies(list);
       } catch (e) {
         console.error('[Recruitment Companies] load error', e);
         showToast('Failed to load recruitment companies', 'error');
@@ -167,7 +179,7 @@ const NaukriParser = () => {
       }
     };
     fetchRecruitmentCompanies();
-  }, [uploadTab]);
+  }, [uploadTab, companies, jobIdFromUrl, authToken]);
 
   // When landed from Corporate, map company name in URL to actual company _id
   useEffect(() => {
@@ -530,7 +542,16 @@ const NaukriParser = () => {
                 </button>
 
                 <div className="flex items-center gap-2">
-                  <label className="text-xs text-gray-700">Company:</label>
+                  <label className="text-xs text-gray-700">{uploadTab==='recruitment' ? 'Position:' : 'Company:'}</label>
+                  {uploadTab==='recruitment' && (
+                    <input
+                      type="text"
+                      value={recruitmentJobQuery}
+                      onChange={(e) => setRecruitmentJobQuery(e.target.value)}
+                      placeholder="Search by code, organisation, position"
+                      className="text-xs px-2 py-1 border border-gray-300 rounded w-56"
+                    />
+                  )}
                   <select
                     value={selectedCompany}
                     onChange={(e) => setSelectedCompany(e.target.value)}
@@ -544,19 +565,18 @@ const NaukriParser = () => {
                     {uploadTab==='recruitment' ? (
                       <>
                         <option value="" disabled>
-                          {recruitmentCompaniesLoading ? 'Loading companies...' : 'Select recruitment company'}
+                          {recruitmentCompaniesLoading ? 'Loading positions...' : 'Select position'}
                         </option>
-                        {recruitmentCompanies.map((c) => {
-                          const shown = (Array.isArray(c.positions) ? c.positions : []).slice(0,3);
-                          const more = Math.max(0, (c.positions?.length || 0) - shown.length);
-                          const roles = shown.length ? ` – Position : ${shown.join(', ')}${more ? ` (+${more} more)` : ''}` : '';
-                          const jobsSuffix = typeof c.jobCount === 'number' ? ` (${c.jobCount} jobs)` : '';
-                          return (
-                            <option key={c._id} value={c._id}>
-                              {`${c.companyName}${roles}${c.hrName ? ' — ' + c.hrName : ''}${c.email ? ' · ' + c.email : ''}${c.mobile ? ' · ' + c.mobile : ''}${jobsSuffix}`}
+                        {recruitmentCompanies
+                          .filter((j) => {
+                            const label = String(j.label || '').toLowerCase();
+                            return label.includes(recruitmentJobQuery.toLowerCase());
+                          })
+                          .map((j) => (
+                            <option key={j.jobId} value={j.jobId}>
+                              {j.label}
                             </option>
-                          );
-                        })}
+                          ))}
                       </>
                     ) : (
                       (fromCorporate && selectedCompany ? (
@@ -814,10 +834,12 @@ const NaukriParser = () => {
                   to company:
                   <br />
                   <span className="font-medium">
-                    {companies.find((c) => c._id === selectedCompany)?.CompanyName ||
-                      companies.find((c) => c._id === selectedCompany)?.companyName ||
-                      companies.find((c) => c._id === selectedCompany)?.name ||
-                      "Selected Company"}
+                    {toRecruitment
+                      ? (recruitmentCompanies.find((j) => String(j.jobId) === String(selectedCompany))?.label || 'Selected Position')
+                      : (companies.find((c) => c._id === selectedCompany)?.CompanyName ||
+                        companies.find((c) => c._id === selectedCompany)?.companyName ||
+                        companies.find((c) => c._id === selectedCompany)?.name ||
+                        'Selected Company')}
                   </span>
                 </p>
                 <div className="flex justify-end gap-2">
@@ -833,19 +855,22 @@ const NaukriParser = () => {
                         setUploading(true);
                         const toUpload = selectedIds.map((idx) => profiles[idx]);
                         let companyIdToSend = selectedCompany;
+                        let jobIdToSend = '';
                         if (toRecruitment) {
-                          const corp = recruitmentCompanies.find(c => c._id === selectedCompany);
-                          if (!corp?.recruitmentCompanyId) {
+                          const job = recruitmentCompanies.find(j => String(j.jobId) === String(selectedCompany));
+                          if (!job || !job.recruitmentCompanyId) {
                             showToast('No matching Recruitment Company found. Please add it first in Recruitment Companies.', 'error');
                             setUploading(false);
                             return;
                           }
-                          companyIdToSend = corp.recruitmentCompanyId;
+                          companyIdToSend = job.recruitmentCompanyId;
+                          jobIdToSend = job.jobId;
                         }
                         const payload = {
                           companyId: companyIdToSend,
                           source: 'naukri',
                           profiles: toUpload,
+                          ...(toRecruitment && jobIdToSend ? { jobId: jobIdToSend } : {}),
                         };
                         console.log('[Naukri] Upload payload', payload);
                         const endpoint = toRecruitment

@@ -8,20 +8,294 @@ const synonyms = {
   // Legacy names
   'BooleanDataSheet': ['Boolean', ''],
   'BooleanDataSheet(C)': ['Boolean (C)'],
+  'InterviewSheet': ['InterviewSheet'],
+};
+
+const getColumnText = (p, key) => {
+  if (!p) return '';
+  switch (key) {
+    case 'name':
+      return p.name || '';
+    case 'experience':
+      return p.experience || '';
+    case 'ctc':
+      return p.ctc || '';
+    case 'location':
+      return p.location || '';
+    case 'current_designation':
+      return p.current_designation || '';
+    case 'current_company':
+      return p.current_company || '';
+    default:
+      return '';
+  }
+};
+
+const ColumnFilterHeader = ({
+  label,
+  columnKey,
+  profiles,
+  columnFilters,
+  setColumnFilters,
+  activeFilter,
+  setActiveFilter,
+  activeFilterSelection,
+  setActiveFilterSelection,
+}) => {
+  const containerRef = React.useRef(null);
+  const panelRef = React.useRef(null);
+  const [dropdownPos, setDropdownPos] = React.useState({ top: 0, left: 0 });
+  const open = activeFilter.column === columnKey;
+  const DROPDOWN_WIDTH = 232;
+  const ESTIMATED_HEIGHT = 280;
+
+  const allValues = React.useMemo(() => {
+    const set = new Set();
+    (profiles || []).forEach((p) => {
+      const v = String(getColumnText(p, columnKey) || '').trim();
+      if (v) set.add(v);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [profiles, columnKey]);
+
+  const applied = columnFilters[columnKey] || [];
+  const working = open ? activeFilterSelection : applied;
+  const search = open ? (activeFilter.search || '') : '';
+  const lcSearch = search.toLowerCase();
+  const filteredValues = lcSearch
+    ? allValues.filter((v) => v.toLowerCase().includes(lcSearch))
+    : allValues;
+
+  const close = () => {
+    setActiveFilter({ column: null, search: '' });
+    setActiveFilterSelection([]);
+  };
+
+  const updateDropdownPosition = () => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    let top = rect.bottom + 6;
+    let placement = 'below';
+    if (rect.bottom + ESTIMATED_HEIGHT + 20 > window.innerHeight) {
+      top = rect.top - ESTIMATED_HEIGHT - 6;
+      placement = 'above';
+    }
+    if (top < 8) {
+      top = 8;
+      placement = 'below';
+    }
+    let left = rect.left + rect.width - DROPDOWN_WIDTH;
+    if (left < 8) left = 8;
+    if (left + DROPDOWN_WIDTH > window.innerWidth - 8) {
+      left = window.innerWidth - DROPDOWN_WIDTH - 8;
+    }
+    setDropdownPos({ top, left, placement });
+  };
+
+  const openFilter = () => {
+    setActiveFilter({ column: columnKey, search: '' });
+    if (applied && applied.length) {
+      setActiveFilterSelection(applied);
+    } else {
+      setActiveFilterSelection(allValues);
+    }
+    setTimeout(updateDropdownPosition, 0);
+  };
+
+  const toggleValue = (value) => {
+    setActiveFilterSelection((prev) => {
+      const exists = prev.includes(value);
+      if (exists) return prev.filter((v) => v !== value);
+      return [...prev, value];
+    });
+  };
+
+  const selectAll = () => {
+    setActiveFilterSelection(filteredValues);
+  };
+
+  const clearSelection = () => {
+    setActiveFilterSelection([]);
+  };
+
+  const applyFilter = () => {
+    setColumnFilters((prev) => {
+      const next = { ...prev };
+      const allSelected =
+        Array.isArray(activeFilterSelection) &&
+        activeFilterSelection.length > 0 &&
+        activeFilterSelection.length === allValues.length;
+      if (!activeFilterSelection || activeFilterSelection.length === 0 || allSelected) {
+        delete next[columnKey];
+      } else {
+        next[columnKey] = activeFilterSelection.slice();
+      }
+    
+      return next;
+    });
+    close();
+  };
+
+  const clearFilterCompletely = () => {
+    setColumnFilters((prev) => {
+      const next = { ...prev };
+      delete next[columnKey];
+      return next;
+    });
+    close();
+  };
+
+  const hasActiveFilter = Array.isArray(applied) && applied.length > 0;
+
+  React.useEffect(() => {
+    if (!open) return;
+    const handleClick = (e) => {
+      const containerEl = containerRef.current;
+      const panelEl = panelRef.current;
+      if (
+        containerEl &&
+        containerEl.contains(e.target)
+      ) {
+        return;
+      }
+      if (panelEl && panelEl.contains(e.target)) {
+        return;
+      }
+      close();
+    };
+    const handleWindowChange = () => {
+      updateDropdownPosition();
+    };
+    document.addEventListener('mousedown', handleClick);
+    window.addEventListener('resize', handleWindowChange);
+    window.addEventListener('scroll', handleWindowChange, true);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      window.removeEventListener('resize', handleWindowChange);
+      window.removeEventListener('scroll', handleWindowChange, true);
+    };
+  }, [open]);
+
+  React.useEffect(() => {
+    if (!open) return;
+    updateDropdownPosition();
+  }, [open, profiles, columnFilters]);
+
+  return (
+    <div ref={containerRef} className="relative inline-flex items-center gap-1">
+      <span>{label}</span>
+      <button
+        type="button"
+        onClick={open ? close : openFilter}
+        className={`inline-flex h-5 w-5 items-center justify-center rounded border text-[10px] transition ${
+          hasActiveFilter
+            ? 'bg-indigo-50 text-indigo-700 border-indigo-300 hover:bg-indigo-100'
+            : 'bg-white text-gray-500 border-gray-300 hover:bg-gray-50'
+        }`}
+        title="Filter column values"
+      >
+        
+        <svg viewBox="0 0 24 24" className="w-3 h-3">
+          <path
+            fill="currentColor"
+            d="M3 4h18v2l-7 7v5l-4 2v-7L3 6V4z"
+          />
+        </svg>
+      </button>
+      {hasActiveFilter && (
+        <span className="inline-block h-1.5 w-1.5 rounded-full bg-indigo-600" />
+      )}
+      {open && createPortal(
+        <div
+          ref={panelRef}
+          style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, width: DROPDOWN_WIDTH, zIndex: 9999 }}
+          className="rounded-lg border border-gray-200 bg-white p-2 text-xs shadow-2xl"
+        >
+          <div className="mb-2 flex items-center gap-1">
+            <input
+              type="text"
+              value={open ? (activeFilter.search || '') : ''}
+              onChange={(e) => setActiveFilter({ column: columnKey, search: e.target.value })}
+              placeholder="Search values"
+              className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
+            />
+          </div>
+          <div className="max-h-48 overflow-y-auto border-y border-gray-200 py-1 pr-1">
+            {filteredValues.length === 0 ? (
+              <div className="px-1 py-1 text-gray-500">No values</div>
+            ) : (
+              filteredValues.map((v) => {
+                const checked = activeFilterSelection.includes(v);
+                return (
+                  <label key={v} className="flex cursor-pointer items-center gap-2 px-1 py-0.5 hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      className="h-3.5 w-3.5 rounded border-gray-300 text-indigo-600"
+                      checked={checked}
+                      onChange={() => toggleValue(v)}
+                    />
+                    <span className="truncate" title={v}>
+                      {v}
+                    </span>
+                  </label>
+                );
+              })
+            )}
+          </div>
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <div className="flex gap-1">
+              <button
+                type="button"
+                onClick={selectAll}
+                className="rounded border border-gray-300 px-2 py-0.5 text-[11px] hover:bg-gray-50"
+              >
+                Select All
+              </button>
+              <button
+                type="button"
+                onClick={clearSelection}
+                className="rounded border border-gray-300 px-2 py-0.5 text-[11px] hover:bg-gray-50"
+              >
+                Clear
+              </button>
+            </div>
+            <div className="flex gap-1">
+              {hasActiveFilter && (
+                <button
+                  type="button"
+                  onClick={clearFilterCompletely}
+                  className="rounded border border-red-200 px-2 py-0.5 text-[11px] text-red-600 hover:bg-red-50"
+                >
+                  Reset
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={applyFilter}
+                className="rounded border border-indigo-500 bg-indigo-600 px-2 py-0.5 text-[11px] font-semibold text-white hover:bg-indigo-700"
+              >
+                Apply
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
 };
 
 const StageSheet = ({ job, stageKey, title }) => {
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { user } = useAuth();
+  const { user, authToken } = useAuth();
 
   const [showModal, setShowModal] = useState(false);
   const [modalProfileId, setModalProfileId] = useState(null);
   const [modalDecision, setModalDecision] = useState('YES');
   const [modalRemark, setModalRemark] = useState('');
   const [remarkById, setRemarkById] = useState({});
-  const [companyId, setCompanyId] = useState('');
   const [savingId, setSavingId] = useState('');
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
   const [uploadingId, setUploadingId] = useState('');
@@ -70,11 +344,16 @@ const StageSheet = ({ job, stageKey, title }) => {
 
   const [qInput, setQInput] = useState('');
   const [expandSkills, setExpandSkills] = useState({});
+  const [columnFilters, setColumnFilters] = useState({});
+  const [activeFilter, setActiveFilter] = useState({ column: null, search: '' });
+  const [activeFilterSelection, setActiveFilterSelection] = useState([]);
 
   const companyName = useMemo(() => {
     const c = job?.createdBy || {};
     return c.companyName || c.CompanyName || '';
   }, [job]);
+
+  const jobId = job?._id;
 
   useEffect(() => {
     try {
@@ -171,7 +450,13 @@ const StageSheet = ({ job, stageKey, title }) => {
     if (!editId) return;
     try {
       setEditSubmitting(true);
-      await axios.patch(`${BASE_URL}/api/admin/recruitment/profile/${editId}`, editForm);
+      await axios.patch(
+        `${BASE_URL}/api/admin/recruitment/profile/${editId}`,
+        editForm,
+        {
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+        }
+      );
       setEditOpen(false);
       setEditId('');
       await refresh();
@@ -188,9 +473,22 @@ const StageSheet = ({ job, stageKey, title }) => {
   const renderChips = (arr) => {
     if (!Array.isArray(arr) || arr.length === 0) return '-';
     return (
-      <div className="flex flex-wrap gap-1 max-w-[420px]">
+      <div className="flex flex-wrap gap-1 max-w-[320px]">
         {arr.map((it, i) => {
-          const label = typeof it === 'object' ? (it.designation || it.company || it.name || JSON.stringify(it)) : String(it);
+          let label;
+          if (it && typeof it === 'object') {
+            const degree = it.degree || it.qualification || it.course || '';
+            const inst = it.institution || it.college || it.university || it.school || '';
+            const year = it.year || it.passingYear || it.passedOut || '';
+            if (degree || inst || year) {
+              const main = [degree, inst && inst ? (degree ? ` at ${inst}` : inst) : ''].join('').trim();
+              label = year ? `${main} (${year})`.trim() : main || JSON.stringify(it);
+            } else {
+              label = it.designation || it.company || it.name || JSON.stringify(it);
+            }
+          } else {
+            label = String(it);
+          }
           return <span key={i} className="px-1.5 py-0.5 rounded text-[10px] border bg-gray-50 text-gray-700 border-gray-200" title={label}>{label}</span>;
         })}
       </div>
@@ -207,15 +505,49 @@ const StageSheet = ({ job, stageKey, title }) => {
           .filter(Boolean)
           .join(' | ');
       }
-      return v.map(item => typeof item === 'object' ? JSON.stringify(item) : String(item)).join(' | ');
+      return v.map(item => {
+        if (item && typeof item === 'object') {
+          const degree = item.degree || item.qualification || item.course || '';
+          const inst = item.institution || item.college || item.university || item.school || '';
+          const year = item.year || item.passingYear || item.passedOut || '';
+          if (degree || inst || year) {
+            const main = [degree, inst && inst ? (degree ? ` at ${inst}` : inst) : ''].join('').trim();
+            return year ? `${main} (${year})`.trim() : main || JSON.stringify(item);
+          }
+          if (item.designation || item.company) {
+            return `${item.designation || ''}${item.company ? ' at ' + item.company : ''}`.trim();
+          }
+          return JSON.stringify(item);
+        }
+        return String(item);
+      }).join(' | ');
     }
     if (typeof v === 'object') {
+      const degree = v.degree || v.qualification || v.course || '';
+      const inst = v.institution || v.college || v.university || v.school || '';
+      const year = v.year || v.passingYear || v.passedOut || '';
+      if (degree || inst || year) {
+        const main = [degree, inst && inst ? (degree ? ` at ${inst}` : inst) : ''].join('').trim();
+        return year ? `${main} (${year})`.trim() : main || JSON.stringify(v);
+      }
       if ('designation' in v || 'company' in v) {
         return `${v.designation || ''}${v.company ? ' at ' + v.company : ''}`.trim();
       }
       return JSON.stringify(v);
     }
     return String(v);
+  };
+
+  const renderExperience = (v) => {
+    if (!v) return '-';
+    if (Array.isArray(v)) {
+      return renderChips(v);
+    }
+    const s = String(v || '').trim();
+    if (!s) return '-';
+    const parts = s.split('|').map(part => part.trim()).filter(Boolean);
+    if (parts.length <= 1) return s;
+    return renderChips(parts);
   };
 
   const highlight = (text, needle) => {
@@ -275,7 +607,12 @@ const StageSheet = ({ job, stageKey, title }) => {
     try {
       if (!window.confirm('Delete resume from Cloudinary for this candidate?')) return;
       setDeletingId(profileId);
-      await axios.delete(`${BASE_URL}/api/admin/recruitment/resume/${profileId}`);
+      await axios.delete(
+        `${BASE_URL}/api/admin/recruitment/resume/${profileId}`,
+        {
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+        }
+      );
       await refresh();
       setToast({ visible: true, message: 'Resume deleted', type: 'success' });
       setTimeout(() => setToast({ visible: false, message: '', type: 'success' }), 2000);
@@ -304,8 +641,19 @@ const StageSheet = ({ job, stageKey, title }) => {
         return s.toLowerCase().includes(skill);
       });
     }
+    const hasColumnFilters = columnFilters && Object.values(columnFilters).some(arr => Array.isArray(arr) && arr.length > 0);
+    if (hasColumnFilters) {
+      list = list.filter((p) => {
+        for (const [col, selectedVals] of Object.entries(columnFilters)) {
+          if (!Array.isArray(selectedVals) || selectedVals.length === 0) continue;
+          const v = String(getColumnText(p, col) || '');
+          if (!selectedVals.includes(v)) return false;
+        }
+        return true;
+      });
+    }
     return list;
-  }, [profiles, q, filterLocation, filterSkill]);
+  }, [profiles, q, filterLocation, filterSkill, columnFilters]);
 
   const selectedIds = useMemo(() => Object.keys(selectedMap).filter(k => selectedMap[k]), [selectedMap]);
   const allShownSelected = useMemo(() => displayedProfiles.length > 0 && displayedProfiles.every(p => selectedMap[p._id]), [displayedProfiles, selectedMap]);
@@ -334,14 +682,20 @@ const StageSheet = ({ job, stageKey, title }) => {
         if (!row) { skipped++; continue; }
         if (stageKey === 'FQC' && !row.resumeUrl) { skipped++; continue; }
         try {
-          await axios.post(`${BASE_URL}/api/admin/recruitment/decision`, {
-            profileId: id,
-            decision: 'YES',
-            remark: remarkById[id] || '',
-            markerType: 'user',
-            markerId: user?.id,
-            markerName: user?.name,
-          });
+          await axios.post(
+            `${BASE_URL}/api/admin/recruitment/decision`,
+            {
+              profileId: id,
+              decision: 'YES',
+              remark: remarkById[id] || '',
+              markerType: 'user',
+              markerId: user?.id,
+              markerName: user?.name,
+            },
+            {
+              headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+            }
+          );
           ok++;
           const from = row?.currentStage || stageKey;
           const to = nextStage(from);
@@ -389,6 +743,7 @@ const StageSheet = ({ job, stageKey, title }) => {
     'OfficeInterview',
     'FinalLineup',
     'FinalInterview',
+    'InterviewSheet',
     'InterviewStatus',
     'Selection',
     'Joining',
@@ -408,21 +763,21 @@ const StageSheet = ({ job, stageKey, title }) => {
     return idx >= 0 && idx < pipeline.length - 1 ? pipeline[idx + 1] : norm;
   };
 
-  const load = async (name) => {
+  const load = async (jId) => {
     setLoading(true);
     setError('');
     try {
-      // company mapping
-      const compRes = await axios.get(`${BASE_URL}/api/recruitment/getCompanies/all`);
-      const companies = Array.isArray(compRes?.data?.data) ? compRes.data.data : [];
-      const match = companies.find((c) => String(c.CompanyName || c.companyName || c.name || '').toLowerCase() === String(name).toLowerCase());
-      if (!match?._id) {
+      if (!jId) {
         setProfiles([]);
-        setError('Recruitment company not found for this position');
         return;
       }
-      setCompanyId(match._id);
-      const { data } = await axios.get(`${BASE_URL}/api/admin/recruitment/parsed-profiles`, { params: { companyId: match._id } });
+      const { data } = await axios.get(
+        `${BASE_URL}/api/admin/recruitment/parsed-profiles`,
+        {
+          params: { jobId: jId },
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+        }
+      );
       const list = Array.isArray(data?.data) ? data.data : [];
       setProfiles(list.filter(p => matchStage(p?.currentStage)));
     } catch (e) {
@@ -433,16 +788,22 @@ const StageSheet = ({ job, stageKey, title }) => {
   };
 
   useEffect(() => {
-    if (!companyName) return;
-    load(companyName);
+    if (!jobId || !authToken) return;
+    load(jobId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [companyName, stageKey]);
+  }, [jobId, stageKey, authToken]);
 
   const refresh = async () => {
-    if (!companyId) return;
+    if (!jobId) return;
     try {
       setLoading(true);
-      const { data } = await axios.get(`${BASE_URL}/api/admin/recruitment/parsed-profiles`, { params: { companyId } });
+      const { data } = await axios.get(
+        `${BASE_URL}/api/admin/recruitment/parsed-profiles`,
+        {
+          params: { jobId },
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+        }
+      );
       const list = Array.isArray(data?.data) ? data.data : [];
       setProfiles(list.filter(p => matchStage(p?.currentStage)));
     } catch (e) {
@@ -469,7 +830,13 @@ const StageSheet = ({ job, stageKey, title }) => {
         markerId: user?.id,
         markerName: user?.name,
       };
-      await axios.post(`${BASE_URL}/api/admin/recruitment/decision`, payload);
+      await axios.post(
+        `${BASE_URL}/api/admin/recruitment/decision`,
+        payload,
+        {
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+        }
+      );
       // Compute from/to and emit counts delta immediately
       const row = profiles.find(p => String(p._id) === String(profileId));
       const from = row?.currentStage || stageKey;
@@ -507,7 +874,10 @@ const StageSheet = ({ job, stageKey, title }) => {
       if (candidateName) form.append('candidateName', candidateName);
       if (job && job._id) form.append('jobId', job._id);
       await axios.post(`${BASE_URL}/api/admin/recruitment/upload-resume`, form, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+        },
       });
       await refresh();
       setToast({ visible: true, message: 'Resume uploaded', type: 'success' });
@@ -564,7 +934,7 @@ const StageSheet = ({ job, stageKey, title }) => {
         </div>
       </div>
       <div className="border rounded overflow-hidden">
-        <div className="overflow-auto max-h-[65vh]">
+        <div className="overflow-y-auto max-h-[65vh]">
           <table className="w-full table-auto text-xs">
             <thead className="bg-gray-50 sticky top-0 z-10">
               <tr>
@@ -572,18 +942,87 @@ const StageSheet = ({ job, stageKey, title }) => {
                   <input type="checkbox" className="accent-indigo-600" checked={allShownSelected} onChange={(e)=> selectAllShown(e.target.checked)} />
                 </th>
                 <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">#</th>
-                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Name</th>
-                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Experience</th>
-                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">CTC</th>
-                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Location</th>
-                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Current Role</th>
-                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Current Company</th>
+                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">
+                  <ColumnFilterHeader
+                    label="Name"
+                    columnKey="name"
+                    profiles={profiles}
+                    columnFilters={columnFilters}
+                    setColumnFilters={setColumnFilters}
+                    activeFilter={activeFilter}
+                    setActiveFilter={setActiveFilter}
+                    activeFilterSelection={activeFilterSelection}
+                    setActiveFilterSelection={setActiveFilterSelection}
+                  />
+                </th>
+                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">
+                  <ColumnFilterHeader
+                    label="Experience"
+                    columnKey="experience"
+                    profiles={profiles}
+                    columnFilters={columnFilters}
+                    setColumnFilters={setColumnFilters}
+                    activeFilter={activeFilter}
+                    setActiveFilter={setActiveFilter}
+                    activeFilterSelection={activeFilterSelection}
+                    setActiveFilterSelection={setActiveFilterSelection}
+                  />
+                </th>
+                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">
+                  <ColumnFilterHeader
+                    label="CTC"
+                    columnKey="ctc"
+                    profiles={profiles}
+                    columnFilters={columnFilters}
+                    setColumnFilters={setColumnFilters}
+                    activeFilter={activeFilter}
+                    setActiveFilter={setActiveFilter}
+                    activeFilterSelection={activeFilterSelection}
+                    setActiveFilterSelection={setActiveFilterSelection}
+                  />
+                </th>
+                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">
+                  <ColumnFilterHeader
+                    label="Location"
+                    columnKey="location"
+                    profiles={profiles}
+                    columnFilters={columnFilters}
+                    setColumnFilters={setColumnFilters}
+                    activeFilter={activeFilter}
+                    setActiveFilter={setActiveFilter}
+                    activeFilterSelection={activeFilterSelection}
+                    setActiveFilterSelection={setActiveFilterSelection}
+                  />
+                </th>
+                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">
+                  <ColumnFilterHeader
+                    label="Designation"
+                    columnKey="current_designation"
+                    profiles={profiles}
+                    columnFilters={columnFilters}
+                    setColumnFilters={setColumnFilters}
+                    activeFilter={activeFilter}
+                    setActiveFilter={setActiveFilter}
+                    activeFilterSelection={activeFilterSelection}
+                    setActiveFilterSelection={setActiveFilterSelection}
+                  />
+                </th>
+                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">
+                  <ColumnFilterHeader
+                    label="Current Company"
+                    columnKey="current_company"
+                    profiles={profiles}
+                    columnFilters={columnFilters}
+                    setColumnFilters={setColumnFilters}
+                    activeFilter={activeFilter}
+                    setActiveFilter={setActiveFilter}
+                    activeFilterSelection={activeFilterSelection}
+                    setActiveFilterSelection={setActiveFilterSelection}
+                  />
+                </th>
                 <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Previous Roles</th>
                 <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Education</th>
-                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Preferred Locations</th>
-                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b min-w-[360px]">Skills</th>
-                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Mobile</th>
-                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Email</th>
+                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Skills</th>
                 <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Resume</th>
                 <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Actions</th>
               </tr>
@@ -592,7 +1031,7 @@ const StageSheet = ({ job, stageKey, title }) => {
               {loading ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <tr key={`sk-${i}`} className="animate-pulse">
-                    {Array.from({ length: 16 }).map((__, j) => (
+                    {Array.from({ length: 13 }).map((__, j) => (
                       <td key={`skc-${i}-${j}`} className="px-3 py-2 border-b">
                         <div className="h-3 bg-gray-200 rounded w-3/4" />
                       </td>
@@ -601,7 +1040,7 @@ const StageSheet = ({ job, stageKey, title }) => {
                 ))
               ) : displayedProfiles.length === 0 ? (
                 <tr>
-                  <td colSpan={16} className="px-3 py-10">
+                  <td colSpan={13} className="px-3 py-10">
                     <div className="flex flex-col items-center justify-center text-center">
                       <div className="w-10 h-10 rounded-full bg-gray-100 border flex items-center justify-center mb-2">
                         <svg viewBox="0 0 24 24" className="w-5 h-5 text-gray-500"><path fill="currentColor" d="M12 12c2.21 0 4-1.79 4-4S14.21 4 12 4 8 5.79 8 8s1.79 4 4 4m0 2c-3.33 0-10 1.67-10 5v1h20v-1c0-3.33-6.67-5-10-5Z"/></svg>
@@ -616,20 +1055,26 @@ const StageSheet = ({ job, stageKey, title }) => {
               ) : (
                 displayedProfiles.map((p, idx) => (
                   <React.Fragment key={p._id || idx}>
-                  <tr className="odd:bg-white even:bg-gray-50 hover:bg-indigo-50/50">
+                  <tr
+                    className="odd:bg-white even:bg-gray-50 hover:bg-indigo-50/50 cursor-pointer"
+                    onClick={(e) => {
+                      const target = e.target;
+                      if (target.closest('button, a, input, textarea, select, label')) return;
+                      toggleSelect(p._id);
+                    }}
+                  >
                     <td className={`${density==='compact'?'px-2 py-1':'px-2 py-1'} border-b align-top`}>
                       <input type="checkbox" className="accent-indigo-600" checked={!!selectedMap[p._id]} onChange={(e)=> toggleSelect(p._id, e.target.checked)} />
                     </td>
                     <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}>{idx + 1}</td>
                     <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top max-w-[180px] truncate`} title={p?.name || ''}>{highlight(p?.name || '-', q)}</td>
-                    <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}>{p?.experience || '-'}</td>
+                    <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}>{renderExperience(p?.experience)}</td>
                     <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}>{p?.ctc || '-'}</td>
                     <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}>{p?.location || '-'}</td>
                     <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}><span className="px-1.5 py-0.5 rounded text-[10px] border bg-indigo-50 text-indigo-700 border-indigo-200">{p?.current_designation || '-'}</span></td>
                     <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}><span className="px-1.5 py-0.5 rounded text-[10px] border bg-emerald-50 text-emerald-700 border-emerald-200">{p?.current_company || '-'}</span></td>
                     <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top break-words whitespace-normal`}>{Array.isArray(p?.previous_roles) ? renderChips(p.previous_roles.map(r=> (r.designation || r.company) ? `${r.designation || ''}${r.company ? ' at ' + r.company : ''}`.trim() : (typeof r==='object'? JSON.stringify(r): String(r)))) : (renderMixed(p?.previous_roles) || '-')}</td>
                     <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top break-words whitespace-normal`}>{Array.isArray(p?.education) ? renderChips(p.education) : (renderMixed(p?.education) || '-')}</td>
-                    <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top break-words whitespace-normal`}>{Array.isArray(p?.preferred_locations) ? renderChips(p.preferred_locations) : (renderMixed(p?.preferred_locations) || '-')}</td>
                     <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top break-words whitespace-normal`}>
                       {Array.isArray(p?.skills) ? (
                         (() => {
@@ -637,7 +1082,7 @@ const StageSheet = ({ job, stageKey, title }) => {
                           const all = p.skills;
                           const shown = expanded ? all : all.slice(0, 8);
                           return (
-                            <div className="flex flex-wrap gap-1 max-w-[720px] items-center">
+                            <div className="flex flex-wrap gap-1 max-w-[480px] items-center">
                               {shown.map((s, si) => (
                                 <span key={si} className="px-2 py-0.5 rounded text-[11px] border bg-slate-50 text-slate-700 border-slate-200" title={String(s)}>{String(s)}</span>
                               ))}
@@ -652,8 +1097,7 @@ const StageSheet = ({ job, stageKey, title }) => {
                         })()
                       ) : (p?.skills || '-')}
                     </td>
-                    <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}>{p?.mobile || '-'}</td>
-                    <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top max-w-[220px] truncate`} title={p?.email || ''}>{highlight(p?.email || '-', q)}</td>
+
                     <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}>
                       {p?.resumeUrl ? (
                         <div className="flex items-center gap-2">
@@ -678,46 +1122,91 @@ const StageSheet = ({ job, stageKey, title }) => {
                       )}
                     </td>
                     <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}>
-                      <div className="flex flex-wrap items-center gap-2">
-                        {/* FQC stage requires resume upload before YES */}
-                        {stageKey === 'FQC' && !p?.resumeUrl && (
-                          <div className="flex items-center gap-2 mr-2">
-                            <label className={`inline-flex items-center gap-1 text-xs px-2 py-1 border rounded ${uploadingId===String(p._id)?'opacity-60 cursor-wait':'cursor-pointer bg-white hover:bg-gray-50'}`}>
-                              <svg viewBox="0 0 24 24" className="w-3.5 h-3.5"><path fill="currentColor" d="M5 20h14v-2H5v2m7-14l5 5h-3v4h-4v-4H7l5-5Z"/></svg>
-                              {uploadingId===String(p._id)?'Uploading…':'Upload Resume'}
-                              <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={(e)=>{
-                                const f = e.target.files && e.target.files[0];
-                                if (f) uploadResume(p._id, f, p?.name);
-                                e.target.value = '';
-                              }} disabled={uploadingId===String(p._id)} />
-                            </label>
+                      {(() => {
+                        const decisions = Array.isArray(p.decisions) ? p.decisions : [];
+                        const last = decisions.length ? decisions[decisions.length - 1] : null;
+                        const lastDec = String(last?.decision || '').toUpperCase();
+                        const isNo = lastDec === 'NO';
+
+                        if (isNo) {
+                          return (
+                            <div className="flex items-center gap-2">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full border bg-red-50 text-red-700 border-red-200">
+                                Status: NO
+                              </span>
+                              <button onClick={()=> setHistoryModal({ open: true, profile: p })} className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] rounded border border-gray-300 bg-white hover:bg-gray-50 shadow-sm">
+                                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5"><path fill="currentColor" d="M12 8v5h5v-2h-3V8zM12 1a11 11 0 1 0 11 11A11 11 0 0 0 12 1Zm0 20a9 9 0 1 1 9-9a9 9 0 0 1-9 9Z"/></svg>
+                                History
+                              </button>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div className="flex flex-wrap items-center gap-2">
+                            {/* FQC stage requires resume upload before YES */}
+                            {stageKey === 'FQC' && !p?.resumeUrl && (
+                              <div className="flex items-center gap-2 mr-2">
+                                <label className={`inline-flex items-center gap-1 text-xs px-2 py-1 border rounded ${uploadingId===String(p._id)?'opacity-60 cursor-wait':'cursor-pointer bg-white hover:bg-gray-50'}`}>
+                                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5"><path fill="currentColor" d="M5 20h14v-2H5v2m7-14l5 5h-3v4h-4v-4H7l5-5Z"/></svg>
+                                  {uploadingId===String(p._id)?'Uploading…':'Upload Resume'}
+                                  <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={(e)=>{
+                                    const f = e.target.files && e.target.files[0];
+                                    if (f) uploadResume(p._id, f, p?.name);
+                                    e.target.value = '';
+                                  }} disabled={uploadingId===String(p._id)} />
+                                </label>
+                              </div>
+                            )}
+                            {/* Inline Remark */}
+                            <input
+                              type="text"
+                              value={remarkById[p._id] || ''}
+                              onChange={(e)=> setRemarkById(prev=>({ ...prev, [p._id]: e.target.value }))}
+                              placeholder="Remark"
+                              className="text-xs px-2 py-1 border rounded min-w-[140px]"
+                            />
+                            <div className="flex items-center gap-2">
+                              <button
+                                disabled={savingId===String(p._id) || (stageKey==='FQC' && !p?.resumeUrl)}
+                                onClick={() => openDecision(p._id, 'YES')}
+                                className={`relative inline-flex items-center gap-2 px-3.5 py-1.5 text-[11px] font-semibold rounded-full text-white shadow-md transition ${
+                                  (savingId===String(p._id) || (stageKey==='FQC' && !p?.resumeUrl))
+                                    ? 'bg-gradient-to-r from-emerald-400 to-emerald-500/70 cursor-not-allowed opacity-70'
+                                    : 'bg-gradient-to-r from-emerald-500 via-emerald-600 to-emerald-700 hover:shadow-lg hover:-translate-y-0.5'
+                                }`}
+                              >
+                                <span className="flex items-center justify-center w-5 h-5 rounded-full bg-white/15 ring-1 ring-white/30">
+                                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5"><path fill="currentColor" d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41Z"/></svg>
+                                </span>
+                                <span className="tracking-wide uppercase">
+                                  {savingId===String(p._id)?'Saving…':(stageKey==='InterviewStatus'?'Approved':'Yes')}
+                                </span>
+                              </button>
+                              <button
+                                disabled={savingId===String(p._id)}
+                                onClick={() => openDecision(p._id, 'NO')}
+                                className={`relative inline-flex items-center gap-2 px-3.5 py-1.5 text-[11px] font-semibold rounded-full text-white shadow-md transition ${
+                                  savingId===String(p._id)
+                                    ? 'bg-gradient-to-r from-rose-400 to-rose-500/70 cursor-wait opacity-70'
+                                    : 'bg-gradient-to-r from-rose-500 via-rose-600 to-rose-700 hover:shadow-lg hover:-translate-y-0.5'
+                                }`}
+                              >
+                                <span className="flex items-center justify-center w-5 h-5 rounded-full bg-white/15 ring-1 ring-white/30">
+                                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5"><path fill="currentColor" d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2m5 11H7v-2h10z"/></svg>
+                                </span>
+                                <span className="tracking-wide uppercase">
+                                  {savingId===String(p._id)?'Saving…':(stageKey==='InterviewStatus'?'Not Approved':'No')}
+                                </span>
+                              </button>
+                            </div>
+                            <button onClick={()=> setHistoryModal({ open: true, profile: p })} className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] rounded border border-gray-300 bg-white hover:bg-gray-50 shadow-sm">
+                              <svg viewBox="0 0 24 24" className="w-3.5 h-3.5"><path fill="currentColor" d="M12 8v5h5v-2h-3V8zM12 1a11 11 0 1 0 11 11A11 11 0 0 0 12 1Zm0 20a9 9 0 1 1 9-9a9 9 0 0 1-9 9Z"/></svg>
+                              History
+                            </button>
                           </div>
-                        )}
-                        {/* Inline Remark */}
-                        <input
-                          type="text"
-                          value={remarkById[p._id] || ''}
-                          onChange={(e)=> setRemarkById(prev=>({ ...prev, [p._id]: e.target.value }))}
-                          placeholder="Remark"
-                          className="text-xs px-2 py-1 border rounded min-w-[160px]"
-                        />
-                        <button disabled={savingId===String(p._id) || (stageKey==='FQC' && !p?.resumeUrl)} onClick={() => openDecision(p._id, 'YES')} className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded text-white ${(savingId===String(p._id) || (stageKey==='FQC' && !p?.resumeUrl))?'bg-emerald-600/60 cursor-not-allowed':'bg-emerald-600 hover:bg-emerald-700'}`}>
-                          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5"><path fill="currentColor" d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41Z"/></svg>
-                          {savingId===String(p._id)?'Saving…':(stageKey==='InterviewStatus'?'Approved':'YES')}
-                        </button>
-                        <button disabled={savingId===String(p._id)} onClick={() => openDecision(p._id, 'NO')} className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded text-white ${savingId===String(p._id)?'bg-red-600/60 cursor-wait':'bg-red-600 hover:bg-red-700'}`}>
-                          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5"><path fill="currentColor" d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2m5 11H7v-2h10z"/></svg>
-                          {savingId===String(p._id)?'Saving…':(stageKey==='InterviewStatus'?'Not Approved':'NO')}
-                        </button>
-                        <button type="button" onClick={()=> openEdit(p)} className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded border border-gray-300 bg-white hover:bg-gray-50" title="Edit profile" aria-label="Edit profile">
-                          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5"><path fill="currentColor" d="M5 20h14v-2H5v2m3.7-5.88l7.68-7.69l3.18 3.18l-7.69 7.68H8.7v-3.17z"/></svg>
-                          Edit
-                        </button>
-                        <button onClick={()=> setHistoryModal({ open: true, profile: p })} className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded border border-gray-300 bg-white hover:bg-gray-50">
-                          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5"><path fill="currentColor" d="M12 8v5h5v-2h-3V8zM12 1a11 11 0 1 0 11 11A11 11 0 0 0 12 1Zm0 20a9 9 0 1 1 9-9a9 9 0 0 1-9 9Z"/></svg>
-                          History
-                        </button>
-                      </div>
+                        );
+                      })()}
                     </td>
                   </tr>
                   </React.Fragment>
@@ -752,6 +1241,296 @@ const StageSheet = ({ job, stageKey, title }) => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Add Profile Modal */}
+      {newOpen && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto m-4">
+            <div className="p-6 border-b">
+              <h3 className="text-lg font-semibold text-gray-900">Add New Profile</h3>
+              <p className="text-sm text-gray-600 mt-1">Create a new profile for {job?.position || 'this position'}</p>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Name *</label>
+                  <input
+                    type="text"
+                    value={newForm.name}
+                    onChange={(e) => setNewForm(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="Full name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Experience</label>
+                  <input
+                    type="text"
+                    value={newForm.experience}
+                    onChange={(e) => setNewForm(prev => ({ ...prev, experience: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="e.g., 3y 2m"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">CTC</label>
+                  <input
+                    type="text"
+                    value={newForm.ctc}
+                    onChange={(e) => setNewForm(prev => ({ ...prev, ctc: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="e.g., ₹ 8 Lacs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Location</label>
+                  <input
+                    type="text"
+                    value={newForm.location}
+                    onChange={(e) => setNewForm(prev => ({ ...prev, location: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="City, State"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Current Designation</label>
+                  <input
+                    type="text"
+                    value={newForm.current_designation}
+                    onChange={(e) => setNewForm(prev => ({ ...prev, current_designation: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="Job title"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Current Company</label>
+                  <input
+                    type="text"
+                    value={newForm.current_company}
+                    onChange={(e) => setNewForm(prev => ({ ...prev, current_company: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="Company name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Mobile</label>
+                  <input
+                    type="text"
+                    value={newForm.mobile}
+                    onChange={(e) => setNewForm(prev => ({ ...prev, mobile: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="Mobile number"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={newForm.email}
+                    onChange={(e) => setNewForm(prev => ({ ...prev, email: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="Email address"
+                  />
+                </div>
+              </div>
+              <div className="mt-4 space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Previous Roles</label>
+                  <textarea
+                    value={newForm.previous_roles}
+                    onChange={(e) => setNewForm(prev => ({ ...prev, previous_roles: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    rows={2}
+                    placeholder="Previous job roles (comma separated)"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Education</label>
+                  <textarea
+                    value={newForm.education}
+                    onChange={(e) => setNewForm(prev => ({ ...prev, education: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    rows={2}
+                    placeholder="Education details"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Skills</label>
+                  <textarea
+                    value={newForm.skills}
+                    onChange={(e) => setNewForm(prev => ({ ...prev, skills: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    rows={2}
+                    placeholder="Skills (comma separated)"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="p-6 border-t bg-gray-50 rounded-b-xl">
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewOpen(false);
+                    setNewForm({
+                      name: '',
+                      experience: '',
+                      ctc: '',
+                      location: '',
+                      current_designation: '',
+                      current_company: '',
+                      previous_roles: '',
+                      education: '',
+                      preferred_locations: '',
+                      skills: '',
+                      mobile: '',
+                      email: '',
+                    });
+                    setNewResume(null);
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!newForm.name.trim()) {
+                      setToast({ visible: true, message: 'Name is required', type: 'error' });
+                      setTimeout(() => setToast({ visible: false, message: '', type: 'error' }), 2500);
+                      return;
+                    }
+                    try {
+                      if (!job?._id || !job?.positionId) {
+                        setToast({ visible: true, message: 'Position details are incomplete. Please reopen this position and try again.', type: 'error' });
+                        setTimeout(() => setToast({ visible: false, message: '', type: 'error' }), 2500);
+                        return;
+                      }
+                      setNewSubmitting(true);
+                      const payload = {
+                        ...newForm,
+                        jobId: job._id,
+                        positionId: job.positionId,
+                        source: 'application',
+                        currentStage: 'BooleanDataSheet',
+                      };
+                      await axios.post(
+                        `${BASE_URL}/api/admin/recruitment/manual-profile`,
+                        payload,
+                        {
+                          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+                        }
+                      );
+                      setNewOpen(false);
+                      setNewForm({
+                        name: '',
+                        experience: '',
+                        ctc: '',
+                        location: '',
+                        current_designation: '',
+                        current_company: '',
+                        previous_roles: '',
+                        education: '',
+                        preferred_locations: '',
+                        skills: '',
+                        mobile: '',
+                        email: '',
+                      });
+                      setNewResume(null);
+                      await refresh();
+                      setToast({ visible: true, message: 'Profile created successfully', type: 'success' });
+                      setTimeout(() => setToast({ visible: false, message: '', type: 'success' }), 2000);
+                    } catch (e) {
+                      setToast({ visible: true, message: e?.response?.data?.message || e?.message || 'Failed to create profile', type: 'error' });
+                      setTimeout(() => setToast({ visible: false, message: '', type: 'error' }), 2500);
+                    } finally {
+                      setNewSubmitting(false);
+                    }
+                  }}
+                  disabled={newSubmitting || !newForm.name.trim()}
+                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {newSubmitting ? 'Creating...' : 'Create Profile'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* History Modal */}
+      {historyModal.open && historyModal.profile && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto m-4">
+            <div className="p-4 md:p-5 border-b flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-base md:text-lg font-semibold text-gray-900">Decision History</h3>
+                <p className="text-xs md:text-sm text-gray-600 mt-0.5">
+                  {historyModal.profile?.name || 'Candidate'} &mdash; {historyModal.profile?.current_designation || 'Current Role'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setHistoryModal({ open: false, profile: null })}
+                className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Close
+              </button>
+            </div>
+            <div className="p-4 md:p-5">
+              {Array.isArray(historyModal.profile?.decisions) && historyModal.profile.decisions.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs md:text-[13px] table-auto">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">#</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Decision</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">From Stage</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">To Stage</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">By</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Remark</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {historyModal.profile.decisions.map((d, idx) => {
+                        const dec = String(d?.decision || '').toUpperCase();
+                        const isYes = dec === 'YES';
+                        const isNo = dec === 'NO';
+                        return (
+                          <tr key={idx} className="odd:bg-white even:bg-gray-50">
+                            <td className="px-3 py-2 border-b align-top text-gray-700">{idx + 1}</td>
+                            <td className="px-3 py-2 border-b align-top">
+                              <span
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${
+                                  isYes
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                    : isNo
+                                      ? 'bg-red-50 text-red-700 border-red-200'
+                                      : 'bg-slate-50 text-slate-700 border-slate-200'
+                                }`}
+                              >
+                                {dec || '-'}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 border-b align-top text-gray-700">{d?.fromStage || '-'}</td>
+                            <td className="px-3 py-2 border-b align-top text-gray-700">{d?.toStage || '-'}</td>
+                            <td className="px-3 py-2 border-b align-top text-gray-700">{d?.byName || d?.byType || '-'}</td>
+                            <td className="px-3 py-2 border-b align-top text-gray-700 max-w-xs whitespace-pre-wrap">{d?.remark || '-'}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-600">No history recorded yet for this profile.</div>
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

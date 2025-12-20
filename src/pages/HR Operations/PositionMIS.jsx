@@ -1,10 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { BASE_URL } from '../../../config';
-import AdminNavbar from '../../../components/AdminNavbar';
 import toast from 'react-hot-toast';
-import { useAuth } from '../../../context/AuthContext.jsx';
+import { BASE_URL } from '../../config';
+import AnimatedHRNavbar from '../../components/HRNavbar.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
+
+const operationsNavItems = [
+  { name: 'Dashboard', path: '/hr-operations/dashboard' },
+  { name: 'Position MIS', path: '/hr-operations/positions' },
+];
 
 const PositionMIS = () => {
   const navigate = useNavigate();
@@ -25,7 +30,6 @@ const PositionMIS = () => {
           headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
         });
         const list = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []);
-        // Sort latest first
         list.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
         setJobs(list);
       } catch (e) {
@@ -73,7 +77,6 @@ const PositionMIS = () => {
     }
     if (typeof rawOrg === 'string') {
       const trimmed = rawOrg.trim();
-      // If it's not just an ObjectId-looking value, show it
       if (trimmed && !/^[0-9a-fA-F]{24}$/.test(trimmed)) {
         return trimmed;
       }
@@ -134,7 +137,6 @@ const PositionMIS = () => {
   const handleToggleStatus = async (jobId, currentStatus) => {
     const newStatus = currentStatus === 'Active' ? 'Inactive' : 'Active';
     const previous = jobs;
-    // Optimistic UI update
     setJobs(prev => prev.map(j => (j._id === jobId ? { ...j, status: newStatus } : j)));
     toast.loading('Updating status...');
     try {
@@ -148,7 +150,6 @@ const PositionMIS = () => {
       );
       toast.success(`Status changed to ${newStatus}`);
     } catch (e) {
-      // Revert on error
       setJobs(previous);
       const msg = e?.response?.data?.message || e?.message || 'Failed to update status';
       toast.error(msg);
@@ -157,12 +158,12 @@ const PositionMIS = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-gray-100">
-      <AdminNavbar />
+      <AnimatedHRNavbar title="HR Operations" navItems={operationsNavItems} />
       <main className="w-full mx-auto px-2 sm:px-4 pt-20 pb-6">
         <header className="mb-4">
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">Position MIS</h1>
+              <h1 className="text-2xl font-semibold text-gray-900">HR Operations – Position MIS</h1>
               <p className="text-sm text-gray-600">Listing of all posted jobs and quick insights</p>
             </div>
             <div className="flex items-center gap-2">
@@ -255,7 +256,7 @@ const PositionMIS = () => {
                           <div className="flex items-center gap-2">
                             <button
                               type="button"
-                              onClick={() => navigate(`/admin/recruitment/position/${j?._id}`, { state: { job: j } })}
+                              onClick={() => navigate(`/hr-operations/position/${j?._id}`, { state: { job: j } })}
                               className="px-2.5 py-1.5 text-xs rounded-md bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
                             >
                               View

@@ -121,6 +121,7 @@ const AuthScreen = () => {
         setTimeout(() => {
           const r = (role || '').toLowerCase();
           const rn = r.replace(/[^a-z]/g, ''); // normalize by removing non-letters
+
           if (rn === 'admin') navigate('/adminDashboard');
           else if (rn === 'lg') navigate('/lgDashboard');
           else if (rn === 'crecrm') navigate('/CRE-CRMDashboard');
@@ -132,6 +133,9 @@ const AuthScreen = () => {
           else if (rn === 'deputynationalhead') navigate('/CRE-CRMDashboard');
           else if (rn === 'adminteam') navigate('/adminteam/dashboard');
           else if (rn === 'dataanalyst') navigate('/dataanalyst/dashboard');
+          // HR roles
+          else if (rn === 'hroperations' || rn === 'hroperation') navigate('/hr-operations/dashboard');
+          else if (rn === 'hrrecruiter' || rn === 'hrrecuriter') navigate('/hr-recruiter/dashboard');
           else toast.error(`Unknown role: ${role}`);
         }, 500);
 
