@@ -8,7 +8,7 @@ const CandidateTable = ({ candidates, onAction, currentStage }) => {
     if (Array.isArray(val)) return val.join(", ");
     if (typeof val === "object") return Object.values(val).join(", ");
     return String(val);
-  };
+  };   
 
   return (
     <div className="overflow-x-auto">
