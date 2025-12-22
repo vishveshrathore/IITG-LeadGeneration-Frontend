@@ -51,6 +51,23 @@ const LinkedInPParser = () => {
 
   const { authToken } = useGlobalAuth();
 
+  // When opened from PositionDashboard with jobId in URL, default to Recruitment tab
+  // and preselect that job in the Position dropdown so user doesn't have to pick it again.
+  useEffect(() => {
+    if (jobIdFromUrl) {
+      setUploadTab('recruitment');
+    }
+  }, [jobIdFromUrl]);
+
+  useEffect(() => {
+    if (!jobIdFromUrl || uploadTab !== 'recruitment') return;
+    if (!recruitmentCompanies || !recruitmentCompanies.length) return;
+    const found = recruitmentCompanies.find(j => String(j.jobId) === String(jobIdFromUrl));
+    if (found) {
+      setSelectedCompany(found.jobId);
+    }
+  }, [jobIdFromUrl, uploadTab, recruitmentCompanies]);
+
   // Columns to show/export (as requested)
   const columns = [
     "S. No.",

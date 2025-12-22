@@ -62,12 +62,20 @@ const HRRecruiterDashboard = () => {
     return () => clearInterval(interval);
   }, []);
 
+  const assignedJobs = useMemo(() => {
+    if (!user || !user.id) return [];
+    return jobs.filter(j =>
+      Array.isArray(j.assignedHRRecruiters) &&
+      j.assignedHRRecruiters.some(u => String(u._id || u.id || u) === String(user.id))
+    );
+  }, [jobs, user]);
+
   const stats = useMemo(() => {
-    const total = jobs.length;
-    const active = jobs.filter(j => String(j?.status).toLowerCase() === 'active').length;
+    const total = assignedJobs.length;
+    const active = assignedJobs.filter(j => String(j?.status).toLowerCase() === 'active').length;
     const inactive = total - active;
     return { total, active, inactive };
-  }, [jobs]);
+  }, [assignedJobs]);
 
   const now = new Date();
   const hour = now.getHours();

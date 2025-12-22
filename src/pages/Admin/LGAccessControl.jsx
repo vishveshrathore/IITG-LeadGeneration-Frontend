@@ -15,7 +15,7 @@ export default function LGAccessControl() {
   const [error, setError] = useState("");
   const [toggling, setToggling] = useState({}); // { [id]: boolean }
   const [detailItem, setDetailItem] = useState(null); // modal data
-  const ROLE_OPTIONS = ['LG','AdminTeam','CRE-CRM','CRM-TeamLead','DeputyCRMTeamLead','RegionalHead','DeputyRegionalHead','NationalHead','DeputyNationalHead','DataAnalyst','HR Operations','HR Recruiter'];
+  const ROLE_OPTIONS = ['LG','AdminTeam','CRE-CRM','CRM-TeamLead','DeputyCRMTeamLead','RegionalHead','DeputyRegionalHead','NationalHead','DeputyNationalHead','DataAnalyst','HR Operations','HR Recruiter','Recruitment / QC Manager'];
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
 

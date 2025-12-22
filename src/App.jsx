@@ -54,7 +54,9 @@ import DisabledLGWrongNumber from "./pages/AdminTeam/DisabledLGWrongNumber.jsx";
 import RecruitmentDashboard from "./pages/Admin/Recruitment/RecruitmentDashboard.jsx";
 import PositionMIS from "./pages/Admin/Recruitment/PositionMIS.jsx";
 import PositionDashboard from "./pages/Admin/Recruitment/PositionDashboard.jsx";
+import PositionAssignment from "./pages/Admin/Recruitment/PositionAssignment.jsx";
 import DataAnalystDashboard from "./pages/DataAnalyst/DataAnalystDashboard.jsx";
+import RecruitmentQCDashboard from "./pages/RecruitmentQC/RecruitmentQCDashboard.jsx";
 import LGStats from "./pages/Admin/LGStats.jsx";
 import CreDashboard from "./pages/Admin/CreDashboard.jsx";
 import HRRecruiterDashboard from "./pages/HR Recuriter/HrRecruiterDashboard.jsx";
@@ -79,6 +81,16 @@ function App() {
           element={
             <ProtectedRoute role="admin">
               <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Recruitment / QC Manager dashboard */}
+        <Route
+          path="/recruitment-qc/dashboard"
+          element={
+            <ProtectedRoute role="Recruitment / QC Manager">
+              <RecruitmentQCDashboard />
             </ProtectedRoute>
           }
         />
@@ -284,7 +296,7 @@ function App() {
         <Route
           path="/admin/lgAccessControl"
           element={
-            <ProtectedRoute role="admin">
+            <ProtectedRoute roles={["admin", "Recruitment / QC Manager"]}>
               <LGAccessControl />
             </ProtectedRoute>
           }
@@ -440,7 +452,7 @@ function App() {
         <Route
           path="/tools/dashboard"
           element={
-            <ProtectedRoute role="admin">
+            <ProtectedRoute roles={["admin", "Recruitment / QC Manager"]}>
               <ToolsDashboard />
             </ProtectedRoute>
           }
@@ -449,7 +461,7 @@ function App() {
         <Route
           path="/naukri-parser"
           element={
-            <ProtectedRoute roles={["admin", "dataanalyst"]}>
+            <ProtectedRoute roles={["admin", "dataanalyst", "Recruitment / QC Manager"]}>
               <NaukriParser />
             </ProtectedRoute>
           }
@@ -459,7 +471,7 @@ function App() {
         <Route
           path="/linkedin-parser"
           element={
-            <ProtectedRoute roles={["admin", "dataanalyst"]}>
+            <ProtectedRoute roles={["admin", "dataanalyst", "Recruitment / QC Manager"]}>
               <LinkedInPParser />
             </ProtectedRoute>
           }
@@ -475,15 +487,23 @@ function App() {
         <Route
           path="/admin/recruitment"
           element={
-            <ProtectedRoute role="admin">
+            <ProtectedRoute roles={["admin", "Recruitment / QC Manager"]}>
               <RecruitmentDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/recruitment/position-assignment"
+          element={
+            <ProtectedRoute roles={["admin", "Recruitment / QC Manager"]}>
+              <PositionAssignment />
             </ProtectedRoute>
           }
         />
         <Route
           path="/admin/recruitment/position-mis"
           element={
-            <ProtectedRoute role="admin">
+            <ProtectedRoute roles={["admin", "Recruitment / QC Manager"]}>
               <PositionMIS />
             </ProtectedRoute>
           }
@@ -491,7 +511,7 @@ function App() {
         <Route
           path="/admin/recruitment/position/:id"
           element={
-            <ProtectedRoute role="admin">
+            <ProtectedRoute roles={["admin", "Recruitment / QC Manager"]}>
               <PositionDashboard />
             </ProtectedRoute>
           }

@@ -133,6 +133,7 @@ const AuthScreen = () => {
           else if (rn === 'deputynationalhead') navigate('/CRE-CRMDashboard');
           else if (rn === 'adminteam') navigate('/adminteam/dashboard');
           else if (rn === 'dataanalyst') navigate('/dataanalyst/dashboard');
+          else if (rn === 'recruitmentqcmanager') navigate('/recruitment-qc/dashboard');
           // HR roles
           else if (rn === 'hroperations' || rn === 'hroperation') navigate('/hr-operations/dashboard');
           else if (rn === 'hrrecruiter' || rn === 'hrrecuriter') navigate('/hr-recruiter/dashboard');

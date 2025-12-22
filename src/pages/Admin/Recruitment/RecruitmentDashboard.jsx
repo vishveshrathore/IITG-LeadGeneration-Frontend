@@ -19,12 +19,12 @@ const RecruitmentDashboard = () => {
       route: '/admin/recruitment/position-mis',
       color: 'bg-pink-100',
     },
-    // {
-    //   title: 'Billing',
-    //   icon: <BsBuildingCheck size={20} />,
-    //   route: '',
-    //   color: 'bg-blue-100',
-    // },
+    {
+      title: 'Create Team',
+      icon: <BsBuildingCheck size={20} />,
+      route: '/admin/recruitment/position-assignment',
+      color: 'bg-blue-100',
+    },
   ];
 
   return (

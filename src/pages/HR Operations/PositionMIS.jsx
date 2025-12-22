@@ -13,7 +13,7 @@ const operationsNavItems = [
 
 const PositionMIS = () => {
   const navigate = useNavigate();
-  const { authToken } = useAuth();
+  const { user, authToken } = useAuth();
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -42,10 +42,18 @@ const PositionMIS = () => {
     fetchJobs();
   }, [authToken]);
 
+  const assignedJobs = useMemo(() => {
+    if (!user || !user.id) return [];
+    return jobs.filter(j =>
+      Array.isArray(j.assignedHROperations) &&
+      j.assignedHROperations.some(u => String(u._id || u.id || u) === String(user.id))
+    );
+  }, [jobs, user]);
+
   const filtered = useMemo(() => {
-    if (!q.trim()) return jobs;
+    if (!q.trim()) return assignedJobs;
     const needle = q.toLowerCase();
-    return jobs.filter(j => {
+    return assignedJobs.filter(j => {
       const c = j?.createdBy || {};
       const hay = [
         j?.position,
@@ -60,14 +68,14 @@ const PositionMIS = () => {
       ].filter(Boolean).join(' ').toLowerCase();
       return hay.includes(needle);
     });
-  }, [jobs, q]);
+  }, [assignedJobs, q]);
 
   const stats = useMemo(() => {
-    const total = jobs.length;
-    const active = jobs.filter(j => String(j?.status).toLowerCase() === 'active').length;
+    const total = assignedJobs.length;
+    const active = assignedJobs.filter(j => String(j?.status).toLowerCase() === 'active').length;
     const inactive = total - active;
     return { total, active, inactive };
-  }, [jobs]);
+  }, [assignedJobs]);
 
   const getOrganisationName = (job) => {
     if (!job) return '';

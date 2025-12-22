@@ -344,6 +344,8 @@ const StageSheet = ({ job, stageKey, title }) => {
 
   const [qInput, setQInput] = useState('');
   const [expandSkills, setExpandSkills] = useState({});
+  const [expandPreviousRoles, setExpandPreviousRoles] = useState({});
+  const [expandEducation, setExpandEducation] = useState({});
   const [columnFilters, setColumnFilters] = useState({});
   const [activeFilter, setActiveFilter] = useState({ column: null, search: '' });
   const [activeFilterSelection, setActiveFilterSelection] = useState([]);
@@ -389,13 +391,10 @@ const StageSheet = ({ job, stageKey, title }) => {
   };
 
   const openEdit = (row) => {
-    console.log('openEdit called with row:', row);
     if (!row) {
-      console.log('No row provided');
       return;
     }
     setEditId(row._id || '');
-    console.log('Setting editOpen to true');
     setEditOpen(true);
     try {
       const prevRolesStr = Array.isArray(row.previous_roles)
@@ -428,7 +427,6 @@ const StageSheet = ({ job, stageKey, title }) => {
         email: row.email || '',
       });
     } catch (e) {
-      console.error('Error prefilling:', e);
       setEditForm({
         name: row?.name || '',
         experience: row?.experience || '',
@@ -602,6 +600,8 @@ const StageSheet = ({ job, stageKey, title }) => {
   };
 
   const toggleSkills = (id) => setExpandSkills(prev => ({ ...prev, [id]: !prev[id] }));
+  const togglePreviousRoles = (id) => setExpandPreviousRoles(prev => ({ ...prev, [id]: !prev[id] }));
+  const toggleEducation = (id) => setExpandEducation(prev => ({ ...prev, [id]: !prev[id] }));
 
   const deleteResume = async (profileId) => {
     try {
@@ -946,7 +946,7 @@ const StageSheet = ({ job, stageKey, title }) => {
                   <ColumnFilterHeader
                     label="Name"
                     columnKey="name"
-                    profiles={profiles}
+                    profiles={displayedProfiles}
                     columnFilters={columnFilters}
                     setColumnFilters={setColumnFilters}
                     activeFilter={activeFilter}
@@ -959,7 +959,7 @@ const StageSheet = ({ job, stageKey, title }) => {
                   <ColumnFilterHeader
                     label="Experience"
                     columnKey="experience"
-                    profiles={profiles}
+                    profiles={displayedProfiles}
                     columnFilters={columnFilters}
                     setColumnFilters={setColumnFilters}
                     activeFilter={activeFilter}
@@ -972,7 +972,7 @@ const StageSheet = ({ job, stageKey, title }) => {
                   <ColumnFilterHeader
                     label="CTC"
                     columnKey="ctc"
-                    profiles={profiles}
+                    profiles={displayedProfiles}
                     columnFilters={columnFilters}
                     setColumnFilters={setColumnFilters}
                     activeFilter={activeFilter}
@@ -985,7 +985,7 @@ const StageSheet = ({ job, stageKey, title }) => {
                   <ColumnFilterHeader
                     label="Location"
                     columnKey="location"
-                    profiles={profiles}
+                    profiles={displayedProfiles}
                     columnFilters={columnFilters}
                     setColumnFilters={setColumnFilters}
                     activeFilter={activeFilter}
@@ -998,7 +998,7 @@ const StageSheet = ({ job, stageKey, title }) => {
                   <ColumnFilterHeader
                     label="Designation"
                     columnKey="current_designation"
-                    profiles={profiles}
+                    profiles={displayedProfiles}
                     columnFilters={columnFilters}
                     setColumnFilters={setColumnFilters}
                     activeFilter={activeFilter}
@@ -1011,7 +1011,7 @@ const StageSheet = ({ job, stageKey, title }) => {
                   <ColumnFilterHeader
                     label="Current Company"
                     columnKey="current_company"
-                    profiles={profiles}
+                    profiles={displayedProfiles}
                     columnFilters={columnFilters}
                     setColumnFilters={setColumnFilters}
                     activeFilter={activeFilter}
@@ -1073,8 +1073,72 @@ const StageSheet = ({ job, stageKey, title }) => {
                     <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}>{p?.location || '-'}</td>
                     <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}><span className="px-1.5 py-0.5 rounded text-[10px] border bg-indigo-50 text-indigo-700 border-indigo-200">{p?.current_designation || '-'}</span></td>
                     <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}><span className="px-1.5 py-0.5 rounded text-[10px] border bg-emerald-50 text-emerald-700 border-emerald-200">{p?.current_company || '-'}</span></td>
-                    <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top break-words whitespace-normal`}>{Array.isArray(p?.previous_roles) ? renderChips(p.previous_roles.map(r=> (r.designation || r.company) ? `${r.designation || ''}${r.company ? ' at ' + r.company : ''}`.trim() : (typeof r==='object'? JSON.stringify(r): String(r)))) : (renderMixed(p?.previous_roles) || '-')}</td>
-                    <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top break-words whitespace-normal`}>{Array.isArray(p?.education) ? renderChips(p.education) : (renderMixed(p?.education) || '-')}</td>
+                    <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top break-words whitespace-normal`}>
+                      {Array.isArray(p?.previous_roles) ? (() => {
+                        const labels = p.previous_roles.map(r =>
+                          (r && (r.designation || r.company))
+                            ? `${r.designation || ''}${r.company ? ' at ' + r.company : ''}`.trim()
+                            : (typeof r === 'object' ? JSON.stringify(r) : String(r))
+                        ).filter(Boolean);
+                        if (!labels.length) return renderMixed(p?.previous_roles) || '-';
+                        const expanded = !!expandPreviousRoles[p._id];
+                        const shown = expanded ? labels : labels.slice(0, 3);
+                        return (
+                          <div className="flex flex-wrap items-center gap-1 max-w-[480px]">
+                            {renderChips(shown)}
+                            {labels.length > shown.length && (
+                              <button
+                                type="button"
+                                onClick={() => togglePreviousRoles(p._id)}
+                                className="px-2 py-0.5 text-[11px] rounded border bg-white hover:bg-gray-50"
+                              >
+                                +{labels.length - shown.length} more
+                              </button>
+                            )}
+                            {expanded && labels.length > 3 && (
+                              <button
+                                type="button"
+                                onClick={() => togglePreviousRoles(p._id)}
+                                className="px-2 py-0.5 text-[11px] rounded border bg-white hover:bg-gray-50"
+                              >
+                                Show less
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })() : (renderMixed(p?.previous_roles) || '-')}
+                    </td>
+                    <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top break-words whitespace-normal`}>
+                      {Array.isArray(p?.education) ? (() => {
+                        const all = p.education;
+                        if (!all.length) return '-';
+                        const expandedEdu = !!expandEducation[p._id];
+                        const shownEdu = expandedEdu ? all : all.slice(0, 3);
+                        return (
+                          <div className="flex flex-wrap items-center gap-1 max-w-[480px]">
+                            {renderChips(shownEdu)}
+                            {all.length > shownEdu.length && (
+                              <button
+                                type="button"
+                                onClick={() => toggleEducation(p._id)}
+                                className="px-2 py-0.5 text-[11px] rounded border bg-white hover:bg-gray-50"
+                              >
+                                +{all.length - shownEdu.length} more
+                              </button>
+                            )}
+                            {expandedEdu && all.length > 3 && (
+                              <button
+                                type="button"
+                                onClick={() => toggleEducation(p._id)}
+                                className="px-2 py-0.5 text-[11px] rounded border bg-white hover:bg-gray-50"
+                              >
+                                Show less
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })() : (renderMixed(p?.education) || '-')}
+                    </td>
                     <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top break-words whitespace-normal`}>
                       {Array.isArray(p?.skills) ? (
                         (() => {
@@ -1134,7 +1198,11 @@ const StageSheet = ({ job, stageKey, title }) => {
                               <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full border bg-red-50 text-red-700 border-red-200">
                                 Status: NO
                               </span>
-                              <button onClick={()=> setHistoryModal({ open: true, profile: p })} className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] rounded border border-gray-300 bg-white hover:bg-gray-50 shadow-sm">
+                              <button
+                                type="button"
+                                onClick={() => setHistoryModal({ open: true, profile: p })}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] rounded border border-gray-300 bg-white hover:bg-gray-50 shadow-sm"
+                              >
                                 <svg viewBox="0 0 24 24" className="w-3.5 h-3.5"><path fill="currentColor" d="M12 8v5h5v-2h-3V8zM12 1a11 11 0 1 0 11 11A11 11 0 0 0 12 1Zm0 20a9 9 0 1 1 9-9a9 9 0 0 1-9 9Z"/></svg>
                                 History
                               </button>
@@ -1142,68 +1210,89 @@ const StageSheet = ({ job, stageKey, title }) => {
                           );
                         }
 
+                        const lastRemark = last?.remark || '';
+
                         return (
-                          <div className="flex flex-wrap items-center gap-2">
-                            {/* FQC stage requires resume upload before YES */}
-                            {stageKey === 'FQC' && !p?.resumeUrl && (
-                              <div className="flex items-center gap-2 mr-2">
-                                <label className={`inline-flex items-center gap-1 text-xs px-2 py-1 border rounded ${uploadingId===String(p._id)?'opacity-60 cursor-wait':'cursor-pointer bg-white hover:bg-gray-50'}`}>
-                                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5"><path fill="currentColor" d="M5 20h14v-2H5v2m7-14l5 5h-3v4h-4v-4H7l5-5Z"/></svg>
-                                  {uploadingId===String(p._id)?'Uploading…':'Upload Resume'}
-                                  <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={(e)=>{
-                                    const f = e.target.files && e.target.files[0];
-                                    if (f) uploadResume(p._id, f, p?.name);
-                                    e.target.value = '';
-                                  }} disabled={uploadingId===String(p._id)} />
-                                </label>
+                          <div className="flex flex-col gap-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              {/* FQC stage requires resume upload before YES */}
+                              {stageKey === 'FQC' && !p?.resumeUrl && (
+                                <div className="flex items-center gap-2 mr-2">
+                                  <label className={`inline-flex items-center gap-1 text-xs px-2 py-1 border rounded ${uploadingId===String(p._id)?'opacity-60 cursor-wait':'cursor-pointer bg-white hover:bg-gray-50'}`}>
+                                    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5"><path fill="currentColor" d="M5 20h14v-2H5v2m7-14l5 5h-3v4h-4v-4H7l5-5Z"/></svg>
+                                    {uploadingId===String(p._id)?'Uploading…':'Upload Resume'}
+                                    <input
+                                      type="file"
+                                      accept=".pdf,.doc,.docx"
+                                      className="hidden"
+                                      onChange={(e) => {
+                                        const f = e.target.files && e.target.files[0];
+                                        if (f) uploadResume(p._id, f, p?.name);
+                                        e.target.value = '';
+                                      }}
+                                      disabled={uploadingId===String(p._id)}
+                                    />
+                                  </label>
+                                </div>
+                              )}
+                              {/* Inline Remark */}
+                              <input
+                                type="text"
+                                value={remarkById[p._id] || ''}
+                                onChange={(e) => setRemarkById(prev => ({ ...prev, [p._id]: e.target.value }))}
+                                placeholder="Remark"
+                                className="text-xs px-2 py-1 border rounded min-w-[140px]"
+                              />
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  disabled={savingId===String(p._id) || (stageKey==='FQC' && !p?.resumeUrl)}
+                                  onClick={() => openDecision(p._id, 'YES')}
+                                  className={`relative inline-flex items-center gap-2 px-3.5 py-1.5 text-[11px] font-semibold rounded-full text-white shadow-md transition ${
+                                    (savingId===String(p._id) || (stageKey==='FQC' && !p?.resumeUrl))
+                                      ? 'bg-gradient-to-r from-emerald-400 to-emerald-500/70 cursor-not-allowed opacity-70'
+                                      : 'bg-gradient-to-r from-emerald-500 via-emerald-600 to-emerald-700 hover:shadow-lg hover:-translate-y-0.5'
+                                  }`}
+                                >
+                                  <span className="flex items-center justify-center w-5 h-5 rounded-full bg-white/15 ring-1 ring-white/30">
+                                    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5"><path fill="currentColor" d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41Z"/></svg>
+                                  </span>
+                                  <span className="tracking-wide uppercase">
+                                    {savingId===String(p._id)?'Saving…':(stageKey==='InterviewStatus'?'Approved':'Yes')}
+                                  </span>
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={savingId===String(p._id)}
+                                  onClick={() => openDecision(p._id, 'NO')}
+                                  className={`relative inline-flex items-center gap-2 px-3.5 py-1.5 text-[11px] font-semibold rounded-full text-white shadow-md transition ${
+                                    savingId===String(p._id)
+                                      ? 'bg-gradient-to-r from-rose-400 to-rose-500/70 cursor-wait opacity-70'
+                                      : 'bg-gradient-to-r from-rose-500 via-rose-600 to-rose-700 hover:shadow-lg hover:-translate-y-0.5'
+                                  }`}
+                                >
+                                  <span className="flex items-center justify-center w-5 h-5 rounded-full bg-white/15 ring-1 ring-white/30">
+                                    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5"><path fill="currentColor" d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2m5 11H7v-2h10z"/></svg>
+                                  </span>
+                                  <span className="tracking-wide uppercase">
+                                    {savingId===String(p._id)?'Saving…':(stageKey==='InterviewStatus'?'Not Approved':'No')}
+                                  </span>
+                                </button>
                               </div>
-                            )}
-                            {/* Inline Remark */}
-                            <input
-                              type="text"
-                              value={remarkById[p._id] || ''}
-                              onChange={(e)=> setRemarkById(prev=>({ ...prev, [p._id]: e.target.value }))}
-                              placeholder="Remark"
-                              className="text-xs px-2 py-1 border rounded min-w-[140px]"
-                            />
-                            <div className="flex items-center gap-2">
                               <button
-                                disabled={savingId===String(p._id) || (stageKey==='FQC' && !p?.resumeUrl)}
-                                onClick={() => openDecision(p._id, 'YES')}
-                                className={`relative inline-flex items-center gap-2 px-3.5 py-1.5 text-[11px] font-semibold rounded-full text-white shadow-md transition ${
-                                  (savingId===String(p._id) || (stageKey==='FQC' && !p?.resumeUrl))
-                                    ? 'bg-gradient-to-r from-emerald-400 to-emerald-500/70 cursor-not-allowed opacity-70'
-                                    : 'bg-gradient-to-r from-emerald-500 via-emerald-600 to-emerald-700 hover:shadow-lg hover:-translate-y-0.5'
-                                }`}
+                                type="button"
+                                onClick={() => setHistoryModal({ open: true, profile: p })}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] rounded border border-gray-300 bg-white hover:bg-gray-50 shadow-sm"
                               >
-                                <span className="flex items-center justify-center w-5 h-5 rounded-full bg-white/15 ring-1 ring-white/30">
-                                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5"><path fill="currentColor" d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41Z"/></svg>
-                                </span>
-                                <span className="tracking-wide uppercase">
-                                  {savingId===String(p._id)?'Saving…':(stageKey==='InterviewStatus'?'Approved':'Yes')}
-                                </span>
-                              </button>
-                              <button
-                                disabled={savingId===String(p._id)}
-                                onClick={() => openDecision(p._id, 'NO')}
-                                className={`relative inline-flex items-center gap-2 px-3.5 py-1.5 text-[11px] font-semibold rounded-full text-white shadow-md transition ${
-                                  savingId===String(p._id)
-                                    ? 'bg-gradient-to-r from-rose-400 to-rose-500/70 cursor-wait opacity-70'
-                                    : 'bg-gradient-to-r from-rose-500 via-rose-600 to-rose-700 hover:shadow-lg hover:-translate-y-0.5'
-                                }`}
-                              >
-                                <span className="flex items-center justify-center w-5 h-5 rounded-full bg-white/15 ring-1 ring-white/30">
-                                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5"><path fill="currentColor" d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2m5 11H7v-2h10z"/></svg>
-                                </span>
-                                <span className="tracking-wide uppercase">
-                                  {savingId===String(p._id)?'Saving…':(stageKey==='InterviewStatus'?'Not Approved':'No')}
-                                </span>
+                                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5"><path fill="currentColor" d="M12 8v5h5v-2h-3V8zM12 1a11 11 0 1 0 11 11A11 11 0 0 0 12 1Zm0 20a9 9 0 1 1 9-9a9 9 0 0 1-9 9Z"/></svg>
+                                History
                               </button>
                             </div>
-                            <button onClick={()=> setHistoryModal({ open: true, profile: p })} className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] rounded border border-gray-300 bg-white hover:bg-gray-50 shadow-sm">
-                              <svg viewBox="0 0 24 24" className="w-3.5 h-3.5"><path fill="currentColor" d="M12 8v5h5v-2h-3V8zM12 1a11 11 0 1 0 11 11A11 11 0 0 0 12 1Zm0 20a9 9 0 1 1 9-9a9 9 0 0 1-9 9Z"/></svg>
-                              History
-                            </button>
+                            {lastRemark && (
+                              <div className="text-[11px] text-gray-500 max-w-xs truncate" title={lastRemark}>
+                                Last remark: <span className="font-medium text-gray-700">{lastRemark}</span>
+                              </div>
+                            )}
                           </div>
                         );
                       })()}

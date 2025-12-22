@@ -1,6 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import AdminNavbar from "../../../components/AdminNavbar"; // Assuming this is a standard component
+import AdminNavbar from "../../../components/AdminNavbar"; // Admin view
+import RecruitmentQCNavbar from "../../../components/RecruitmentQCNavbar.jsx"; // Recruitment / QC Manager view
 import { useAuth } from "../../../context/AuthContext"; // Assuming this handles user context
 import { FaFileInvoice, FaWrench, FaServer, FaUserShield, FaFileUpload, FaFileCsv } from "react-icons/fa"; // Using more specific/professional icons
 import { motion } from "framer-motion";
@@ -25,7 +26,7 @@ const DASHBOARD_TOOLS = [
 
 const ToolsDashboard = () => {
   // Destructuring for clarity, though 'user' is currently unused.
-  const { user } = useAuth(); 
+  const { user, role } = useAuth(); 
   const navigate = useNavigate();
 
   // Basic guard to prevent rendering before auth context loads, if needed.
@@ -34,10 +35,14 @@ const ToolsDashboard = () => {
       // return <LoadingSpinner />; 
   }
 
+  const rawRole = role || localStorage.getItem('role') || sessionStorage.getItem('role') || '';
+  const roleNorm = rawRole.toLowerCase().replace(/[^a-z]/g, '');
+  const isRecruitmentQC = roleNorm === 'recruitmentqcmanager';
+  const Navbar = isRecruitmentQC ? RecruitmentQCNavbar : AdminNavbar;
+
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
-      {/* AdminNavbar is assumed to be a professional, fixed header */}
-      <AdminNavbar />
+      <Navbar />
 
       {/* Main Content Area */}
       <main className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">

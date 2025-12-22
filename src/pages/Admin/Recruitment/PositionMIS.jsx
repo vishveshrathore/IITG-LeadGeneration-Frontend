@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { BASE_URL } from '../../../config';
 import AdminNavbar from '../../../components/AdminNavbar';
+import RecruitmentQCNavbar from '../../../components/RecruitmentQCNavbar.jsx';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../../context/AuthContext.jsx';
 
 const PositionMIS = () => {
   const navigate = useNavigate();
-  const { authToken } = useAuth();
+  const { authToken, role, user } = useAuth();
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -39,9 +40,39 @@ const PositionMIS = () => {
   }, [authToken]);
 
   const filtered = useMemo(() => {
-    if (!q.trim()) return jobs;
+    let base = jobs;
+
+    // If Recruitment / QC Manager, only show positions assigned to this manager
+    const rawRoleLocal = role || localStorage.getItem('role') || sessionStorage.getItem('role') || '';
+    const roleNormLocal = rawRoleLocal.toLowerCase().replace(/[^a-z]/g, '');
+    if (roleNormLocal === 'recruitmentqcmanager') {
+      const storedUser = (() => {
+        try {
+          return (
+            user ||
+            JSON.parse(localStorage.getItem('user') || 'null') ||
+            JSON.parse(sessionStorage.getItem('user') || 'null')
+          );
+        } catch {
+          return user || null;
+        }
+      })();
+      const qcId = storedUser && storedUser.id ? String(storedUser.id) : null;
+      if (qcId) {
+        base = base.filter((j) => {
+          const qc = j.assignedRecruitmentQCManager;
+          if (!qc) return false;
+          const jid = typeof qc === 'string' ? qc : (qc._id || qc.id);
+          return String(jid) === qcId;
+        });
+      } else {
+        base = [];
+      }
+    }
+
+    if (!q.trim()) return base;
     const needle = q.toLowerCase();
-    return jobs.filter(j => {
+    return base.filter(j => {
       const c = j?.createdBy || {};
       const hay = [
         j?.position,
@@ -59,11 +90,40 @@ const PositionMIS = () => {
   }, [jobs, q]);
 
   const stats = useMemo(() => {
-    const total = jobs.length;
-    const active = jobs.filter(j => String(j?.status).toLowerCase() === 'active').length;
+    let base = jobs;
+
+    const rawRoleLocal = role || localStorage.getItem('role') || sessionStorage.getItem('role') || '';
+    const roleNormLocal = rawRoleLocal.toLowerCase().replace(/[^a-z]/g, '');
+    if (roleNormLocal === 'recruitmentqcmanager') {
+      const storedUser = (() => {
+        try {
+          return (
+            user ||
+            JSON.parse(localStorage.getItem('user') || 'null') ||
+            JSON.parse(sessionStorage.getItem('user') || 'null')
+          );
+        } catch {
+          return user || null;
+        }
+      })();
+      const qcId = storedUser && storedUser.id ? String(storedUser.id) : null;
+      if (qcId) {
+        base = base.filter((j) => {
+          const qc = j.assignedRecruitmentQCManager;
+          if (!qc) return false;
+          const jid = typeof qc === 'string' ? qc : (qc._id || qc.id);
+          return String(jid) === qcId;
+        });
+      } else {
+        base = [];
+      }
+    }
+
+    const total = base.length;
+    const active = base.filter(j => String(j?.status).toLowerCase() === 'active').length;
     const inactive = total - active;
     return { total, active, inactive };
-  }, [jobs]);
+  }, [jobs, role, user]);
 
   const getOrganisationName = (job) => {
     if (!job) return '';
@@ -155,9 +215,14 @@ const PositionMIS = () => {
     }
   };
 
+  const rawRole = role || localStorage.getItem('role') || sessionStorage.getItem('role') || '';
+  const roleNorm = rawRole.toLowerCase().replace(/[^a-z]/g, '');
+  const isRecruitmentQC = roleNorm === 'recruitmentqcmanager';
+  const Navbar = isRecruitmentQC ? RecruitmentQCNavbar : AdminNavbar;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-gray-100">
-      <AdminNavbar />
+      <Navbar />
       <main className="w-full mx-auto px-2 sm:px-4 pt-20 pb-6">
         <header className="mb-4">
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
@@ -207,17 +272,18 @@ const PositionMIS = () => {
                   <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">JD</th>
                   <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Status</th>
                   <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Posted</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Total Data</th>
                   <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={13} className="px-3 py-6 text-center text-gray-500">Loading…</td>
+                    <td colSpan={14} className="px-3 py-6 text-center text-gray-500">Loading…</td>
                   </tr>
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={13} className="px-3 py-6 text-center text-gray-500">No jobs found</td>
+                    <td colSpan={14} className="px-3 py-6 text-center text-gray-500">No jobs found</td>
                   </tr>
                 ) : (
                   filtered.map((j, idx) => {
@@ -251,6 +317,7 @@ const PositionMIS = () => {
                         <td className="px-3 py-2 border-b align-top text-gray-800">{renderJDPreview(j)}</td>
                         <td className="px-3 py-2 border-b align-top text-gray-800"><StatusPill value={j?.status} /></td>
                         <td className="px-3 py-2 border-b align-top text-gray-600">{j?.createdAt ? new Date(j.createdAt).toLocaleString() : '-'}</td>
+                        <td className="px-3 py-2 border-b align-top text-gray-800">{typeof j?.totalProfiles === 'number' ? j.totalProfiles : (j?.totalProfiles || 0)}</td>
                         <td className="px-3 py-2 border-b align-top text-gray-800">
                           <div className="flex items-center gap-2">
                             <button

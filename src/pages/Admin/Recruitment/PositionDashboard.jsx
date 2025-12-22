@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useLocation, useParams } from 'react-router-dom';
+import { useLocation, useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import AdminNavbar from '../../../components/AdminNavbar';
 import { BASE_URL } from '../../../config';
@@ -55,6 +55,7 @@ const PositionDashboard = () => {
   const { state } = useLocation();
   const { id } = useParams();
   const { authToken } = useAuth();
+  const navigate = useNavigate();
   const [job, setJob] = useState(state?.job || null);
   const [loading, setLoading] = useState(!state?.job);
   const [activeTab, setActiveTab] = useState('boolean');
@@ -261,6 +262,25 @@ const PositionDashboard = () => {
 
           {error && (
             <div className="mb-4 px-3 py-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded">{error}</div>
+          )}
+
+          {!error && job?._id && (
+            <div className="mb-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => navigate(`/naukri-parser?jobId=${job._id}`)}
+                className="px-3 py-1.5 rounded-md text-xs font-medium border border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-700 hover:border-indigo-700 transition"
+              >
+                Open Table 14 (Naukri)
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate(`/linkedin-parser?jobId=${job._id}`)}
+                className="px-3 py-1.5 rounded-md text-xs font-medium border border-sky-600 bg-sky-600 text-white hover:bg-sky-700 hover:border-sky-700 transition"
+              >
+                Open Table 12 (LinkedIn)
+              </button>
+            </div>
           )}
         </div>
 
