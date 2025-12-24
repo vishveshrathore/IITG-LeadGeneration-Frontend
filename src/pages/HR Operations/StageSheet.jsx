@@ -22,11 +22,11 @@ const tabs = [
   { key: 'billing', label: '13) Forward to Billing' },
 ];
 
-// Only HR Operations tab group
+// Only Manager Operation tab group
 const tabGroups = [
   {
     id: 'operations',
-    label: 'HR Operations',
+    label: 'Manager Operation',
     items: ['boolean', 'booleanC', 'fqc', 'firstLineup', 'office', 'finalLineup', 'final', 'interviewSheet', 'status', 'selection', 'joining', 'joiningStatus', 'billing'],
   },
 ];
@@ -242,11 +242,11 @@ const HROperationsStageSheet = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-gray-100">
-      <AnimatedHRNavbar title="HR Operations" navItems={operationsNavItems} />
+      <AnimatedHRNavbar title="Manager Operation" navItems={operationsNavItems} />
       <main className="pt-20 pb-6 w-full">
         <div className="px-4 md:px-6">
           <div className="mb-4">
-            <h1 className="text-2xl font-semibold text-gray-900">Position Details (HR Operations)</h1>
+            <h1 className="text-2xl font-semibold text-gray-900">Position Details (Manager Operation)</h1>
             <p className="text-sm text-gray-600">End-to-end tracking and actions for this position</p>
           </div>
 

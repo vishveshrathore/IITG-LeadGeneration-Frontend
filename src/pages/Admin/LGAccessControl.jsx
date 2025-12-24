@@ -15,7 +15,22 @@ export default function LGAccessControl() {
   const [error, setError] = useState("");
   const [toggling, setToggling] = useState({}); // { [id]: boolean }
   const [detailItem, setDetailItem] = useState(null); // modal data
-  const ROLE_OPTIONS = ['LG','AdminTeam','CRE-CRM','CRM-TeamLead','DeputyCRMTeamLead','RegionalHead','DeputyRegionalHead','NationalHead','DeputyNationalHead','DataAnalyst','HR Operations','HR Recruiter','Recruitment / QC Manager'];
+  const ROLE_OPTIONS = [
+    { value: 'LG', label: 'LG' },
+    { value: 'AdminTeam', label: 'AdminTeam' },
+    { value: 'CRE-CRM', label: 'CRE-CRM' },
+    { value: 'CRM-TeamLead', label: 'CRM-TeamLead' },
+    { value: 'DeputyCRMTeamLead', label: 'DeputyCRMTeamLead' },
+    { value: 'RegionalHead', label: 'RegionalHead' },
+    { value: 'DeputyRegionalHead', label: 'DeputyRegionalHead' },
+    { value: 'NationalHead', label: 'NationalHead' },
+    { value: 'DeputyNationalHead', label: 'DeputyNationalHead' },
+    { value: 'DataAnalyst', label: 'DataAnalyst' },
+    // HR roles: keep stored values, update display labels
+    { value: 'HR Operations', label: 'Manager Operation' },
+    { value: 'HR Recruiter', label: 'Recruiter' },
+    { value: 'Recruitment / QC Manager', label: 'QC Manager' },
+  ];
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
 
@@ -183,7 +198,7 @@ export default function LGAccessControl() {
             >
               <option value="">All roles</option>
               {ROLE_OPTIONS.map((opt) => (
-                <option key={opt} value={opt}>{opt}</option>
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
             {(search || roleFilter) && (
@@ -236,7 +251,7 @@ export default function LGAccessControl() {
                       <td style={{ padding: "10px 8px", fontSize: 14 }}>
                         {(() => {
                           const currentRole = r?.role || '';
-                          const hasCurrentInList = currentRole && ROLE_OPTIONS.includes(currentRole);
+                          const hasCurrentInList = currentRole && ROLE_OPTIONS.some((opt) => opt.value === currentRole);
                           return (
                             <select
                               value={currentRole}
@@ -248,7 +263,7 @@ export default function LGAccessControl() {
                                 <option value={currentRole}>{currentRole}</option>
                               )}
                               {ROLE_OPTIONS.map(opt => (
-                                <option key={opt} value={opt}>{opt}</option>
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
                               ))}
                             </select>
                           );

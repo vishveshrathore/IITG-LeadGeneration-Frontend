@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { BsPersonCheck, BsPeople, BsBriefcaseFill, BsBuildingCheck, BsClipboardData } from 'react-icons/bs';
+import { BsPersonCheck, BsPeople, BsBriefcaseFill, BsBuildingCheck, BsClipboardData, BsBuildingExclamation } from 'react-icons/bs';
 import AdminNavbar from '../../../components/AdminNavbar';
 
 const RecruitmentDashboard = () => {
@@ -24,6 +24,12 @@ const RecruitmentDashboard = () => {
       icon: <BsBuildingCheck size={20} />,
       route: '/admin/recruitment/position-assignment',
       color: 'bg-blue-100',
+    },
+    {
+      title: 'Local Hiring',
+      icon: <BsPeople size={20} />,
+      route: '/admin/recruitment/local-hiring',
+      color: 'bg-green-100',
     },
   ];
 

@@ -103,13 +103,16 @@ const PositionAssignment = () => {
     try {
       setSavingJobId(jobId);
       const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
+      const payload = {
+        hrRecruiters: draft.hrRecruiters,
+        hrOperations: draft.hrOperations,
+      };
+      if (showRecruitmentQCColumn) {
+        payload.recruitmentQCManager = draft.recruitmentQCManager || null;
+      }
       const { data } = await axios.patch(
         `${BASE_URL}/api/admin/post-job/${jobId}/assign-team`,
-        {
-          hrRecruiters: draft.hrRecruiters,
-          hrOperations: draft.hrOperations,
-          recruitmentQCManager: draft.recruitmentQCManager || null,
-        },
+        payload,
         {
           withCredentials: true,
           headers,
@@ -241,7 +244,7 @@ const PositionAssignment = () => {
             <div>
               <h1 className="text-2xl font-semibold text-gray-900">Create Team</h1>
               <p className="text-sm text-gray-600">
-                Assign HR Recruiters and HR Operations team members to each position.
+                Assign Recruiters and Manager Operation team members to each position.
               </p>
             </div>
           </div>
@@ -251,9 +254,9 @@ const PositionAssignment = () => {
           <section className="mb-4 bg-white border border-gray-200 rounded-xl p-3 text-xs text-gray-700">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div>
-                <h2 className="text-sm font-semibold text-gray-900">Recruitment / QC Managers</h2>
+                <h2 className="text-sm font-semibold text-gray-900">QC Managers</h2>
                 <p className="text-[11px] text-gray-600">
-                  Admin can select from the following Recruitment / QC Managers when coordinating assignments.
+                  Admin can select from the following QC Managers when coordinating assignments.
                 </p>
               </div>
               <span className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-full border border-slate-200 bg-slate-50 text-slate-700">
@@ -262,7 +265,7 @@ const PositionAssignment = () => {
             </div>
             <div className="mt-2 flex flex-wrap gap-2 min-h-[32px]">
               {recruitmentQCManagers.length === 0 ? (
-                <span className="text-[11px] text-gray-500">No Recruitment / QC Managers found.</span>
+                <span className="text-[11px] text-gray-500">No QC Managers found.</span>
               ) : (
                 recruitmentQCManagers.map((u) => (
                   <span
@@ -298,10 +301,10 @@ const PositionAssignment = () => {
                   <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Openings</th>
                   <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Status</th>
                   {showRecruitmentQCColumn && (
-                    <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Recruitment / QC Manager</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">QC Manager</th>
                   )}
-                  <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">HR Recruiters</th>
-                  <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">HR Operations</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Recruiters</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Manager Operation</th>
                   <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Action</th>
                 </tr>
               </thead>
@@ -346,7 +349,7 @@ const PositionAssignment = () => {
                               onChange={(e) => handleRecruitmentQCManagerChange(id, e.target.value)}
                               className="w-full border border-gray-300 rounded px-1 py-1 text-[11px] bg-white"
                             >
-                              <option value="">Select Recruitment / QC Manager</option>
+                              <option value="">Select QC Manager</option>
                               {recruitmentQCManagers.map((u) => (
                                 <option key={u._id} value={String(u._id)}>
                                   {u.name} {u.email ? `(${u.email})` : ''}
@@ -358,7 +361,7 @@ const PositionAssignment = () => {
                         <td className="px-3 py-2 border-b align-top text-gray-800">
                           <div className="flex flex-col gap-1 max-h-24 overflow-y-auto">
                             {hrRecruiters.length === 0 ? (
-                              <span className="text-[11px] text-gray-500">No HR Recruiters</span>
+                              <span className="text-[11px] text-gray-500">No Recruiters</span>
                             ) : (
                               hrRecruiters.map((u) => {
                                 const uid = String(u._id);
@@ -401,7 +404,7 @@ const PositionAssignment = () => {
                         <td className="px-3 py-2 border-b align-top text-gray-800">
                           <div className="flex flex-col gap-1 max-h-24 overflow-y-auto">
                             {hrOperations.length === 0 ? (
-                              <span className="text-[11px] text-gray-500">No HR Operations users</span>
+                              <span className="text-[11px] text-gray-500">No Manager Operation users</span>
                             ) : (
                               hrOperations.map((u) => {
                                 const uid = String(u._id);

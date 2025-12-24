@@ -19,6 +19,7 @@ const LinkedInPParser = () => {
   const companyFromUrl = searchParams.get('company');
   const fromCorporate = searchParams.get('fromCorporate') === 'true';
   const jobIdFromUrl = searchParams.get('jobId') || '';
+  const localHiring = searchParams.get('localHiring') === 'true';
 
   const [rawData, setRawData] = useState("");
   const [profiles, setProfiles] = useState([]);
@@ -37,7 +38,7 @@ const LinkedInPParser = () => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [toRecruitment, setToRecruitment] = useState(false);
-  const [uploadTab, setUploadTab] = useState('public'); // 'public' | 'recruitment'
+  const [uploadTab, setUploadTab] = useState(localHiring ? 'localHiring' : 'public'); // 'public' | 'recruitment' | 'localHiring'
   const [lastUpload, setLastUpload] = useState(null); // { count, source, companyId, ts }
   // Add company inline form
   const [showAddCompany, setShowAddCompany] = useState(false);
@@ -54,10 +55,10 @@ const LinkedInPParser = () => {
   // When opened from PositionDashboard with jobId in URL, default to Recruitment tab
   // and preselect that job in the Position dropdown so user doesn't have to pick it again.
   useEffect(() => {
-    if (jobIdFromUrl) {
+    if (jobIdFromUrl && !localHiring) {
       setUploadTab('recruitment');
     }
-  }, [jobIdFromUrl]);
+  }, [jobIdFromUrl, localHiring]);
 
   useEffect(() => {
     if (!jobIdFromUrl || uploadTab !== 'recruitment') return;
@@ -72,12 +73,13 @@ const LinkedInPParser = () => {
   const columns = [
     "S. No.",
     "Name",
-    "Experience",
+    "Experience",        // total experience derived from previous roles
     "CTC",
     "Location",
     "Preferred Location",
     "Current Company",
     "Current Designation",
+    "Previous Roles",    // detailed role list
     "Education",
     "Email",
     "Mobile",
@@ -92,11 +94,56 @@ const LinkedInPParser = () => {
     const curr = experience.find((e) => /present/i.test(e?.to || "")) || experience[0];
     return curr ? { company: curr.company || "", title: curr.title || "" } : { company: "", title: "" };
   };
+  const getPastRoles = (experience = []) => {
+    if (!Array.isArray(experience) || !experience.length) return [];
+    const currentIdx = experience.findIndex((e) => /present/i.test(e?.to || ""));
+    const excludeIdx = currentIdx >= 0 ? currentIdx : 0;
+    return experience.filter((_, idx) => idx !== excludeIdx);
+  };
+
   const getExperienceText = (experience = []) => {
     if (!Array.isArray(experience) || !experience.length) return "";
-    const items = experience.slice(0, 3).map((e) => `${e.title || ''}${e.company ? ' at ' + e.company : ''}${e.from || e.to ? ` (${e.from || ''} – ${e.to || ''})` : ''}`.trim()).filter(Boolean);
+    const items = experience
+      .slice(0, 3)
+      .map((e) =>
+        `${e.title || ''}${e.company ? ' at ' + e.company : ''}${
+          e.from || e.to ? ` (${e.from || ''} – ${e.to || ''})` : ''
+        }`.trim()
+      )
+      .filter(Boolean);
     const more = experience.length - items.length;
     return items.join(" | ") + (more > 0 ? ` (+${more} more)` : "");
+  };
+
+  const getTotalExperienceFromRoles = (roles = []) => {
+    if (!Array.isArray(roles) || !roles.length) return "";
+    const currentYear = new Date().getFullYear();
+    let totalMonths = 0;
+
+    roles.forEach((e) => {
+      const fromYear = parseInt(e.from, 10);
+      let toYear;
+      if (/present/i.test(e?.to || "")) {
+        toYear = currentYear;
+      } else if (e.to) {
+        toYear = parseInt(e.to, 10);
+      } else {
+        toYear = fromYear;
+      }
+
+      if (Number.isFinite(fromYear) && Number.isFinite(toYear)) {
+        const diffMonths = Math.max(0, (toYear - fromYear) * 12);
+        totalMonths += diffMonths;
+      }
+    });
+
+    if (!totalMonths) return "";
+    const years = Math.floor(totalMonths / 12);
+    const months = totalMonths % 12;
+    const parts = [];
+    if (years) parts.push(`${years}y`);
+    if (months) parts.push(`${months}m`);
+    return parts.join(" ");
   };
   const getEducationText = (education = []) => {
     if (!Array.isArray(education) || !education.length) return "";
@@ -398,15 +445,17 @@ const LinkedInPParser = () => {
     if (!profiles.length) return showToast("No profiles to export.", "error");
     const rows = profiles.map((p, idx) => {
       const curr = getCurrentRole(p.experience);
+      const pastRoles = getPastRoles(p.experience);
       return {
         "S. No.": String(idx + 1),
         "Name": p.name || "",
-        "Experience": getExperienceText(p.experience),
+        "Experience": getTotalExperienceFromRoles(pastRoles),
         "CTC": "", // Not available in LinkedIn list view
         "Location": p.location || "",
         "Preferred Location": "", // Not available in LinkedIn list view
         "Current Company": curr.company || "",
         "Current Designation": curr.title || "",
+        "Previous Roles": getExperienceText(pastRoles),
         "Education": getEducationText(p.education),
         "Email": "", // Not available in LinkedIn list view
         "Mobile": "", // Not available in LinkedIn list view
@@ -511,7 +560,7 @@ const LinkedInPParser = () => {
           {profiles.length > 0 && (
             <div className="mt-4 p-3 border border-gray-200 bg-white rounded">
               <h3 className="text-sm font-semibold text-gray-800 mb-2">Upload Parsed Profiles</h3>
-              {/* Tabs: Public vs Recruitment */}
+              {/* Tabs: Public vs Recruitment vs Local Hiring */}
               <div className="mb-3 flex items-center gap-2 border-b border-gray-200">
                 <button
                   type="button"
@@ -526,6 +575,18 @@ const LinkedInPParser = () => {
                   className={`text-xs px-3 py-1.5 -mb-px border-b-2 ${uploadTab==='recruitment' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-gray-600 hover:text-gray-800'}`}
                 >
                   Recruitment
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUploadTab('localHiring');
+                    setToRecruitment(false);
+                    setSelectedCompany("");
+                    setShowAddCompany(false);
+                  }}
+                  className={`text-xs px-3 py-1.5 -mb-px border-b-2 ${uploadTab==='localHiring' ? 'border-fuchsia-600 text-fuchsia-700' : 'border-transparent text-gray-600 hover:text-gray-800'}`}
+                >
+                  Local Hiring
                 </button>
               </div>
               <div className="flex flex-wrap items-center gap-3">
@@ -543,7 +604,9 @@ const LinkedInPParser = () => {
                 </button>
 
                 <div className="flex items-center gap-2">
-                  <label className="text-xs text-gray-700">{uploadTab==='recruitment' ? 'Position:' : 'Company:'}</label>
+                  <label className="text-xs text-gray-700">
+                    {uploadTab==='recruitment' ? 'Position:' : (uploadTab==='localHiring' ? 'Destination:' : 'Company:')}
+                  </label>
                   {uploadTab==='recruitment' && (
                     <input
                       type="text"
@@ -558,12 +621,16 @@ const LinkedInPParser = () => {
                     onChange={(e) => setSelectedCompany(e.target.value)}
                     className={`text-xs px-2 py-1 border border-gray-300 rounded min-w-[280px] ${fromCorporate && selectedCompany ? 'bg-gray-100' : ''}`}
                     disabled={
-                      uploadTab==='recruitment'
+                      uploadTab==='localHiring'
+                        ? true
+                        : uploadTab==='recruitment'
                         ? recruitmentCompaniesLoading || !recruitmentCompanies.length
                         : (companiesLoading || !companies.length || (fromCorporate && !!selectedCompany))
                     }
                   >
-                    {uploadTab==='recruitment' ? (
+                    {uploadTab==='localHiring' ? (
+                      <option value="">Local Hiring</option>
+                    ) : uploadTab==='recruitment' ? (
                       <>
                         <option value="" disabled>
                           {recruitmentCompaniesLoading ? 'Loading positions...' : 'Select position'}
@@ -604,6 +671,7 @@ const LinkedInPParser = () => {
                     type="button"
                     onClick={() => setShowAddCompany((s) => !s)}
                     className="text-xs px-2 py-1 border border-gray-300 rounded bg-white hover:bg-gray-50"
+                    disabled={uploadTab==='localHiring'}
                   >
                     {showAddCompany ? 'Close' : 'Add Company'}
                   </button>
@@ -669,19 +737,19 @@ const LinkedInPParser = () => {
                   type="button"
                   onClick={() => {
                     if (!selectedIds.length) return showToast("Please select at least one profile", "error");
-                    if (!selectedCompany) return showToast("Please select a company", "error");
+                    if (uploadTab !== 'localHiring' && !selectedCompany) return showToast("Please select a company", "error");
                     // In recruitment mode, selectedCompany is the jobId from dropdown.
                     // We map jobId -> recruitmentCompanyId later inside the confirm handler
                     // when building the payload.
                     setToRecruitment(uploadTab === 'recruitment');
                     setConfirmOpen(true);
                   }}
-                  disabled={!selectedIds.length || !selectedCompany || uploading}
-                  className={`py-1 px-2 rounded border border-gray-300 text-white text-xs ${(!selectedIds.length || !selectedCompany || uploading)
-                    ? (uploadTab==='recruitment' ? 'bg-indigo-600/60 cursor-not-allowed' : 'bg-emerald-600/60 cursor-not-allowed')
-                    : (uploadTab==='recruitment' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-emerald-600 hover:bg-emerald-700')}`}
+                  disabled={!selectedIds.length || (uploadTab !== 'localHiring' && !selectedCompany) || uploading}
+                  className={`py-1 px-2 rounded border border-gray-300 text-white text-xs ${(!selectedIds.length || (uploadTab !== 'localHiring' && !selectedCompany) || uploading)
+                    ? (uploadTab==='recruitment' ? 'bg-indigo-600/60 cursor-not-allowed' : (uploadTab==='localHiring' ? 'bg-fuchsia-600/60 cursor-not-allowed' : 'bg-emerald-600/60 cursor-not-allowed'))
+                    : (uploadTab==='recruitment' ? 'bg-indigo-600 hover:bg-indigo-700' : (uploadTab==='localHiring' ? 'bg-fuchsia-600 hover:bg-fuchsia-700' : 'bg-emerald-600 hover:bg-emerald-700'))}`}
                 >
-                  {uploading ? 'Uploading...' : (uploadTab==='recruitment' ? 'Submit (Recruitment)' : 'Submit (Public)')}
+                  {uploading ? 'Uploading...' : (uploadTab==='recruitment' ? 'Submit (Recruitment)' : (uploadTab==='localHiring' ? 'Submit (Local Hiring)' : 'Submit (Public)'))}
                 </button>
 
                 <span className="text-[11px] bg-gray-100 border border-gray-200 text-gray-700 px-2 py-0.5 rounded">
@@ -732,7 +800,7 @@ const LinkedInPParser = () => {
                         <th
                           key={key}
                           className="px-2 py-1 text-left font-medium text-gray-600 border-b border-gray-200 whitespace-normal"
-                          style={key === 'Experience' || key === 'Education' ? { minWidth: '20rem', width: 'auto' } : { width: 'auto' }}
+                          style={key === 'Previous Roles' || key === 'Education' ? { minWidth: '20rem', width: 'auto' } : { width: 'auto' }}
                         >
                           {key}
                         </th>
@@ -748,9 +816,10 @@ const LinkedInPParser = () => {
                         if ((p?.name || "N/A") === "N/A" && noContent) return false;
                         if (isNoiseName && noContent) return false;
                         if (!query.trim()) return true;
+                        const pastRoles = getPastRoles(p.experience);
                         const hay = [
                           p.name,
-                          getExperienceText(p.experience),
+                          getExperienceText(pastRoles),
                           p.location,
                           getEducationText(p.education),
                           (getCurrentRole(p.experience).company || ''),
@@ -760,15 +829,17 @@ const LinkedInPParser = () => {
                         return hay.includes(query.toLowerCase());
                       })
                       .map((p, i) => {
+                        const pastRoles = getPastRoles(p.experience);
                         const derived = {
                           "S. No.": String(i + 1),
                           "Name": p.name || "",
-                          "Experience": getExperienceText(p.experience),
+                          "Experience": getTotalExperienceFromRoles(pastRoles),
                           "CTC": "",
                           "Location": p.location || "",
                           "Preferred Location": "",
                           "Current Company": getCurrentRole(p.experience).company || "",
                           "Current Designation": getCurrentRole(p.experience).title || "",
+                          "Previous Roles": getExperienceText(pastRoles),
                           "Education": getEducationText(p.education),
                           "Email": "",
                           "Mobile": "",
@@ -792,9 +863,9 @@ const LinkedInPParser = () => {
                               />
                             </td>
                             {columns.slice(1).map((key) => {
-                              // Special readable render for Experience and Education
-                              if (key === 'Experience') {
-                                const exp = Array.isArray(p.experience) ? p.experience : [];
+                              // Special readable render for Previous Roles and Education
+                              if (key === 'Previous Roles') {
+                                const exp = getPastRoles(p.experience);
                                 return (
                                   <td key={key} className="px-2 py-1 align-top text-gray-800 border-b border-gray-100 break-words whitespace-normal" style={{ minWidth: '20rem', width: 'auto' }}>
                                     {exp.length ? (
@@ -873,16 +944,18 @@ const LinkedInPParser = () => {
               <h4 className="text-base font-semibold text-gray-900 mb-2">Confirm Upload</h4>
               <p className="text-sm text-gray-700 mb-4">
                 You are about to upload <span className="font-semibold">{selectedIds.length}</span> profile(s)
-                to company:
+                to:
                 <br />
-                  <span className="font-medium">
-                    {toRecruitment
+                <span className="font-medium">
+                  {uploadTab === 'localHiring'
+                    ? 'Local Hiring'
+                    : (toRecruitment
                       ? (recruitmentCompanies.find((j) => String(j.jobId) === String(selectedCompany))?.label || 'Selected Position')
                       : (companies.find((c) => c._id === selectedCompany)?.CompanyName ||
                         companies.find((c) => c._id === selectedCompany)?.companyName ||
                         companies.find((c) => c._id === selectedCompany)?.name ||
-                        'Selected Company')}
-                  </span>
+                        'Selected Company'))}
+                </span>
               </p>
               <div className="flex justify-end gap-2">
                 <button
@@ -917,15 +990,19 @@ const LinkedInPParser = () => {
                         companyId: companyIdToSend,
                         source: 'linkedin',
                         profiles: toUpload,
-                        ...(toRecruitment && jobIdToSend ? { jobId: jobIdToSend } : {}),
                       };
                       console.log('[LinkedIn] Upload payload', { toRecruitment, payload });
-                      const endpoint = toRecruitment
-                        ? `${BASE_URL}/api/admin/save/parsed/profiles/recruitment`
-                        : `${BASE_URL}/api/recruitment/save/parsed-profiles`;
-                      const config = toRecruitment && authToken
-                        ? { headers: { Authorization: `Bearer ${authToken}` } }
-                        : undefined;
+                      let endpoint;
+                      const config = {};
+                      if (uploadTab === 'localHiring') {
+                        endpoint = `${BASE_URL}/api/local-hiring/admin/upload/profiles`;
+                        if (authToken) config.headers = { Authorization: `Bearer ${authToken}` };
+                      } else if (toRecruitment) {
+                        endpoint = `${BASE_URL}/api/admin/save/parsed/profiles/recruitment`;
+                        if (authToken) config.headers = { Authorization: `Bearer ${authToken}` };
+                      } else {
+                        endpoint = `${BASE_URL}/api/recruitment/save/parsed-profiles`;
+                      }
                       const res = await axios.post(endpoint, payload, config);
                       console.log('[LinkedIn] Upload response', res?.data);
                       if (res?.data?.success) {

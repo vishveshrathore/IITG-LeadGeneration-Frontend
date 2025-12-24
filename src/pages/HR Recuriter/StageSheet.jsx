@@ -14,11 +14,10 @@ const tabs = [
   { key: 'selection', label: '10) Selection Sheet' },
 ];
 
-// Only HR Recruiter tab group
 const tabGroups = [
   {
     id: 'recruiter',
-    label: 'HR Recruiter',
+    label: 'Recruiter',
     items: ['fqc', 'firstLineup', 'finalLineup', 'interviewSheet', 'selection'],
   },
 ];
@@ -210,11 +209,11 @@ const HRRecruiterStageSheet = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-gray-100">
-      <AnimatedHRNavbar title="HR Recruiter" navItems={recruiterNavItems} />
+      <AnimatedHRNavbar title="Recruiter" navItems={recruiterNavItems} />
       <main className="pt-20 pb-6 w-full">
         <div className="px-4 md:px-6">
           <div className="mb-4">
-            <h1 className="text-2xl font-semibold text-gray-900">Position Details (HR Recruiter)</h1>
+            <h1 className="text-2xl font-semibold text-gray-900">Position Details (Recruiter)</h1>
             <p className="text-sm text-gray-600">Work on your stages for this position</p>
           </div>
 

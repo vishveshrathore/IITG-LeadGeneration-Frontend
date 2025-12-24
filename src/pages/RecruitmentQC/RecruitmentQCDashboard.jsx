@@ -41,7 +41,7 @@ const RecruitmentQCDashboard = () => {
     },
     {
       title: 'Create Team',
-      description: 'Create teams of HR Recruiters and HR Operations for each position.',
+      description: 'Create teams of Recruiters and Manager Operation for each position.',
       icon: <BsBuildingCheck size={20} />,
       route: '/admin/recruitment/position-assignment',
       color: 'bg-blue-100',
@@ -79,7 +79,7 @@ const RecruitmentQCDashboard = () => {
               <div className="space-y-4 max-w-2xl">
                 <div>
                   <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">
-                    {`${getGreeting()}, ${user?.name || 'Recruitment / QC Manager'}!`}
+                    {`${getGreeting()}, ${user?.name || 'QC Manager'}!`}
                   </h1>
                 
                 </div>

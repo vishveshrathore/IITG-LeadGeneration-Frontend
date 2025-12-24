@@ -166,12 +166,12 @@ const PositionMIS = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-gray-100">
-      <AnimatedHRNavbar title="HR Operations" navItems={operationsNavItems} />
+      <AnimatedHRNavbar title="Manager Operation" navItems={operationsNavItems} />
       <main className="w-full mx-auto px-2 sm:px-4 pt-20 pb-6">
         <header className="mb-4">
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">HR Operations – Position MIS</h1>
+              <h1 className="text-2xl font-semibold text-gray-900">Manager Operation – Position MIS</h1>
               <p className="text-sm text-gray-600">Listing of all posted jobs and quick insights</p>
             </div>
             <div className="flex items-center gap-2">

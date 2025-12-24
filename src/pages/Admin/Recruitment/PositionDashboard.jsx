@@ -30,7 +30,7 @@ const tabGroups = [
   },
   {
     id: 'recruiter',
-    label: 'HR Recruiter',
+    label: 'Recruiter',
     items: ['fqc', 'firstLineup', 'finalLineup', 'interviewSheet', 'selection'],
   },
   {
@@ -54,13 +54,31 @@ const HeaderStat = ({ title, value }) => (
 const PositionDashboard = () => {
   const { state } = useLocation();
   const { id } = useParams();
-  const { authToken } = useAuth();
+  const { authToken, role } = useAuth();
   const navigate = useNavigate();
   const [job, setJob] = useState(state?.job || null);
   const [loading, setLoading] = useState(!state?.job);
   const [activeTab, setActiveTab] = useState('boolean');
   const [error, setError] = useState('');
   const [counts, setCounts] = useState({});
+
+  // Create Team modal state
+  const [teamModalOpen, setTeamModalOpen] = useState(false);
+  const [hrRecruiters, setHrRecruiters] = useState([]);
+  const [hrOperations, setHrOperations] = useState([]);
+  const [recruitmentQCManagers, setRecruitmentQCManagers] = useState([]);
+  const [teamDraft, setTeamDraft] = useState({
+    hrRecruiters: [],
+    hrOperations: [],
+    recruitmentQCManager: '',
+  });
+  const [teamLoading, setTeamLoading] = useState(false);
+  const [teamSaving, setTeamSaving] = useState(false);
+  const [teamError, setTeamError] = useState('');
+
+  const rawRole = role || localStorage.getItem('role') || sessionStorage.getItem('role') || '';
+  const roleNorm = rawRole.toLowerCase().replace(/[^a-z]/g, '');
+  const isRecruitmentQC = roleNorm === 'recruitmentqcmanager';
 
   useEffect(() => {
     if (state?.job) return; // already have job via navigation state
@@ -155,6 +173,94 @@ const PositionDashboard = () => {
     };
     loadCounts();
   }, [job, authToken]);
+
+  // Open Create Team modal and load HR users + current assignments for this job
+  const openTeamModal = async () => {
+    if (!job?._id || !authToken) return;
+    setTeamModalOpen(true);
+    setTeamError('');
+    setTeamLoading(true);
+    try {
+      if (!hrRecruiters.length && !hrOperations.length && !recruitmentQCManagers.length) {
+        const { data } = await axios.get(`${BASE_URL}/api/admin/recruitment/hr-users`, {
+          withCredentials: true,
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+        });
+        const hrData = data?.data || {};
+        setHrRecruiters(Array.isArray(hrData.hrRecruiters) ? hrData.hrRecruiters : []);
+        setHrOperations(Array.isArray(hrData.hrOperations) ? hrData.hrOperations : []);
+        setRecruitmentQCManagers(Array.isArray(hrData.recruitmentQCManagers) ? hrData.recruitmentQCManagers : []);
+      }
+
+      const draft = {
+        hrRecruiters: Array.isArray(job.assignedHRRecruiters)
+          ? job.assignedHRRecruiters.map((u) => String(u._id || u.id || u))
+          : [],
+        hrOperations: Array.isArray(job.assignedHROperations)
+          ? job.assignedHROperations.map((u) => String(u._id || u.id || u))
+          : [],
+        recruitmentQCManager: job.assignedRecruitmentQCManager
+          ? String(
+              job.assignedRecruitmentQCManager?._id ||
+                job.assignedRecruitmentQCManager?.id ||
+                job.assignedRecruitmentQCManager
+            )
+          : '',
+      };
+      setTeamDraft(draft);
+    } catch (e) {
+      setTeamError(e?.response?.data?.message || e?.message || 'Failed to load team data');
+    } finally {
+      setTeamLoading(false);
+    }
+  };
+
+  const handleTeamChange = (field, values) => {
+    setTeamDraft((prev) => ({
+      hrRecruiters: prev.hrRecruiters || [],
+      hrOperations: prev.hrOperations || [],
+      recruitmentQCManager: prev.recruitmentQCManager || '',
+      ...(field === 'hrRecruiters' ? { hrRecruiters: values } : {}),
+      ...(field === 'hrOperations' ? { hrOperations: values } : {}),
+      ...(field === 'recruitmentQCManager' ? { recruitmentQCManager: values } : {}),
+    }));
+  };
+
+  const handleSaveTeam = async () => {
+    if (!authToken || !job?._id) return;
+    try {
+      setTeamSaving(true);
+      setTeamError('');
+      const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
+      const payload = {
+        hrRecruiters: teamDraft.hrRecruiters || [],
+        hrOperations: teamDraft.hrOperations || [],
+      };
+      if (!isRecruitmentQC) {
+        payload.recruitmentQCManager = teamDraft.recruitmentQCManager || null;
+      }
+      const { data } = await axios.patch(
+        `${BASE_URL}/api/admin/post-job/${job._id}/assign-team`,
+        payload,
+        {
+          withCredentials: true,
+          headers,
+        }
+      );
+      const updated = data?.data || null;
+      if (updated && updated._id) {
+        setJob((prev) => {
+          if (!prev) return updated;
+          return String(prev._id) === String(updated._id) ? updated : prev;
+        });
+      }
+      setTeamModalOpen(false);
+    } catch (e) {
+      setTeamError(e?.response?.data?.message || e?.message || 'Failed to update team assignment');
+    } finally {
+      setTeamSaving(false);
+    }
+  };
 
   const getCountForTab = (key) => {
     switch (key) {
@@ -280,6 +386,13 @@ const PositionDashboard = () => {
               >
                 Open Table 12 (LinkedIn)
               </button>
+              <button
+                type="button"
+                onClick={openTeamModal}
+                className="px-3 py-1.5 rounded-md text-xs font-medium border border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 hover:border-emerald-700 transition"
+              >
+                Create Team
+              </button>
             </div>
           )}
         </div>
@@ -321,13 +434,17 @@ const PositionDashboard = () => {
             {/* Sticky Tabs: grouped by role for easier navigation */}
             <div className="sticky top-16 z-30 bg-white/90 backdrop-blur border-b">
               <div className="px-4 md:px-6 py-3 space-y-3">
-                {tabGroups.map(group => (
+                {tabGroups
+                  .filter(group => !isRecruitmentQC || group.id === 'operations')
+                  .map(group => (
                   <div key={group.id} className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-                        {group.label}
-                      </span>
-                    </div>
+                    {!isRecruitmentQC && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                          {group.label}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex flex-wrap gap-x-2 gap-y-2">
                       {group.items.map((key) => {
                         const t = tabs.find(tab => tab.key === key);
@@ -379,6 +496,180 @@ const PositionDashboard = () => {
           </div>
         </section>
       </main>
+
+      {teamModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl mx-4">
+            <div className="px-5 py-4 border-b flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">Create Team</h2>
+                <p className="text-xs text-gray-600 mt-0.5">
+                  Assign QC Manager, Recruiters and Manager Operation for this position.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTeamModalOpen(false)}
+                className="text-gray-500 hover:text-gray-700 text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="px-5 py-4 max-h-[75vh] overflow-y-auto text-xs">
+              <div className="mb-3 text-gray-700">
+                <div className="font-semibold">{job?.position || 'Position'}</div>
+                <div className="text-[11px] text-gray-500">Position ID: {job?.positionId || '-'}</div>
+              </div>
+
+              {teamError && (
+                <div className="mb-3 text-[11px] text-red-700 bg-red-50 border border-red-200 px-3 py-2 rounded">
+                  {teamError}
+                </div>
+              )}
+
+              {teamLoading ? (
+                <div className="text-[11px] text-gray-600">Loading team data…</div>
+              ) : (
+                <div className="space-y-4">
+                  {!isRecruitmentQC && (
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <h3 className="text-[11px] font-semibold text-gray-900">QC Manager</h3>
+                        <span className="text-[10px] text-gray-500">Optional</span>
+                      </div>
+                      <select
+                        value={teamDraft.recruitmentQCManager || ''}
+                        onChange={(e) => handleTeamChange('recruitmentQCManager', e.target.value)}
+                        className="w-full border border-gray-300 rounded px-2 py-1 text-[11px] bg-white"
+                      >
+                        <option value="">Select QC Manager</option>
+                        {recruitmentQCManagers.map((u) => (
+                          <option key={u._id} value={String(u._id)}>
+                            {u.name} {u.email ? `(${u.email})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <h3 className="text-[11px] font-semibold text-gray-900 mb-1">Recruiters</h3>
+                      <div className="flex flex-col gap-1 max-h-48 overflow-y-auto border border-gray-200 rounded-md px-2 py-2">
+                        {hrRecruiters.length === 0 ? (
+                          <span className="text-[11px] text-gray-500">No Recruiters</span>
+                        ) : (
+                          hrRecruiters.map((u) => {
+                            const uid = String(u._id);
+                            const checked = (teamDraft.hrRecruiters || []).includes(uid);
+                            return (
+                              <label
+                                key={uid}
+                                className="flex items-center gap-2 text-[11px] text-gray-800"
+                              >
+                                <input
+                                  type="checkbox"
+                                  className="h-3 w-3 rounded border-gray-300 text-indigo-600"
+                                  checked={checked}
+                                  onChange={() => {
+                                    const current = teamDraft.hrRecruiters || [];
+                                    const exists = current.includes(uid);
+                                    const values = exists
+                                      ? current.filter((x) => x !== uid)
+                                      : [...current, uid];
+                                    handleTeamChange('hrRecruiters', values);
+                                  }}
+                                />
+                                <span
+                                  className="truncate"
+                                  title={`${u.name || ''} ${u.email || u.mobile || ''}`.trim()}
+                                >
+                                  {u.name}{' '}
+                                  {u.email
+                                    ? `(${u.email})`
+                                    : u.mobile
+                                    ? `(${u.mobile})`
+                                    : ''}
+                                </span>
+                              </label>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="text-[11px] font-semibold text-gray-900 mb-1">Manager Operation</h3>
+                      <div className="flex flex-col gap-1 max-h-48 overflow-y-auto border border-gray-200 rounded-md px-2 py-2">
+                        {hrOperations.length === 0 ? (
+                          <span className="text-[11px] text-gray-500">No Manager Operation users</span>
+                        ) : (
+                          hrOperations.map((u) => {
+                            const uid = String(u._id);
+                            const checked = (teamDraft.hrOperations || []).includes(uid);
+                            return (
+                              <label
+                                key={uid}
+                                className="flex items-center gap-2 text-[11px] text-gray-800"
+                              >
+                                <input
+                                  type="checkbox"
+                                  className="h-3 w-3 rounded border-gray-300 text-indigo-600"
+                                  checked={checked}
+                                  onChange={() => {
+                                    const current = teamDraft.hrOperations || [];
+                                    const exists = current.includes(uid);
+                                    const values = exists
+                                      ? current.filter((x) => x !== uid)
+                                      : [...current, uid];
+                                    handleTeamChange('hrOperations', values);
+                                  }}
+                                />
+                                <span
+                                  className="truncate"
+                                  title={`${u.name || ''} ${u.email || u.mobile || ''}`.trim()}
+                                >
+                                  {u.name}{' '}
+                                  {u.email
+                                    ? `(${u.email})`
+                                    : u.mobile
+                                    ? `(${u.mobile})`
+                                    : ''}
+                                </span>
+                              </label>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="px-5 py-3 border-t bg-gray-50 flex items-center justify-end gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => setTeamModalOpen(false)}
+                className="px-3 py-1.5 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveTeam}
+                disabled={teamSaving}
+                className={`px-3 py-1.5 rounded-md text-white shadow-sm transition text-xs ${
+                  teamSaving ? 'bg-indigo-400 cursor-wait' : 'bg-indigo-600 hover:bg-indigo-700'
+                }`}
+              >
+                {teamSaving ? 'Saving…' : 'Save Team'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

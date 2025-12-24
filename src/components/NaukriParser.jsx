@@ -24,12 +24,14 @@ const NaukriParser = () => {
   const companyFromUrl = searchParams.get('company');
   const fromCorporate = searchParams.get('fromCorporate') === 'true';
   const jobIdFromUrl = searchParams.get('jobId') || '';
+  const localHiringFromUrl = searchParams.get('localHiring') === 'true';
   
   const [rawData, setRawData] = useState("");
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState({ visible: false, message: "", type: "success" });
   const [query, setQuery] = useState("");
+  const [expandedSkillRows, setExpandedSkillRows] = useState({});
   // Upload/selection states
   const [selectedIds, setSelectedIds] = useState([]);
   const [companies, setCompanies] = useState([]);
@@ -41,7 +43,7 @@ const NaukriParser = () => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [toRecruitment, setToRecruitment] = useState(false);
-  const [uploadTab, setUploadTab] = useState('public'); // 'public' | 'recruitment'
+  const [uploadTab, setUploadTab] = useState(localHiringFromUrl ? 'localHiring' : 'public'); // 'public' | 'recruitment' | 'localHiring'
   const [lastUpload, setLastUpload] = useState(null); // { count, source, companyId, ts }
   // Add company inline form
   const [showAddCompany, setShowAddCompany] = useState(false);
@@ -72,10 +74,10 @@ const NaukriParser = () => {
   // When opened from PositionDashboard with jobId in URL, default to Recruitment tab
   // and preselect that job in the Position dropdown so user doesn't have to pick it again.
   useEffect(() => {
-    if (jobIdFromUrl) {
+    if (jobIdFromUrl && !localHiringFromUrl) {
       setUploadTab('recruitment');
     }
-  }, [jobIdFromUrl]);
+  }, [jobIdFromUrl, localHiringFromUrl]);
 
   useEffect(() => {
     if (!jobIdFromUrl || uploadTab !== 'recruitment') return;
@@ -85,6 +87,10 @@ const NaukriParser = () => {
       setSelectedCompany(found.jobId);
     }
   }, [jobIdFromUrl, uploadTab, recruitmentCompanies]);
+
+  useEffect(() => {
+    setExpandedSkillRows({});
+  }, [profiles]);
 
   const showToast = (message, type = "success") => {
     setToast({ visible: true, message, type });
@@ -527,7 +533,7 @@ const NaukriParser = () => {
               <h3 className="text-sm font-semibold text-gray-800 mb-2">
                 {fromCorporate ? `Upload data for ${companyFromUrl}` : 'Upload data'}
               </h3>
-              {/* Tabs: Public vs Recruitment */}
+              {/* Tabs: Public vs Recruitment vs Local Hiring */}
               <div className="mb-3 flex items-center gap-2 border-b border-gray-200">
                 <button
                   type="button"
@@ -542,6 +548,18 @@ const NaukriParser = () => {
                   className={`text-xs px-3 py-1.5 -mb-px border-b-2 ${uploadTab==='recruitment' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-gray-600 hover:text-gray-800'}`}
                 >
                   Recruitment
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUploadTab('localHiring');
+                    setToRecruitment(false);
+                    setSelectedCompany("");
+                    setShowAddCompany(false);
+                  }}
+                  className={`text-xs px-3 py-1.5 -mb-px border-b-2 ${uploadTab==='localHiring' ? 'border-fuchsia-600 text-fuchsia-700' : 'border-transparent text-gray-600 hover:text-gray-800'}`}
+                >
+                  Local Hiring
                 </button>
               </div>
               <div className="flex flex-wrap items-center gap-3">
@@ -559,7 +577,9 @@ const NaukriParser = () => {
                 </button>
 
                 <div className="flex items-center gap-2">
-                  <label className="text-xs text-gray-700">{uploadTab==='recruitment' ? 'Position:' : 'Company:'}</label>
+                  <label className="text-xs text-gray-700">
+                    {uploadTab==='recruitment' ? 'Position:' : (uploadTab==='localHiring' ? 'Destination:' : 'Company:')}
+                  </label>
                   {uploadTab==='recruitment' && (
                     <input
                       type="text"
@@ -574,12 +594,16 @@ const NaukriParser = () => {
                     onChange={(e) => setSelectedCompany(e.target.value)}
                     className={`text-xs px-2 py-1 border border-gray-300 rounded min-w-[280px] ${fromCorporate && selectedCompany ? 'bg-gray-100' : ''}`}
                     disabled={
-                      uploadTab==='recruitment'
+                      uploadTab==='localHiring'
+                        ? true
+                        : uploadTab==='recruitment'
                         ? recruitmentCompaniesLoading || !recruitmentCompanies.length
                         : (companiesLoading || !companies.length || (fromCorporate && !!selectedCompany))
                     }
                   >
-                    {uploadTab==='recruitment' ? (
+                    {uploadTab==='localHiring' ? (
+                      <option value="">Local Hiring</option>
+                    ) : uploadTab==='recruitment' ? (
                       <>
                         <option value="" disabled>
                           {recruitmentCompaniesLoading ? 'Loading positions...' : 'Select position'}
@@ -620,6 +644,7 @@ const NaukriParser = () => {
                     type="button"
                     onClick={() => setShowAddCompany((s) => !s)}
                     className="text-xs px-2 py-1 border border-gray-300 rounded bg-white hover:bg-gray-50"
+                    disabled={uploadTab==='localHiring'}
                   >
                     {showAddCompany ? 'Close' : 'Add Company'}
                   </button>
@@ -685,16 +710,16 @@ const NaukriParser = () => {
                   type="button"
                   onClick={() => {
                     if (!selectedIds.length) return showToast("Please select at least one profile", "error");
-                    if (!selectedCompany) return showToast("Please select a company", "error");
+                    if (uploadTab !== 'localHiring' && !selectedCompany) return showToast("Please select a company", "error");
                     setToRecruitment(uploadTab === 'recruitment');
                     setConfirmOpen(true);
                   }}
-                  disabled={!selectedIds.length || !selectedCompany || uploading}
-                  className={`py-1 px-2 rounded border border-gray-300 text-white text-xs ${(!selectedIds.length || !selectedCompany || uploading)
-                    ? (uploadTab==='recruitment' ? 'bg-indigo-600/60 cursor-not-allowed' : 'bg-emerald-600/60 cursor-not-allowed')
-                    : (uploadTab==='recruitment' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-emerald-600 hover:bg-emerald-700')}`}
+                  disabled={!selectedIds.length || (uploadTab !== 'localHiring' && !selectedCompany) || uploading}
+                  className={`py-1 px-2 rounded border border-gray-300 text-white text-xs ${(!selectedIds.length || (uploadTab !== 'localHiring' && !selectedCompany) || uploading)
+                    ? (uploadTab==='recruitment' ? 'bg-indigo-600/60 cursor-not-allowed' : (uploadTab==='localHiring' ? 'bg-fuchsia-600/60 cursor-not-allowed' : 'bg-emerald-600/60 cursor-not-allowed'))
+                    : (uploadTab==='recruitment' ? 'bg-indigo-600 hover:bg-indigo-700' : (uploadTab==='localHiring' ? 'bg-fuchsia-600 hover:bg-fuchsia-700' : 'bg-emerald-600 hover:bg-emerald-700'))}`}
                 >
-                  {uploading ? 'Uploading...' : (uploadTab==='recruitment' ? 'Submit (Recruitment)' : 'Submit (Public)')}
+                  {uploading ? 'Uploading...' : (uploadTab==='recruitment' ? 'Submit (Recruitment)' : (uploadTab==='localHiring' ? 'Submit (Local Hiring)' : 'Submit (Public)'))}
                 </button>
 
                 <span className="text-[11px] bg-gray-100 border border-gray-200 text-gray-700 px-2 py-0.5 rounded">
@@ -720,8 +745,8 @@ const NaukriParser = () => {
                   <span className="text-[11px] bg-gray-100 border border-gray-200 text-gray-700 px-2 py-0.5 rounded">Total: {profiles.length}</span>
                 </div>
               </div>
-              <div className="max-h-[70vh] overflow-auto border border-gray-200">
-                <table className="w-full table-fixed text-xs">
+              <div className="overflow-x-auto border border-gray-200">
+                <table className="w-full text-xs">
                   <thead className="bg-gray-50 sticky top-0 z-10">
                   <tr>
                     <th className="px-2 py-1 text-left font-medium text-gray-600 border-b border-gray-200 sticky left-0 bg-gray-50 z-10">S.No.</th>
@@ -742,7 +767,12 @@ const NaukriParser = () => {
                       />
                     </th>
                     {columns.map((key) => (
-                      <th key={key} className="px-2 py-1 text-left font-medium text-gray-600 border-b border-gray-200">
+                      <th
+                        key={key}
+                        className={`px-2 py-1 text-left font-medium text-gray-600 border-b border-gray-200 ${
+                          key === 'skills' ? 'min-w-[320px]' : ''
+                        }`}
+                      >
                         {key.replace('activity.', '').replace(/_/g, ' ')}
                       </th>
                     ))}
@@ -813,23 +843,44 @@ const NaukriParser = () => {
                           const val = getVal(p, key);
                           if (key === 'skills' && typeof val === 'string') {
                             const items = val.split(/,\s*/).filter(Boolean);
-                            const shown = items.slice(0, 6);
+                            const isExpanded = !!expandedSkillRows[i];
+                            const shown = isExpanded ? items : items.slice(0, 6);
                             const more = items.length - shown.length;
                             return (
-                              <td key={key} className="px-2 py-1 align-top text-gray-800 border-b border-gray-100 break-words whitespace-normal">
+                              <td
+                                key={key}
+                                className="px-2 py-1 align-top text-gray-800 border-b border-gray-100 break-words whitespace-normal min-w-[320px]"
+                              >
                                 <div className="flex flex-wrap gap-1">
                                   {shown.map((s, idx) => (
                                     <span key={idx} title={s} className="px-1.5 py-0.5 bg-gray-50 text-gray-700 border border-gray-200 rounded">{s}</span>
                                   ))}
                                   {more > 0 && (
-                                    <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 border border-gray-200 rounded">+{more} more</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setExpandedSkillRows((prev) => ({
+                                          ...prev,
+                                          [i]: !prev[i],
+                                        }));
+                                      }}
+                                      className="px-1.5 py-0.5 bg-gray-100 text-gray-700 border border-gray-200 rounded cursor-pointer hover:bg-gray-200"
+                                    >
+                                      {isExpanded ? 'Show less' : `+${more} more`}
+                                    </button>
                                   )}
                                 </div>
                               </td>
                             );
                           }
                           return (
-                            <td key={key} title={typeof val === 'string' ? val : ''} className="px-2 py-1 align-top text-gray-800 border-b border-gray-100 break-words whitespace-normal">{renderVal(val)}</td>
+                            <td
+                              key={key}
+                              title={typeof val === 'string' ? val : ''}
+                              className="px-2 py-1 align-top text-gray-800 border-b border-gray-100 break-words whitespace-normal"
+                            >
+                              {renderVal(val)}
+                            </td>
                           );
                         })}
                       </tr>
@@ -848,15 +899,17 @@ const NaukriParser = () => {
                 <h4 className="text-base font-semibold text-gray-900 mb-2">Confirm Upload</h4>
                 <p className="text-sm text-gray-700 mb-4">
                   You are about to upload <span className="font-semibold">{selectedIds.length}</span> profile(s)
-                  to company:
+                  to:
                   <br />
                   <span className="font-medium">
-                    {toRecruitment
-                      ? (recruitmentCompanies.find((j) => String(j.jobId) === String(selectedCompany))?.label || 'Selected Position')
-                      : (companies.find((c) => c._id === selectedCompany)?.CompanyName ||
-                        companies.find((c) => c._id === selectedCompany)?.companyName ||
-                        companies.find((c) => c._id === selectedCompany)?.name ||
-                        'Selected Company')}
+                    {uploadTab === 'localHiring'
+                      ? 'Local Hiring'
+                      : (toRecruitment
+                        ? (recruitmentCompanies.find((j) => String(j.jobId) === String(selectedCompany))?.label || 'Selected Position')
+                        : (companies.find((c) => c._id === selectedCompany)?.CompanyName ||
+                          companies.find((c) => c._id === selectedCompany)?.companyName ||
+                          companies.find((c) => c._id === selectedCompany)?.name ||
+                          'Selected Company'))}
                   </span>
                 </p>
                 <div className="flex justify-end gap-2">
@@ -890,11 +943,18 @@ const NaukriParser = () => {
                           ...(toRecruitment && jobIdToSend ? { jobId: jobIdToSend } : {}),
                         };
                         console.log('[Naukri] Upload payload', payload);
-                        const endpoint = toRecruitment
-                          ? `${BASE_URL}/api/admin/save/parsed/profiles/recruitment`
-                          : `${BASE_URL}/api/recruitment/save/parsed-profiles`;
-                        const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
-                        const res = await axios.post(endpoint, payload, { headers });
+                        let endpoint;
+                        const config = {};
+                        if (uploadTab === 'localHiring') {
+                          endpoint = `${BASE_URL}/api/local-hiring/admin/upload/profiles`;
+                          if (authToken) config.headers = { Authorization: `Bearer ${authToken}` };
+                        } else if (toRecruitment) {
+                          endpoint = `${BASE_URL}/api/admin/save/parsed/profiles/recruitment`;
+                          if (authToken) config.headers = { Authorization: `Bearer ${authToken}` };
+                        } else {
+                          endpoint = `${BASE_URL}/api/recruitment/save/parsed-profiles`;
+                        }
+                        const res = await axios.post(endpoint, payload, config);
                         console.log('[Naukri] Upload response', res?.data);
                         if (res?.data?.success) {
                           const savedCount = res.data.count;

@@ -1,26 +1,72 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { Toaster, toast } from "react-hot-toast";
 import AdminNavbar from "../../components/AdminNavbar";
 import { BASE_URL } from "../../config";
+import { useAuth } from "../../context/AuthContext";
 
 const API_BASE = `${BASE_URL}/api/recruitment`;
+const ADMIN_API_BASE = `${BASE_URL}/api/admin`;
 
 export default function CorporateAccountApproval() {
+  const { authToken } = useAuth();
   const [loading, setLoading] = useState(false);
   const [accounts, setAccounts] = useState([]);
-  const [counts, setCounts] = useState({}); // companyName -> count
+  const [counts, setCounts] = useState({}); 
   const [companyFilter, setCompanyFilter] = useState("");
   const [hrFilter, setHrFilter] = useState("");
+  const [profilesModalOpen, setProfilesModalOpen] = useState(false);
+  const [profilesModalTitle, setProfilesModalTitle] = useState("");
+  const [profilesModalType, setProfilesModalType] = useState("");
+  const [profilesModalData, setProfilesModalData] = useState([]);
+  const [serverNow, setServerNow] = useState(null);
+
+  useEffect(() => {
+    const loadServerTime = async () => {
+      try {
+        const { data } = await axios.get(`${BASE_URL}/api/server-time`);
+        if (typeof data?.timestamp === "number") {
+          setServerNow(data.timestamp);
+        }
+      } catch (_) {
+        // ignore; fallback to Date.now
+      }
+    };
+    loadServerTime();
+  }, []);
+
+  const dateHeaders = useMemo(() => {
+    const tz = "Asia/Kolkata";
+    const formatter = new Intl.DateTimeFormat("en-GB", {
+      timeZone: tz,
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+    const base = typeof serverNow === "number" ? serverNow : Date.now();
+    const dayMs = 24 * 60 * 60 * 1000;
+    return [0, 7, 14, 21].map((offset) =>
+      formatter.format(new Date(base - offset * dayMs))
+    );
+  }, [serverNow]);
+
+  const renderDateTick = (val) => {
+    if (!val) return "";
+    const s = String(val).toLowerCase();
+    const isRed = s.includes("red");
+    return (
+      <span className={isRed ? "text-red-600" : "text-green-600"}>
+        ✓
+      </span>
+    );
+  };
 
   const fetchAccounts = async () => {
     setLoading(true);
     try {
       const { data } = await axios.get(`${API_BASE}/getAccounts/all`);
-      // Expecting { success, count, data: [...] }
       const list = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
       setAccounts(list.slice().reverse());
-      // Fetch counts per companyName in parallel (best-effort)
       try {
         const queries = list
           .map((acc) => acc?.companyName)
@@ -69,6 +115,120 @@ export default function CorporateAccountApproval() {
       fetchAccounts();
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const fetchDemoProfiles = async () => {
+    try {
+      const response = await toast.promise(
+        axios.get(`${ADMIN_API_BASE}/gettopctcprofiles`, {
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+        }),
+        {
+          loading: "Fetching demo profiles...",
+          success: "Demo profiles fetched",
+          error: "Failed to fetch demo profiles",
+        }
+      );
+      const list = Array.isArray(response?.data?.data)
+        ? response.data.data
+        : Array.isArray(response?.data)
+        ? response.data
+        : [];
+      setProfilesModalTitle("Top CTC Profiles (Demo)");
+      setProfilesModalType("demo");
+      setProfilesModalData(list);
+      setProfilesModalOpen(true);
+    } catch (err) {
+      console.error("Error fetching demo profiles", err);
+    }
+  };
+
+  const fetchServiceProfiles = async () => {
+    try {
+      const response = await toast.promise(
+        axios.get(`${ADMIN_API_BASE}/getallprofilesforadmin`, {
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+        }),
+        {
+          loading: "Fetching service profiles...",
+          success: "Service profiles fetched",
+          error: "Failed to fetch service profiles",
+        }
+      );
+      const list = Array.isArray(response?.data?.data)
+        ? response.data.data
+        : Array.isArray(response?.data)
+        ? response.data
+        : [];
+      setProfilesModalTitle("All Profiles (Service)");
+      setProfilesModalType("service");
+      setProfilesModalData(list);
+      setProfilesModalOpen(true);
+    } catch (err) {
+      console.error("Error fetching service profiles", err);
+    }
+  };
+
+  const fetchDemoProfilesForCompany = async (companyName) => {
+    if (!companyName) {
+      toast.error("Company name not available for this row");
+      return;
+    }
+    try {
+      const response = await toast.promise(
+        axios.get(`${ADMIN_API_BASE}/gettopctcprofiles`, {
+          params: { companyName },
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+        }),
+        {
+          loading: `Fetching demo profiles for ${companyName}...`,
+          success: `Demo profiles fetched for ${companyName}`,
+          error: "Failed to fetch demo profiles",
+        }
+      );
+      const list = Array.isArray(response?.data?.data)
+        ? response.data.data
+        : Array.isArray(response?.data)
+        ? response.data
+        : [];
+      setProfilesModalTitle(`Top CTC Profiles (Demo) - ${companyName}`);
+      setProfilesModalType("demo");
+      setProfilesModalData(list);
+      setProfilesModalOpen(true);
+    } catch (err) {
+      console.error("Error fetching demo profiles for company", companyName, err);
+    }
+  };
+
+  const fetchServiceProfilesForCompany = async (companyName) => {
+    if (!companyName) {
+      toast.error("Company name not available for this row");
+      return;
+    }
+    try {
+      const response = await toast.promise(
+        axios.get(`${ADMIN_API_BASE}/getallprofilesforadmin`, {
+          params: { companyName },
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+        }),
+        {
+          loading: `Fetching service profiles for ${companyName}...`,
+          success: `Service profiles fetched for ${companyName}`,
+          error: "Failed to fetch service profiles",
+        }
+      );
+      const list = Array.isArray(response?.data?.data)
+        ? response.data.data
+        : Array.isArray(response?.data)
+        ? response.data
+        : [];
+      setProfilesModalTitle(`All Profiles (Service) - ${companyName}`);
+      setProfilesModalType("service");
+      setProfilesModalData(list);
+      setProfilesModalOpen(true);
+    } catch (err) {
+      console.error("Error fetching service profiles for company", companyName, err);
     }
   };
 
@@ -134,7 +294,25 @@ export default function CorporateAccountApproval() {
       <Toaster position="top-right" />
 
       <div className="p-4 md:p-6 w-full">
-        <h1 className="text-2xl font-bold mb-6">Corporate Account Approval</h1>
+        <div className="flex flex-wrap items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold">Corporate Account Approval</h1>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={fetchDemoProfiles}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition"
+            >
+              Demo
+            </button>
+            <button
+              type="button"
+              onClick={fetchServiceProfiles}
+              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition"
+            >
+              Service
+            </button>
+          </div>
+        </div>
 
         <div className="mb-6 flex flex-wrap gap-4 items-end">
           <div className="relative">
@@ -221,6 +399,7 @@ export default function CorporateAccountApproval() {
                   <th className="px-4 py-3 text-left">Approved</th>
                   <th className="px-4 py-3 text-left">Data Count</th>
                   <th className="px-4 py-3 text-center">Status Actions</th>
+                  <th className="px-4 py-3 text-center">Admin Data</th>
                   <th className="px-4 py-3 text-center">Demo Data</th>
                   <th className="px-4 py-3 text-center">Delete All Data</th>
                 </tr>
@@ -296,6 +475,22 @@ export default function CorporateAccountApproval() {
                     </td>
                     <td className="px-4 py-3 text-center space-x-2">
                       <button
+                        onClick={() => fetchDemoProfilesForCompany(acc.companyName)}
+                        className="px-3 py-1 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
+                        title="Fetch demo profiles (Top CTC) for this company"
+                      >
+                        Demo
+                      </button>
+                      <button
+                        onClick={() => fetchServiceProfilesForCompany(acc.companyName)}
+                        className="px-3 py-1 rounded-lg bg-green-600 text-white hover:bg-green-700 transition"
+                        title="Fetch service profiles (all alphabetical) for this company"
+                      >
+                        Service
+                      </button>
+                    </td>
+                    <td className="px-4 py-3 text-center space-x-2">
+                      <button
                         onClick={(e) => {
                           e.preventDefault();
                           viewAccount(acc);
@@ -352,6 +547,78 @@ export default function CorporateAccountApproval() {
           </div>
         )}
       </div>
+
+      {profilesModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40"
+          onClick={() => setProfilesModalOpen(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl max-w-5xl w-full max-h-[80vh] mx-4 flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">{profilesModalTitle || "Profiles"}</h2>
+                {profilesModalType && (
+                  <p className="text-xs text-gray-500 uppercase tracking-wide mt-0.5">
+                    {profilesModalType === "demo" ? "Demo" : "Service"} data
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setProfilesModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 transition"
+              >
+                <span className="sr-only">Close</span>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-4 flex-1 overflow-y-auto">
+              {(!profilesModalData || profilesModalData.length === 0) ? (
+                <p className="text-sm text-gray-500 text-center py-6">No profiles found for this selection.</p>
+              ) : (
+                <table className="min-w-full text-sm border">
+                  <thead className="bg-gray-100 text-gray-700">
+                    <tr>
+                      <th className="px-3 py-2 text-left">#</th>
+                      <th className="px-3 py-2 text-left">Name</th>
+                      <th className="px-3 py-2 text-left">Current Designation</th>
+                      <th className="px-3 py-2 text-left">Company</th>
+                      <th className="px-3 py-2 text-left">Location</th>
+                      <th className="px-3 py-2 text-left">CTC</th>
+                      <th className="px-3 py-2 text-left">{dateHeaders[0]}</th>
+                      <th className="px-3 py-2 text-left">{dateHeaders[1]}</th>
+                      <th className="px-3 py-2 text-left">{dateHeaders[2]}</th>
+                      <th className="px-3 py-2 text-left">{dateHeaders[3]}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {profilesModalData.map((p, idx) => (
+                      <tr key={p._id || idx} className="border-t hover:bg-gray-50">
+                        <td className="px-3 py-2 align-top text-gray-500">{idx + 1}</td>
+                        <td className="px-3 py-2 align-top font-medium text-gray-900">{p.name || "-"}</td>
+                        <td className="px-3 py-2 align-top">{p.current_designation || p.designation || "-"}</td>
+                        <td className="px-3 py-2 align-top">{p.current_company || p.company || "-"}</td>
+                        <td className="px-3 py-2 align-top">{p.location || "-"}</td>
+                        <td className="px-3 py-2 align-top">{p.ctc || "-"}</td>
+                        <td className="px-3 py-2 align-top text-xs">{renderDateTick(p.date1)}</td>
+                        <td className="px-3 py-2 align-top text-xs">{renderDateTick(p.date2)}</td>
+                        <td className="px-3 py-2 align-top text-xs">{renderDateTick(p.date3)}</td>
+                        <td className="px-3 py-2 align-top text-xs">{renderDateTick(p.date4)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

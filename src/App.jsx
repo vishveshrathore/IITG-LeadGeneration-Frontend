@@ -55,6 +55,7 @@ import RecruitmentDashboard from "./pages/Admin/Recruitment/RecruitmentDashboard
 import PositionMIS from "./pages/Admin/Recruitment/PositionMIS.jsx";
 import PositionDashboard from "./pages/Admin/Recruitment/PositionDashboard.jsx";
 import PositionAssignment from "./pages/Admin/Recruitment/PositionAssignment.jsx";
+import AdminLocalHiring from "./pages/Admin/Recruitment/LocalHiring.jsx";
 import DataAnalystDashboard from "./pages/DataAnalyst/DataAnalystDashboard.jsx";
 import RecruitmentQCDashboard from "./pages/RecruitmentQC/RecruitmentQCDashboard.jsx";
 import LGStats from "./pages/Admin/LGStats.jsx";
@@ -62,9 +63,13 @@ import CreDashboard from "./pages/Admin/CreDashboard.jsx";
 import HRRecruiterDashboard from "./pages/HR Recuriter/HrRecruiterDashboard.jsx";
 import HRRecruiterPositionMIS from "./pages/HR Recuriter/PositionMIS.jsx";
 import HRRecruiterStageSheet from "./pages/HR Recuriter/StageSheet.jsx";
+import HRRecruiterLocalHiring from "./pages/HR Recuriter/LocalHiring.jsx";
+import HRRecruiterLocalHiringWorksheet from "./pages/HR Recuriter/LocalHiringWorksheet.jsx";
 import HROperationsDashboard from "./pages/HR Operations/HrOperationsDashboard.jsx";
 import HROperationsPositionMIS from "./pages/HR Operations/PositionMIS.jsx";
 import HROperationsStageSheet from "./pages/HR Operations/StageSheet.jsx";
+import HROperationsLocalHiring from "./pages/HR Operations/LocalHiring.jsx";
+import HROperationsLocalHiringWorksheet from "./pages/HR Operations/LocalHiringWorksheet.jsx";
 
 function App() {
   const location = useLocation();
@@ -509,6 +514,14 @@ function App() {
           }
         />
         <Route
+          path="/admin/recruitment/local-hiring"
+          element={
+            <ProtectedRoute roles={["admin", "Recruitment / QC Manager"]}>
+              <AdminLocalHiring />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/admin/recruitment/position/:id"
           element={
             <ProtectedRoute roles={["admin", "Recruitment / QC Manager"]}>
@@ -542,6 +555,22 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/hr-recruiter/local-hiring"
+          element={
+            <ProtectedRoute role="HR Recruiter">
+              <HRRecruiterLocalHiring />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/hr-recruiter/local-hiring/worksheet"
+          element={
+            <ProtectedRoute role="HR Recruiter">
+              <HRRecruiterLocalHiringWorksheet />
+            </ProtectedRoute>
+          }
+        />
 
         {/* HR Operations routes */}
         <Route
@@ -565,6 +594,22 @@ function App() {
           element={
             <ProtectedRoute role="HR Operations">
               <HROperationsStageSheet />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/hr-operations/local-hiring"
+          element={
+            <ProtectedRoute role="HR Operations">
+              <HROperationsLocalHiring />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/hr-operations/local-hiring/worksheet"
+          element={
+            <ProtectedRoute role="HR Operations">
+              <HROperationsLocalHiringWorksheet />
             </ProtectedRoute>
           }
         />

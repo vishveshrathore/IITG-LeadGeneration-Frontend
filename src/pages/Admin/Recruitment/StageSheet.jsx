@@ -11,13 +11,55 @@ const synonyms = {
   'InterviewSheet': ['InterviewSheet'],
 };
 
+// Compute total experience for LinkedIn profiles from raw.experience (excluding current role)
+const getLinkedInTotalExperienceFromRawForFilter = (experience = []) => {
+  if (!Array.isArray(experience) || !experience.length) return '';
+  const currentYear = new Date().getFullYear();
+  let totalMonths = 0;
+
+  const currentIdx = experience.findIndex((e) => /present/i.test(String(e?.to || '')));
+  const excludeIdx = currentIdx >= 0 ? currentIdx : 0;
+
+  experience.forEach((e, idx) => {
+    if (idx === excludeIdx) return;
+    const fromYear = parseInt(e.from, 10);
+    let toYear;
+    if (/present/i.test(String(e?.to || ''))) {
+      toYear = currentYear;
+    } else if (e.to) {
+      toYear = parseInt(e.to, 10);
+    } else {
+      toYear = fromYear;
+    }
+
+    if (Number.isFinite(fromYear) && Number.isFinite(toYear)) {
+      const diffMonths = Math.max(0, (toYear - fromYear) * 12);
+      totalMonths += diffMonths;
+    }
+  });
+
+  if (!totalMonths) return '';
+  const years = Math.floor(totalMonths / 12);
+  const months = totalMonths % 12;
+  const parts = [];
+  if (years) parts.push(`${years}y`);
+  if (months) parts.push(`${months}m`);
+  return parts.join(' ');
+};
+
 const getColumnText = (p, key) => {
   if (!p) return '';
   switch (key) {
     case 'name':
       return p.name || '';
-    case 'experience':
+    case 'experience': {
+      const src = String(p?.source || '').toLowerCase();
+      if (src === 'linkedin') {
+        const rawExp = Array.isArray(p?.raw?.experience) ? p.raw.experience : [];
+        return getLinkedInTotalExperienceFromRawForFilter(rawExp) || '';
+      }
       return p.experience || '';
+    }
     case 'ctc':
       return p.ctc || '';
     case 'location':
@@ -548,6 +590,54 @@ const StageSheet = ({ job, stageKey, title }) => {
     return renderChips(parts);
   };
 
+  const getLinkedInPastRolesFromRaw = (experience = []) => {
+    if (!Array.isArray(experience) || !experience.length) return [];
+    const currentIdx = experience.findIndex((e) => /present/i.test(String(e?.to || '')));
+    const excludeIdx = currentIdx >= 0 ? currentIdx : 0;
+    return experience
+      .filter((_, idx) => idx !== excludeIdx)
+      .map((e) => ({
+        designation: e?.title || '',
+        company: e?.company || '',
+      }))
+      .filter((r) => r.designation || r.company);
+  };
+
+  const getLinkedInTotalExperienceFromRaw = (experience = []) => {
+    if (!Array.isArray(experience) || !experience.length) return '';
+    const currentYear = new Date().getFullYear();
+    let totalMonths = 0;
+
+    const currentIdx = experience.findIndex((e) => /present/i.test(String(e?.to || '')));
+    const excludeIdx = currentIdx >= 0 ? currentIdx : 0;
+
+    experience.forEach((e, idx) => {
+      if (idx === excludeIdx) return;
+      const fromYear = parseInt(e.from, 10);
+      let toYear;
+      if (/present/i.test(String(e?.to || ''))) {
+        toYear = currentYear;
+      } else if (e.to) {
+        toYear = parseInt(e.to, 10);
+      } else {
+        toYear = fromYear;
+      }
+
+      if (Number.isFinite(fromYear) && Number.isFinite(toYear)) {
+        const diffMonths = Math.max(0, (toYear - fromYear) * 12);
+        totalMonths += diffMonths;
+      }
+    });
+
+    if (!totalMonths) return '';
+    const years = Math.floor(totalMonths / 12);
+    const months = totalMonths % 12;
+    const parts = [];
+    if (years) parts.push(`${years}y`);
+    if (months) parts.push(`${months}m`);
+    return parts.join(' ');
+  };
+
   const highlight = (text, needle) => {
     const str = String(text || '');
     const n = String(needle || '').trim();
@@ -1068,45 +1158,70 @@ const StageSheet = ({ job, stageKey, title }) => {
                     </td>
                     <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}>{idx + 1}</td>
                     <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top max-w-[180px] truncate`} title={p?.name || ''}>{highlight(p?.name || '-', q)}</td>
-                    <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}>{renderExperience(p?.experience)}</td>
+                    <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}>
+                      {(() => {
+                        if (String(p?.source || '').toLowerCase() === 'linkedin') {
+                          const rawExp = Array.isArray(p?.raw?.experience) ? p.raw.experience : [];
+                          const total = getLinkedInTotalExperienceFromRaw(rawExp);
+                          return total || '-';
+                        }
+                        return renderExperience(p?.experience);
+                      })()}
+                    </td>
                     <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}>{p?.ctc || '-'}</td>
                     <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}>{p?.location || '-'}</td>
                     <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}><span className="px-1.5 py-0.5 rounded text-[10px] border bg-indigo-50 text-indigo-700 border-indigo-200">{p?.current_designation || '-'}</span></td>
                     <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}><span className="px-1.5 py-0.5 rounded text-[10px] border bg-emerald-50 text-emerald-700 border-emerald-200">{p?.current_company || '-'}</span></td>
                     <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top break-words whitespace-normal`}>
-                      {Array.isArray(p?.previous_roles) ? (() => {
-                        const labels = p.previous_roles.map(r =>
-                          (r && (r.designation || r.company))
-                            ? `${r.designation || ''}${r.company ? ' at ' + r.company : ''}`.trim()
-                            : (typeof r === 'object' ? JSON.stringify(r) : String(r))
-                        ).filter(Boolean);
-                        if (!labels.length) return renderMixed(p?.previous_roles) || '-';
-                        const expanded = !!expandPreviousRoles[p._id];
-                        const shown = expanded ? labels : labels.slice(0, 3);
-                        return (
-                          <div className="flex flex-wrap items-center gap-1 max-w-[480px]">
-                            {renderChips(shown)}
-                            {labels.length > shown.length && (
-                              <button
-                                type="button"
-                                onClick={() => togglePreviousRoles(p._id)}
-                                className="px-2 py-0.5 text-[11px] rounded border bg-white hover:bg-gray-50"
-                              >
-                                +{labels.length - shown.length} more
-                              </button>
-                            )}
-                            {expanded && labels.length > 3 && (
-                              <button
-                                type="button"
-                                onClick={() => togglePreviousRoles(p._id)}
-                                className="px-2 py-0.5 text-[11px] rounded border bg-white hover:bg-gray-50"
-                              >
-                                Show less
-                              </button>
-                            )}
-                          </div>
-                        );
-                      })() : (renderMixed(p?.previous_roles) || '-')}
+                      {(() => {
+                        const isLinkedIn = String(p?.source || '').toLowerCase() === 'linkedin';
+                        let roles = null;
+                        if (isLinkedIn) {
+                          const rawExp = Array.isArray(p?.raw?.experience) ? p.raw.experience : [];
+                          roles = getLinkedInPastRolesFromRaw(rawExp);
+                        } else if (Array.isArray(p?.previous_roles)) {
+                          roles = p.previous_roles;
+                        }
+
+                        if (Array.isArray(roles)) {
+                          const labels = roles
+                            .map((r) =>
+                              r && (r.designation || r.company)
+                                ? `${r.designation || ''}${r.company ? ' at ' + r.company : ''}`.trim()
+                                : (typeof r === 'object' ? JSON.stringify(r) : String(r))
+                            )
+                            .filter(Boolean);
+
+                          if (!labels.length) return renderMixed(p?.previous_roles) || '-';
+                          const expanded = !!expandPreviousRoles[p._id];
+                          const shown = expanded ? labels : labels.slice(0, 3);
+                          return (
+                            <div className="flex flex-wrap items-center gap-1 max-w-[480px]">
+                              {renderChips(shown)}
+                              {labels.length > shown.length && (
+                                <button
+                                  type="button"
+                                  onClick={() => togglePreviousRoles(p._id)}
+                                  className="px-2 py-0.5 text-[11px] rounded border bg-white hover:bg-gray-50"
+                                >
+                                  +{labels.length - shown.length} more
+                                </button>
+                              )}
+                              {expanded && labels.length > 3 && (
+                                <button
+                                  type="button"
+                                  onClick={() => togglePreviousRoles(p._id)}
+                                  className="px-2 py-0.5 text-[11px] rounded border bg-white hover:bg-gray-50"
+                                >
+                                  Show less
+                                </button>
+                              )}
+                            </div>
+                          );
+                        }
+
+                        return renderMixed(p?.previous_roles) || '-';
+                      })()}
                     </td>
                     <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top break-words whitespace-normal`}>
                       {Array.isArray(p?.education) ? (() => {

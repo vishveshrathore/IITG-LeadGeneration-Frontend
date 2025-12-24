@@ -12,6 +12,7 @@ import { FiUsers, FiCheckCircle } from 'react-icons/fi';
 const operationsNavItems = [
   { name: 'Dashboard', path: '/hr-operations/dashboard' },
   { name: 'Position MIS', path: '/hr-operations/positions' },
+  { name: 'Local Hiring', path: '/hr-operations/local-hiring' },
 ];
 
 const HROperationsDashboard = () => {
@@ -46,7 +47,7 @@ const HROperationsDashboard = () => {
   }, [authToken]);
 
   useEffect(() => {
-    setUserName((user && user.name) ? user.name : 'HR Operations');
+    setUserName((user && user.name) ? user.name : 'Manager Operation');
   }, [user]);
 
   useEffect(() => {
@@ -88,6 +89,13 @@ const HROperationsDashboard = () => {
       glow: 'from-indigo-400 to-blue-500',
       onClick: () => navigate('/hr-operations/positions'),
     },
+    {
+      title: 'Local Hiring',
+      description: 'Work local hiring leads and maintain your worksheet.',
+      icon: <MdAssignment className="text-emerald-600 text-4xl" />,
+      glow: 'from-emerald-400 to-green-500',
+      onClick: () => navigate('/hr-operations/local-hiring'),
+    },
   ];
 
   const countCards = [
@@ -109,7 +117,7 @@ const HROperationsDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-gray-100">
-      <AnimatedHRNavbar title="HR Operations" navItems={operationsNavItems} />
+      <AnimatedHRNavbar title="Manager Operation" navItems={operationsNavItems} />
       <main className="pt-20 pb-10 px-6 w-full">
         {/* Hero section (mirrors LG dashboard style) */}
         <motion.div
@@ -134,7 +142,7 @@ const HROperationsDashboard = () => {
                   Local time: {timeString}
                 </span>
                 <span className="text-xs px-3 py-1 rounded-full bg-white/80 border border-slate-300/60 text-slate-700 backdrop-blur ring-1 ring-slate-300/40">
-                  Role: HR Operations
+                  Role: Manager Operation
                 </span>
               </div>
             </div>
