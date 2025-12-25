@@ -22,6 +22,28 @@ const tabs = [
   { key: 'billing', label: '13) Forward to Billing' },
 ];
 
+const roleTabVisibility = {
+  recruitmentqcmanager: [
+    'firstLineup',
+    'office',
+    'finalLineup',
+    'interviewSheet',
+    'status',
+    'selection',
+    'joining',
+    'joiningStatus',
+  ],
+  hrrecruiter: [
+    'fqc',
+    'finalLineup',
+    'final',
+    'interviewSheet',
+    'status',
+    'selection',
+    'joining',
+  ],
+};
+
 const tabGroups = [
   {
     id: 'client',
@@ -79,6 +101,14 @@ const PositionDashboard = () => {
   const rawRole = role || localStorage.getItem('role') || sessionStorage.getItem('role') || '';
   const roleNorm = rawRole.toLowerCase().replace(/[^a-z]/g, '');
   const isRecruitmentQC = roleNorm === 'recruitmentqcmanager';
+  const allowedTabs = roleTabVisibility[roleNorm] || null;
+
+  useEffect(() => {
+    if (!allowedTabs || allowedTabs.length === 0) return;
+    if (!allowedTabs.includes(activeTab)) {
+      setActiveTab(allowedTabs[0]);
+    }
+  }, [allowedTabs, activeTab]);
 
   useEffect(() => {
     if (state?.job) return; // already have job via navigation state
@@ -435,8 +465,18 @@ const PositionDashboard = () => {
             <div className="sticky top-16 z-30 bg-white/90 backdrop-blur border-b">
               <div className="px-4 md:px-6 py-3 space-y-3">
                 {tabGroups
-                  .filter(group => !isRecruitmentQC || group.id === 'operations')
-                  .map(group => (
+                  .filter(group => {
+                    if (allowedTabs && allowedTabs.length) {
+                      return group.items.some(key => allowedTabs.includes(key));
+                    }
+                    return !isRecruitmentQC || group.id === 'operations';
+                  })
+                  .map(group => {
+                    const groupItems = allowedTabs && allowedTabs.length
+                      ? group.items.filter(key => allowedTabs.includes(key))
+                      : group.items;
+                    if (!groupItems.length) return null;
+                    return (
                   <div key={group.id} className="space-y-1">
                     {!isRecruitmentQC && (
                       <div className="flex items-center justify-between">
@@ -446,7 +486,7 @@ const PositionDashboard = () => {
                       </div>
                     )}
                     <div className="flex flex-wrap gap-x-2 gap-y-2">
-                      {group.items.map((key) => {
+                      {groupItems.map((key) => {
                         const t = tabs.find(tab => tab.key === key);
                         if (!t) return null;
                         const isActive = activeTab === key;
@@ -477,7 +517,8 @@ const PositionDashboard = () => {
                       })}
                     </div>
                   </div>
-                ))}
+                );
+                  })}
               </div>
             </div>
 
