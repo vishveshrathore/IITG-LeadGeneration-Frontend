@@ -9,10 +9,10 @@ import { useAuth } from '../../context/AuthContext.jsx';
 const tabs = [
   { key: 'boolean', label: '1) Boolean Data Sheet' },
   { key: 'booleanC', label: '2) Boolean Data Sheet (C)' },
-  { key: 'fqc', label: '3) FQC Sheet' },
-  { key: 'firstLineup', label: '4) First Lineup' },
-  { key: 'office', label: '5) Office Interview Sheet' },
-  { key: 'finalLineup', label: '6) Final Lineup' },
+  { key: 'fqc', label: '3) First QC Sheet' },
+  { key: 'firstLineup', label: '4) Final QC' },
+  { key: 'office', label: '5) First Lineup Sheet For Client ShortListed' },
+  { key: 'finalLineup', label: '6) Final Lineup Sheet' },
   { key: 'final', label: '7) Final Interview' },
   { key: 'interviewSheet', label: '8) Interview Sheet' },
   { key: 'status', label: '9) Interview Status' },
@@ -80,10 +80,10 @@ const HROperationsStageSheet = () => {
     switch (activeTab) {
       case 'boolean': return { stageKey: 'BooleanDataSheet', title: '1) Boolean Data Sheet' };
       case 'booleanC': return { stageKey: 'BooleanDataSheet(C)', title: '2) Boolean Data Sheet (C)' };
-      case 'fqc': return { stageKey: 'FQC', title: '3) FQC Sheet' };
-      case 'firstLineup': return { stageKey: 'FirstLineup', title: '4) First Lineup' };
-      case 'office': return { stageKey: 'OfficeInterview', title: '5) Office Interview Sheet' };
-      case 'finalLineup': return { stageKey: 'FinalLineup', title: '6) Final Lineup' };
+      case 'fqc': return { stageKey: 'FQC', title: '3) First QC Sheet' };
+      case 'firstLineup': return { stageKey: 'FirstLineup', title: '4) Final QC' };
+      case 'office': return { stageKey: 'OfficeInterview', title: '5) First Lineup Sheet For Client ShortListed' };
+      case 'finalLineup': return { stageKey: 'FinalLineup', title: '6) Final Lineup Sheet' };
       case 'final': return { stageKey: 'FinalInterview', title: '7) Final Interview' };
       case 'interviewSheet': return { stageKey: 'InterviewSheet', title: '8) Interview Sheet' };
       case 'status': return { stageKey: 'InterviewStatus', title: '9) Interview Status' };

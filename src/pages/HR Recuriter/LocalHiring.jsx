@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import toast, { Toaster } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
@@ -13,10 +13,44 @@ const navItems = [
   { name: 'Local Hiring', path: '/hr-recruiter/local-hiring' },
 ];
 
-const STATUS_OPTIONS = ['RNR', 'Wrong Number', 'Positive', 'Negative', 'Line up'];
+const STATUS_OPTIONS = ['RNR', 'Wrong Number', 'Positive', 'Negative', 'Line up' ,'Blacklist'];
+
+const DEFAULT_EMAIL_SUBJECT = 'Job Opportunity – Please review the Job Description';
+
+const buildDefaultEmailBody = (info, opportunity) => {
+  const recruiterName = info?.name || '';
+  const recruiterEmail = info?.email || '';
+  const recruiterContact = info?.contact || '';
+  const opportunityText = String(opportunity || '').trim();
+
+  const opportunityLine = opportunityText
+    ? `As discussed during our recent telephonic conversation, we are reaching out to you regarding a suitable job opportunity for the position of ${opportunityText} that aligns with your profile and experience. Our team works closely with reputed organizations to ensure a smooth and transparent churn control and hiring process .`
+    : 'As discussed during our recent telephonic conversation, we are reaching out to you regarding a suitable job opportunity that aligns with your profile and experience. Our team works closely with reputed organizations to ensure a smooth and transparent churn control and hiring process .';
+
+  return `Hello Dear Candidate, 👋
+Greetings of the day!
+
+We are IITGJobs.co.in , a trusted HR Solutions Provider, headquartered in Jabalpur, Madhya Pradesh, specializing in connecting skilled professionals with the right career opportunities across various industries.
+
+${opportunityLine}
+
+We request you to kindly review the shared Job Description at your convenience. If you require any additional information, clarification, or guidance, please feel free to connect with us. Our HR team will be happy to assist you at every step of your career journey.
+
+We look forward to your response and hope to support you in achieving your professional goals. ✨
+
+
+Warm regards,
+
+${recruiterName}
+${recruiterContact ? `Contact: ${recruiterContact}\n` : ''}${recruiterEmail ? `Email: ${recruiterEmail}\n` : ''}
+
+Website - www.iitgjobs.co.in
+
+Team IITGJobs.com Pvt.Ltd.`;
+};
 
 const HRRecruiterLocalHiring = () => {
-  const { authToken } = useAuth();
+  const { authToken, user } = useAuth();
   const token = authToken || localStorage.getItem('token') || sessionStorage.getItem('token');
   const navigate = useNavigate();
 
@@ -79,6 +113,13 @@ const HRRecruiterLocalHiring = () => {
   const [emailModalBody, setEmailModalBody] = useState('');
   const [emailModalFile, setEmailModalFile] = useState(null);
   const [emailModalSending, setEmailModalSending] = useState(false);
+  const [emailOpportunity, setEmailOpportunity] = useState('');
+
+  const [recruiterInfo, setRecruiterInfo] = useState({
+    name: user?.name || '',
+    email: user?.email || '',
+    contact: user?.mobile || user?.phone || '',
+  });
 
   const fetchNext = async () => {
     if (!token) return;
@@ -180,7 +221,39 @@ const HRRecruiterLocalHiring = () => {
   }, [tab]);
 
   useEffect(() => {
+    fetchWorksheet();
+  }, [token]);
+
+  useEffect(() => {
     fetchNext();
+  }, [token]);
+
+  useEffect(() => {
+    setRecruiterInfo((prev) => ({
+      ...prev,
+      name: user?.name || prev.name || '',
+      email: user?.email || prev.email || '',
+    }));
+  }, [user?.name, user?.email]);
+
+  useEffect(() => {
+    const fetchRecruiterProfile = async () => {
+      if (!token) return;
+      try {
+        const { data } = await axios.get(`${BASE_URL}/api/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const contactNumber = data?.mobile || data?.altMobile || data?.officeSim || data?.user?.mobile || '';
+        setRecruiterInfo({
+          name: data?.user?.name || data?.name || recruiterInfo.name || '',
+          email: data?.user?.email || data?.email || recruiterInfo.email || '',
+          contact: contactNumber || recruiterInfo.contact || '',
+        });
+      } catch (_) {
+        // ignore failures; we'll fall back to whatever is already available
+      }
+    };
+    fetchRecruiterProfile();
   }, [token]);
 
   useEffect(() => {
@@ -221,9 +294,7 @@ const HRRecruiterLocalHiring = () => {
       { label: 'Mobile', value: Array.isArray(l?.mobile) ? l.mobile.join(', ') : (p.mobile || '—') },
       { label: 'Email', value: l?.email || p.email || '—' },
       { label: 'Skills', value: p.skills || '—', wide: true },
-      { label: 'May Also Know', value: p.may_also_know || '—', wide: true },
       { label: 'Education', value: p.education || '—', wide: true },
-      { label: 'Summary', value: p.summary || '—', wide: true },
       { label: 'Previous Roles', value: prev || '—', full: true },
     ];
   };
@@ -390,11 +461,14 @@ const HRRecruiterLocalHiring = () => {
 
     const assignmentForLead = worksheet.find((item) => item?.lead?._id === lead._id);
 
+    const defaultOpportunity = lead?.profile?.current_designation || '';
+
     setEmailModalLead(lead);
     setEmailModalAssignmentId(assignmentForLead?._id || null);
     setEmailModalTo(candidate);
-    setEmailModalSubject('');
-    setEmailModalBody('');
+    setEmailOpportunity(defaultOpportunity);
+    setEmailModalSubject(DEFAULT_EMAIL_SUBJECT);
+    setEmailModalBody(buildDefaultEmailBody(recruiterInfo, defaultOpportunity));
     setEmailModalFile(null);
     setEmailModalOpen(true);
   };
@@ -415,11 +489,14 @@ const HRRecruiterLocalHiring = () => {
       return;
     }
 
+    const defaultOpportunity = leadDoc?.profile?.current_designation || '';
+
     setEmailModalLead(leadDoc);
     setEmailModalAssignmentId(assignmentOrLead?._id || null);
     setEmailModalTo(candidate);
-    setEmailModalSubject('');
-    setEmailModalBody('');
+    setEmailOpportunity(defaultOpportunity);
+    setEmailModalSubject(DEFAULT_EMAIL_SUBJECT);
+    setEmailModalBody(buildDefaultEmailBody(recruiterInfo, defaultOpportunity));
     setEmailModalFile(null);
     setEmailModalOpen(true);
   };
@@ -433,6 +510,7 @@ const HRRecruiterLocalHiring = () => {
     setEmailModalBody('');
     setEmailModalFile(null);
     setEmailModalSending(false);
+    setEmailOpportunity('');
   };
 
   const handleSendEmail = async () => {
@@ -494,12 +572,111 @@ const HRRecruiterLocalHiring = () => {
     }
   };
 
+  const summaryStats = useMemo(() => {
+    const stats = {
+      total: worksheet.length,
+      assignedToday: 0,
+      lineupToday: 0,
+      lineupTomorrow: 0,
+    };
+
+    if (!worksheet.length) return stats;
+
+    const startOfDay = (date) => {
+      const d = new Date(date);
+      return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    };
+
+    const todayStart = startOfDay(new Date());
+    const tomorrowStart = new Date(todayStart);
+    tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+    const dayAfterTomorrowStart = new Date(tomorrowStart);
+    dayAfterTomorrowStart.setDate(dayAfterTomorrowStart.getDate() + 1);
+
+    const inRange = (date, start, end) => date >= start && date < end;
+
+    worksheet.forEach((item) => {
+      const updatedAt = item?.updatedAt ? new Date(item.updatedAt) : null;
+      if (updatedAt && inRange(updatedAt, todayStart, tomorrowStart)) {
+        stats.assignedToday += 1;
+      }
+
+      if (item?.currentStatus === 'Line up') {
+        const reference = item?.lineUpDateTime ? new Date(item.lineUpDateTime) : updatedAt;
+        if (reference && !Number.isNaN(reference.getTime())) {
+          if (inRange(reference, todayStart, tomorrowStart)) {
+            stats.lineupToday += 1;
+          } else if (inRange(reference, tomorrowStart, dayAfterTomorrowStart)) {
+            stats.lineupTomorrow += 1;
+          }
+        }
+      }
+    });
+
+    return stats;
+  }, [worksheet]);
+
+  const dashboardCards = [
+    {
+      label: 'Assigned Today',
+      value: summaryStats.assignedToday,
+      subtext: 'Assignments touched or updated today',
+      gradient: 'from-violet-500 to-indigo-500',
+    },
+    {
+      label: 'Total Assigned (Till Date)',
+      value: summaryStats.total,
+      subtext: 'All-time assignments in your queue',
+      gradient: 'from-slate-900 to-slate-700',
+    },
+    {
+      label: "Today's Line-up",
+      value: summaryStats.lineupToday,
+      subtext: 'Line-ups scheduled or confirmed today',
+      gradient: 'from-emerald-500 to-green-500',
+    },
+    {
+      label: 'Tomorrow Line-up',
+      value: summaryStats.lineupTomorrow,
+      subtext: 'Line-ups scheduled for tomorrow',
+      gradient: 'from-amber-500 to-orange-500',
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#fef7ff] via-[#f4edff] to-[#f8fbff]">
       <AnimatedHRNavbar title="Recruiter" navItems={navItems} />
       <Toaster position="top-right" />
 
       <main className="pt-20 pb-14 px-4 sm:px-6 lg:px-12 w-full">
+        <section className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Local Hiring Pulse</p>
+              <h1 className="text-2xl md:text-3xl font-bold text-slate-900 mt-1">Your recruitment dashboard</h1>
+              <p className="text-sm text-slate-600 mt-1">Counts use the assignment updatedAt timestamp to keep every recruiter aligned.</p>
+            </div>
+            <div className="hidden md:flex items-center gap-2 text-xs text-slate-500 bg-white/70 border border-slate-200 rounded-2xl px-3 py-2">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              {worksheetLoading ? 'Syncing latest data…' : `Last sync • ${new Date().toLocaleTimeString()}`}
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            {dashboardCards.map((card) => (
+              <div
+                key={card.label}
+                className="relative rounded-3xl overflow-hidden shadow-lg border border-white/40"
+              >
+                <div className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-90`} />
+                <div className="relative p-5 text-white space-y-2">
+                  <p className="text-xs uppercase tracking-wide text-white/70">{card.label}</p>
+                  <p className="text-4xl font-black">{card.value}</p>
+                  <p className="text-sm text-white/80">{card.subtext}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
         <div className="space-y-8">
 
           <section className="bg-white rounded-4xl border border-slate-200/60 shadow-lg backdrop-blur-sm p-6 space-y-6 transition-all duration-300">
@@ -1079,6 +1256,20 @@ const HRRecruiterLocalHiring = () => {
                   onChange={(e) => setEmailModalSubject(e.target.value)}
                   className="w-full border border-slate-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-300 focus:shadow-sm"
                   placeholder="Subject"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Opportunity / Position</label>
+                <input
+                  type="text"
+                  value={emailOpportunity}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setEmailOpportunity(value);
+                    setEmailModalBody(buildDefaultEmailBody(recruiterInfo, value));
+                  }}
+                  className="w-full border border-slate-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-300 focus:shadow-sm"
+                  placeholder="e.g. CRM Executive, HR Recruiter"
                 />
               </div>
               <div className="space-y-1">

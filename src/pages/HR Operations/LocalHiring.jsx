@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import toast, { Toaster } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
@@ -13,10 +13,44 @@ const navItems = [
   { name: 'Local Hiring', path: '/hr-operations/local-hiring' },
 ];
 
-const STATUS_OPTIONS = ['RNR', 'Wrong Number', 'Positive', 'Negative', 'Line up'];
+const STATUS_OPTIONS = ['RNR', 'Wrong Number', 'Positive', 'Negative', 'Line up' ,'Blacklist'];
+
+const DEFAULT_EMAIL_SUBJECT = 'Job Opportunity – Please review the Job Description';
+
+const buildDefaultEmailBody = (info, opportunity) => {
+  const recruiterName = info?.name || '';
+  const recruiterEmail = info?.email || '';
+  const recruiterContact = info?.contact || '';
+  const opportunityText = String(opportunity || '').trim();
+
+  const opportunityLine = opportunityText
+    ? `As discussed during our recent telephonic conversation, we are reaching out to you regarding a suitable job opportunity for the position of ${opportunityText} that aligns with your profile and experience. Our team works closely with reputed organizations to ensure a smooth and transparent churn control and hiring process .`
+    : 'As discussed during our recent telephonic conversation, we are reaching out to you regarding a suitable job opportunity that aligns with your profile and experience. Our team works closely with reputed organizations to ensure a smooth and transparent churn control and hiring process .';
+
+  return `Hello Dear Candidate, 👋
+Greetings of the day!
+
+We are IITGJobs.co.in , a trusted HR Solutions Provider, headquartered in Jabalpur, Madhya Pradesh, specializing in connecting skilled professionals with the right career opportunities across various industries.
+
+${opportunityLine}
+
+We request you to kindly review the shared Job Description at your convenience. If you require any additional information, clarification, or guidance, please feel free to connect with us. Our HR team will be happy to assist you at every step of your career journey.
+
+We look forward to your response and hope to support you in achieving your professional goals. ✨
+
+
+Warm regards,
+
+${recruiterName}
+${recruiterContact ? `Contact: ${recruiterContact}\n` : ''}${recruiterEmail ? `Email: ${recruiterEmail}\n` : ''}
+
+Website - www.iitgjobs.co.in
+
+Team IITGJobs.com Pvt.Ltd.`;
+};
 
 const HROperationsLocalHiring = () => {
-  const { authToken } = useAuth();
+  const { authToken, user } = useAuth();
   const token = authToken || localStorage.getItem('token') || sessionStorage.getItem('token');
   const navigate = useNavigate();
 
@@ -40,6 +74,22 @@ const HROperationsLocalHiring = () => {
   const [worksheet, setWorksheet] = useState([]);
   const [viewOpen, setViewOpen] = useState(false);
   const [viewItem, setViewItem] = useState(null);
+
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [emailModalLead, setEmailModalLead] = useState(null);
+  const [emailModalAssignmentId, setEmailModalAssignmentId] = useState(null);
+  const [emailModalTo, setEmailModalTo] = useState('');
+  const [emailModalSubject, setEmailModalSubject] = useState('');
+  const [emailModalBody, setEmailModalBody] = useState('');
+  const [emailModalFile, setEmailModalFile] = useState(null);
+  const [emailModalSending, setEmailModalSending] = useState(false);
+  const [emailOpportunity, setEmailOpportunity] = useState('');
+
+  const [recruiterInfo, setRecruiterInfo] = useState({
+    name: user?.name || '',
+    email: user?.email || '',
+    contact: user?.mobile || user?.phone || '',
+  });
 
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -100,6 +150,104 @@ const HROperationsLocalHiring = () => {
       }
     } finally {
       setLeadLoading(false);
+    }
+  };
+
+  const openEmailModalForCurrentLead = () => {
+    if (!lead?._id) {
+      toast.error('No lead selected');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const candidate = String(normalizedInputEmail || normalizedLeadEmail || '').trim().toLowerCase();
+
+    if (!emailRegex.test(candidate)) {
+      toast.error('Enter a valid email first');
+      return;
+    }
+
+    const assignmentForLead = worksheet.find((item) => item?.lead?._id === lead._id);
+    const defaultOpportunity = lead?.profile?.current_designation || '';
+
+    setEmailModalLead(lead);
+    setEmailModalAssignmentId(assignmentForLead?._id || null);
+    setEmailModalTo(candidate);
+    setEmailOpportunity(defaultOpportunity);
+    setEmailModalSubject(DEFAULT_EMAIL_SUBJECT);
+    setEmailModalBody(buildDefaultEmailBody(recruiterInfo, defaultOpportunity));
+    setEmailModalFile(null);
+    setEmailModalOpen(true);
+  };
+
+  const closeEmailModal = () => {
+    setEmailModalOpen(false);
+    setEmailModalLead(null);
+    setEmailModalAssignmentId(null);
+    setEmailModalTo('');
+    setEmailModalSubject('');
+    setEmailModalBody('');
+    setEmailModalFile(null);
+    setEmailModalSending(false);
+    setEmailOpportunity('');
+  };
+
+  const handleSendEmail = async () => {
+    if (!token) return toast.error('Not authenticated');
+    if (!emailModalLead?._id) return toast.error('Lead not found');
+
+    const subjectText = String(emailModalSubject || '').trim();
+    const bodyText = String(emailModalBody || '').trim();
+    const toValue = String(emailModalTo || '').trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!subjectText) return toast.error('Subject is required');
+    if (!bodyText) return toast.error('Message is required');
+    if (!emailRegex.test(toValue)) return toast.error('Enter a valid recipient email');
+
+    try {
+      setEmailModalSending(true);
+
+      const formData = new FormData();
+      formData.append('subject', subjectText);
+      formData.append('text', bodyText);
+      formData.append('to', toValue);
+      if (emailModalFile) {
+        formData.append('attachment', emailModalFile);
+      }
+
+      const { data } = await axios.post(
+        `${BASE_URL}/api/local-hiring/lead/${emailModalLead._id}/email`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+
+      if (!data?.success) {
+        toast.error(data?.message || 'Failed to send email');
+        return;
+      }
+
+      toast.success('Email sent');
+      if (emailModalAssignmentId) {
+        setWorksheet((prev) =>
+          prev.map((item) =>
+            item._id === emailModalAssignmentId ? { ...item, emailSent: true } : item
+          )
+        );
+        setViewItem((prev) =>
+          prev && prev._id === emailModalAssignmentId ? { ...prev, emailSent: true } : prev
+        );
+      }
+      closeEmailModal();
+    } catch (e) {
+      toast.error(e?.response?.data?.message || 'Failed to send email');
+    } finally {
+      setEmailModalSending(false);
     }
   };
 
@@ -171,8 +319,20 @@ const HROperationsLocalHiring = () => {
   }, [tab]);
 
   useEffect(() => {
+    fetchWorksheet();
+  }, [token]);
+
+  useEffect(() => {
     fetchNext();
   }, [token]);
+
+  useEffect(() => {
+    setRecruiterInfo((prev) => ({
+      ...prev,
+      name: user?.name || prev.name || '',
+      email: user?.email || prev.email || '',
+    }));
+  }, [user?.name, user?.email]);
 
   useEffect(() => {
     if (lead) {
@@ -213,9 +373,7 @@ const HROperationsLocalHiring = () => {
       { label: 'Mobile', value: Array.isArray(l?.mobile) ? l.mobile.join(', ') : (p.mobile || '—') },
       { label: 'Email', value: l?.email || p.email || '—' },
       { label: 'Skills', value: p.skills || '—', wide: true },
-      { label: 'May Also Know', value: p.may_also_know || '—', wide: true },
       { label: 'Education', value: p.education || '—', wide: true },
-      { label: 'Summary', value: p.summary || '—', wide: true },
       { label: 'Previous Roles', value: prev || '—', full: true },
     ];
   };
@@ -365,12 +523,108 @@ const HROperationsLocalHiring = () => {
     }
   };
 
+  const summaryStats = useMemo(() => {
+    const stats = {
+      total: worksheet.length,
+      assignedToday: 0,
+      lineupToday: 0,
+      lineupTomorrow: 0,
+    };
+
+    if (!worksheet.length) return stats;
+
+    const startOfDay = (date) => {
+      const d = new Date(date);
+      return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    };
+
+    const todayStart = startOfDay(new Date());
+    const tomorrowStart = new Date(todayStart);
+    tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+    const dayAfterTomorrowStart = new Date(tomorrowStart);
+    dayAfterTomorrowStart.setDate(dayAfterTomorrowStart.getDate() + 1);
+
+    const inRange = (date, start, end) => date >= start && date < end;
+
+    worksheet.forEach((item) => {
+      const updatedAt = item?.updatedAt ? new Date(item.updatedAt) : null;
+      if (updatedAt && inRange(updatedAt, todayStart, tomorrowStart)) {
+        stats.assignedToday += 1;
+      }
+
+      if (item?.currentStatus === 'Line up') {
+        const reference = item?.lineUpDateTime ? new Date(item.lineUpDateTime) : updatedAt;
+        if (reference && !Number.isNaN(reference.getTime())) {
+          if (inRange(reference, todayStart, tomorrowStart)) {
+            stats.lineupToday += 1;
+          } else if (inRange(reference, tomorrowStart, dayAfterTomorrowStart)) {
+            stats.lineupTomorrow += 1;
+          }
+        }
+      }
+    });
+
+    return stats;
+  }, [worksheet]);
+
+  const dashboardCards = [
+    {
+      label: 'Assigned Today',
+      value: summaryStats.assignedToday,
+      subtext: 'Assignments touched or updated today',
+      gradient: 'from-indigo-500 to-purple-500',
+    },
+    {
+      label: 'Total Assigned (Till Date)',
+      value: summaryStats.total,
+      subtext: 'All-time assignments in HR Ops queue',
+      gradient: 'from-slate-900 to-slate-700',
+    },
+    {
+      label: "Today's Line-up",
+      value: summaryStats.lineupToday,
+      subtext: 'Line-ups scheduled or confirmed today',
+      gradient: 'from-emerald-500 to-green-500',
+    },
+    {
+      label: 'Tomorrow Line-up',
+      value: summaryStats.lineupTomorrow,
+      subtext: 'Line-ups planned for tomorrow',
+      gradient: 'from-amber-500 to-orange-500',
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#f7f9ff] via-[#eef4ff] to-[#fbfcff]">
       <AnimatedHRNavbar title="Manager Operation" navItems={navItems} />
       <Toaster position="top-right" />
 
       <main className="pt-20 pb-14 px-4 sm:px-6 lg:px-12 w-full">
+        <section className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Ops Visibility</p>
+              <h1 className="text-2xl md:text-3xl font-bold text-slate-900 mt-1">Local hiring live dashboard</h1>
+              <p className="text-sm text-slate-600 mt-1">These metrics derive from each assignment’s updatedAt to keep HR Operations aligned.</p>
+            </div>
+            <div className="hidden md:flex items-center gap-2 text-xs text-slate-500 bg-white/70 border border-slate-200 rounded-2xl px-3 py-2">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              {worksheetLoading ? 'Pulling worksheet…' : `Last sync • ${new Date().toLocaleTimeString()}`}
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            {dashboardCards.map((card) => (
+              <div key={card.label} className="relative rounded-3xl overflow-hidden shadow-lg border border-white/40">
+                <div className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-90`} />
+                <div className="relative p-5 text-white space-y-2">
+                  <p className="text-xs uppercase tracking-wide text-white/70">{card.label}</p>
+                  <p className="text-4xl font-black">{card.value}</p>
+                  <p className="text-sm text-white/80">{card.subtext}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
         <div className="space-y-8">
           
 
@@ -497,14 +751,23 @@ const HROperationsLocalHiring = () => {
                                 className="flex-1 bg-white border border-slate-200/70 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-300 focus:shadow-sm transition-all duration-200"
                                 placeholder="name@example.com"
                               />
-                              <button
-                                type="button"
-                                onClick={handleEmailUpdate}
-                                disabled={emailUpdateDisabled}
-                                className="px-4 py-2.5 rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-700 text-white text-sm font-semibold disabled:opacity-60 shadow-sm transition-all duration-200 hover:shadow-md hover:scale-[1.01] active:scale-[0.99]"
-                              >
-                                {emailSaving ? 'Updating…' : 'Update Email'}
-                              </button>
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={handleEmailUpdate}
+                                  disabled={emailUpdateDisabled}
+                                  className="px-4 py-2.5 rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-700 text-white text-sm font-semibold disabled:opacity-60 shadow-sm transition-all duration-200 hover:shadow-md hover:scale-[1.01] active:scale-[0.99]"
+                                >
+                                  {emailSaving ? 'Updating…' : 'Update Email'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={openEmailModalForCurrentLead}
+                                  className="px-4 py-2.5 rounded-2xl border border-indigo-100 bg-white text-indigo-700 text-sm font-semibold shadow-sm transition-all duration-200 hover:shadow-md hover:scale-[1.01] active:scale-[0.99]"
+                                >
+                                  Send Email
+                                </button>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -896,6 +1159,109 @@ const HROperationsLocalHiring = () => {
           </section>
         </div>
       </main>
+
+      {emailModalOpen && emailModalLead && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
+          <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden shadow-2xl border border-slate-200/50 animate-in zoom-in-95 duration-300">
+            <div className="bg-gradient-to-r from-indigo-50 to-slate-50 border-b border-slate-200 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
+                    <FiMail className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900">Compose Email</h3>
+                    <p className="text-sm text-slate-600">Send a message directly to the candidate's inbox.</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeEmailModal}
+                  className="rounded-full p-2 bg-white/80 hover:bg-white text-slate-500 hover:text-slate-700 transition-all duration-200 hover:shadow-md border border-slate-200/50"
+                  disabled={emailModalSending}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div className="p-6 space-y-4 overflow-y-auto max-h-[calc(90vh-80px)]">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">To</label>
+                <input
+                  type="email"
+                  value={emailModalTo}
+                  onChange={(e) => setEmailModalTo(e.target.value)}
+                  className="w-full border border-slate-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-300 focus:shadow-sm"
+                  placeholder="candidate@example.com"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Subject</label>
+                <input
+                  type="text"
+                  value={emailModalSubject}
+                  onChange={(e) => setEmailModalSubject(e.target.value)}
+                  className="w-full border border-slate-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-300 focus:shadow-sm"
+                  placeholder="Subject"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Opportunity / Position</label>
+                <input
+                  type="text"
+                  value={emailOpportunity}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setEmailOpportunity(value);
+                    setEmailModalBody(buildDefaultEmailBody(recruiterInfo, value));
+                  }}
+                  className="w-full border border-slate-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-300 focus:shadow-sm"
+                  placeholder="e.g. CRM Executive, HR Recruiter"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Message</label>
+                <textarea
+                  rows={5}
+                  value={emailModalBody}
+                  onChange={(e) => setEmailModalBody(e.target.value)}
+                  className="w-full border border-slate-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-300 focus:shadow-sm resize-none"
+                  placeholder="Write your message..."
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Attachment</label>
+                <input
+                  type="file"
+                  onChange={(e) => setEmailModalFile(e.target.files?.[0] || null)}
+                  className="block w-full text-sm text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                />
+                <p className="text-[11px] text-slate-400">Optional. Attach a JD, company profile, or any document.</p>
+              </div>
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={closeEmailModal}
+                  className="px-4 py-2.5 rounded-2xl border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition-all duration-200"
+                  disabled={emailModalSending}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSendEmail}
+                  disabled={emailModalSending}
+                  className="px-4 py-2.5 rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-700 text-white text-sm font-semibold disabled:opacity-60 shadow-sm transition-all duration-200 hover:shadow-md hover:scale-[1.01] active:scale-[0.99]"
+                >
+                  {emailModalSending ? 'Sending…' : 'Send Email'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {viewOpen && viewItem && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">

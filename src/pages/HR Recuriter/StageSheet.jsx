@@ -7,9 +7,9 @@ import AnimatedHRNavbar from '../../components/HRNavbar.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 
 const tabs = [
-  { key: 'fqc', label: '3) FQC Sheet' },
-  { key: 'firstLineup', label: '4) First Lineup' },
-  { key: 'finalLineup', label: '6) Final Lineup' },
+  { key: 'fqc', label: '3) First QC Sheet' },
+  { key: 'firstLineup', label: '4) Final QC' },
+  { key: 'finalLineup', label: '6) Final Lineup Sheet' },
   { key: 'interviewSheet', label: '8) Interview Sheet' },
   { key: 'selection', label: '10) Selection Sheet' },
 ];
@@ -69,12 +69,12 @@ const HRRecruiterStageSheet = () => {
 
   const activeStage = useMemo(() => {
     switch (activeTab) {
-      case 'fqc': return { stageKey: 'FQC', title: '3) FQC Sheet' };
-      case 'firstLineup': return { stageKey: 'FirstLineup', title: '4) First Lineup' };
-      case 'finalLineup': return { stageKey: 'FinalLineup', title: '6) Final Lineup' };
+      case 'fqc': return { stageKey: 'FQC', title: '3) First QC Sheet' };
+      case 'firstLineup': return { stageKey: 'FirstLineup', title: '4) Final QC' };
+      case 'finalLineup': return { stageKey: 'FinalLineup', title: '6) Final Lineup Sheet' };
       case 'interviewSheet': return { stageKey: 'InterviewSheet', title: '8) Interview Sheet' };
       case 'selection': return { stageKey: 'Selection', title: '10) Selection Sheet' };
-      default: return { stageKey: 'FQC', title: '3) FQC Sheet' };
+      default: return { stageKey: 'FQC', title: '3) First QC Sheet' };
     }
   }, [activeTab]);
 
