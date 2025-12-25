@@ -420,7 +420,7 @@ const PositionMIS = () => {
                         <td className="px-3 py-2 border-b align-top text-gray-800">{typeof j?.totalProfiles === 'number' ? j.totalProfiles : (j?.totalProfiles || 0)}</td>
                         <td className="px-3 py-2 border-b align-top text-gray-800">
                           <div className="flex flex-wrap items-center gap-2">
-                            {!isRecruitmentQC && (
+                            {!isRecruitmentQC && String(j?.status).toLowerCase() === 'active' && (
                               <button
                                 type="button"
                                 onClick={() => openTeamModal(j)}
