@@ -8,17 +8,20 @@ import { useAuth } from '../../context/AuthContext.jsx';
 
 const tabs = [
   { key: 'fqc', label: '3) First QC Sheet' },
-  { key: 'firstLineup', label: '4) Final QC' },
+  { key: 'office', label: '5) First Lineup Sheet For Client ShortListing' },
   { key: 'finalLineup', label: '6) Final Lineup Sheet' },
+  { key: 'final', label: '7) Final Interview' },
   { key: 'interviewSheet', label: '8) Interview Sheet' },
+  { key: 'status', label: '9) Interview Status' },
   { key: 'selection', label: '10) Selection Sheet' },
+  { key: 'joining', label: '11) Joining Sheet' },
 ];
 
 const tabGroups = [
   {
     id: 'recruiter',
     label: 'Recruiter',
-    items: ['fqc', 'firstLineup', 'finalLineup', 'interviewSheet', 'selection'],
+    items: ['fqc', 'office', 'finalLineup', 'final', 'interviewSheet', 'status', 'selection', 'joining'],
   },
 ];
 
@@ -70,10 +73,13 @@ const HRRecruiterStageSheet = () => {
   const activeStage = useMemo(() => {
     switch (activeTab) {
       case 'fqc': return { stageKey: 'FQC', title: '3) First QC Sheet' };
-      case 'firstLineup': return { stageKey: 'FirstLineup', title: '4) Final QC' };
+      case 'office': return { stageKey: 'OfficeInterview', title: '5) First Lineup Sheet For Client ShortListing' };
       case 'finalLineup': return { stageKey: 'FinalLineup', title: '6) Final Lineup Sheet' };
+      case 'final': return { stageKey: 'FinalInterview', title: '7) Final Interview' };
       case 'interviewSheet': return { stageKey: 'InterviewSheet', title: '8) Interview Sheet' };
+      case 'status': return { stageKey: 'InterviewStatus', title: '9) Interview Status' };
       case 'selection': return { stageKey: 'Selection', title: '10) Selection Sheet' };
+      case 'joining': return { stageKey: 'Joining', title: '11) Joining Sheet' };
       default: return { stageKey: 'FQC', title: '3) First QC Sheet' };
     }
   }, [activeTab]);
@@ -129,14 +135,20 @@ const HRRecruiterStageSheet = () => {
     switch (key) {
       case 'fqc':
         return counts['FQC'] || 0;
-      case 'firstLineup':
-        return counts['FirstLineup'] || 0;
+      case 'office':
+        return counts['OfficeInterview'] || 0;
       case 'finalLineup':
         return counts['FinalLineup'] || 0;
+      case 'final':
+        return counts['FinalInterview'] || 0;
       case 'interviewSheet':
         return counts['InterviewSheet'] || 0;
+      case 'status':
+        return counts['InterviewStatus'] || 0;
       case 'selection':
         return counts['Selection'] || 0;
+      case 'joining':
+        return counts['Joining'] || 0;
       default:
         return 0;
     }
