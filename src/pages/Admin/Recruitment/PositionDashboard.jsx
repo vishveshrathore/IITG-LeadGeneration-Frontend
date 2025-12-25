@@ -466,10 +466,16 @@ const PositionDashboard = () => {
               <div className="px-4 md:px-6 py-3 space-y-3">
                 {tabGroups
                   .filter(group => {
+                    if (isRecruitmentQC) {
+                      return group.id === 'operations';
+                    }
+                    if (allowedTabs && allowedTabs.length && roleNorm === 'hrrecruiter') {
+                      return group.id === 'recruiter';
+                    }
                     if (allowedTabs && allowedTabs.length) {
                       return group.items.some(key => allowedTabs.includes(key));
                     }
-                    return !isRecruitmentQC || group.id === 'operations';
+                    return true;
                   })
                   .map(group => {
                     const groupItems = allowedTabs && allowedTabs.length
