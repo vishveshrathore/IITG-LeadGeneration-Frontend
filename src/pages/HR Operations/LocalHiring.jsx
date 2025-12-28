@@ -15,6 +15,20 @@ const navItems = [
 
 const STATUS_OPTIONS = ['RNR', 'Wrong Number', 'Positive', 'Negative', 'Line up' ,'Blacklist'];
 
+const PROFILE_SUMMARY_LABELS = [
+  'Name',
+  'Experience',
+  'CTC',
+  'Location',
+  'Current Designation',
+  'Current Company',
+  'Preferred Locations',
+  'Mobile',
+  'Email',
+  'Skills',
+  'Education',
+];
+
 const DEFAULT_EMAIL_SUBJECT = 'Job Opportunity – Please review the Job Description';
 
 const buildDefaultEmailBody = (info, opportunity) => {
@@ -254,7 +268,7 @@ const HROperationsLocalHiring = () => {
     }
   };
 
-  const updateLead = async () => {
+  const updateLead = async (goNext = true) => {
     if (!token) return toast.error('Not authenticated');
     if (!assignmentId) return toast.error('No assignment loaded');
     if (!status) return toast.error('Select status');
@@ -294,15 +308,16 @@ const HROperationsLocalHiring = () => {
         return;
       }
 
-      toast.success('Saved. Loading next lead…');
-      
-      // Reset form
-      setStatus('');
-      setRemarks('');
-      setLineUpDateTime('');
-      setInterviewType('');
-      
-      await fetchNext();
+      toast.success(goNext ? 'Saved. Loading next lead…' : 'Saved');
+
+      if (goNext) {
+        // Reset form only when moving to next lead
+        setStatus('');
+        setRemarks('');
+        setLineUpDateTime('');
+        setInterviewType('');
+        await fetchNext();
+      }
     } catch (e) {
       toast.error(e?.response?.data?.message || 'Failed to update');
     } finally {
@@ -392,6 +407,33 @@ const HROperationsLocalHiring = () => {
     ];
   };
 
+  const TruncatedText = ({ label, text, maxWords = 8 }) => {
+    const [expanded, setExpanded] = useState(false);
+
+    const raw = String(text || '');
+    const words = raw.split(/\s+/).filter(Boolean);
+    const shouldTruncate = (label === 'Skills' || label === 'Education') && words.length > maxWords;
+
+    if (!shouldTruncate) {
+      return <>{raw}</>;
+    }
+
+    const display = expanded ? raw : words.slice(0, maxWords).join(' ') + '…';
+
+    return (
+      <>
+        {display}{' '}
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="ml-1 text-[11px] font-semibold text-indigo-600 hover:underline"
+        >
+          {expanded ? 'Show less' : 'Show more'}
+        </button>
+      </>
+    );
+  };
+
   const renderProfileDetails = (l) => {
     const fields = getProfileFields(l);
 
@@ -405,7 +447,9 @@ const HROperationsLocalHiring = () => {
               className={`bg-white rounded-2xl border border-slate-100 p-4 ${f.full ? 'md:col-span-2 lg:col-span-4' : f.wide ? 'md:col-span-2' : ''}`}
             >
               <p className="text-xs uppercase tracking-wide text-slate-500">{f.label}</p>
-              <p className="mt-1 text-sm font-semibold text-slate-900 break-words whitespace-pre-wrap">{f.value}</p>
+              <p className="mt-1 text-sm font-semibold text-slate-900 break-words whitespace-pre-wrap">
+                <TruncatedText label={f.label} text={f.value} />
+              </p>
             </div>
           ))}
         </div>
@@ -674,46 +718,19 @@ const HROperationsLocalHiring = () => {
     {
       label: 'Tomorrow Line-up',
       value: summaryStats.lineupTomorrow,
-      subtext: 'Line-ups planned for tomorrow',
+      subtext: 'Line-ups scheduled for tomorrow',
       gradient: 'from-amber-500 to-orange-500',
     },
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#f7f9ff] via-[#eef4ff] to-[#fbfcff]">
+    <div className="h-screen flex flex-col bg-gradient-to-br from-[#f6f8ff] via-[#f0f4ff] to-white">
       <AnimatedHRNavbar title="Manager Operation" navItems={navItems} />
       <Toaster position="top-right" />
 
-      <main className="pt-20 pb-14 px-4 sm:px-6 lg:px-12 w-full">
-        <section className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Ops Visibility</p>
-              <h1 className="text-2xl md:text-3xl font-bold text-slate-900 mt-1">Local hiring live dashboard</h1>
-              <p className="text-sm text-slate-600 mt-1">These metrics derive from each assignment’s updatedAt to keep HR Operations aligned.</p>
-            </div>
-            <div className="hidden md:flex items-center gap-2 text-xs text-slate-500 bg-white/70 border border-slate-200 rounded-2xl px-3 py-2">
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              {worksheetLoading ? 'Pulling worksheet…' : `Last sync • ${new Date().toLocaleTimeString()}`}
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-            {dashboardCards.map((card) => (
-              <div key={card.label} className="relative rounded-3xl overflow-hidden shadow-lg border border-white/40">
-                <div className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-90`} />
-                <div className="relative p-5 text-white space-y-2">
-                  <p className="text-xs uppercase tracking-wide text-white/70">{card.label}</p>
-                  <p className="text-4xl font-black">{card.value}</p>
-                  <p className="text-sm text-white/80">{card.subtext}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-        <div className="space-y-8">
-          
-
-          <section className="bg-white rounded-4xl border border-slate-200/60 shadow-lg backdrop-blur-sm p-6 space-y-6 transition-all duration-300">
+      <main className="flex-1 pt-20 pb-4 px-4 sm:px-6 lg:px-10 w-full overflow-y-auto">
+        <div className="flex flex-col gap-4 h-full">
+          <section className="flex-1 bg-white rounded-4xl border border-slate-200/60 shadow-lg backdrop-blur-sm p-4 md:p-5 space-y-3 transition-all duration-300 flex flex-col">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-slate-100 pb-4">
               <div className="flex gap-2 bg-slate-50 rounded-2xl p-1">
                 {['next', 'worksheet'].map((key) => (
@@ -733,19 +750,19 @@ const HROperationsLocalHiring = () => {
             </div>
 
             {tab === 'next' && (
-              <div className="space-y-6">
+              <div className="space-y-4 flex-1">
                 <div className="w-full max-w-6xl mx-auto">
-                  <div className="text-center mb-5">
+                  <div className="text-center mb-3">
                     <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900">Local Hiring Lead</h2>
                     <p className="mt-2 text-sm text-slate-500">
-                      Manage and process your Local Hiring leads efficiently.
+                      Manage and process your assigned Local Hiring leads efficiently.
                     </p>
                   </div>
 
-                  <div className="bg-white rounded-3xl border border-slate-100/80 shadow-[0_20px_50px_rgba(15,23,42,0.12)] backdrop-blur-sm px-5 md:px-8 py-6 space-y-6 transition-all duration-300">
-                    <div className="flex items-center justify-between">
+                  <div className="bg-white rounded-3xl border border-slate-100/80 shadow-[0_20px_50px_rgba(15,23,42,0.12)] backdrop-blur-sm px-5 md:px-6 py-4 space-y-4 transition-all duration-300">
+                    <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-2xl bg-gradient-to-br from-indigo-50 to-indigo-100 text-indigo-600 flex items-center justify-center text-lg shadow-sm transition-transform duration-200 hover:scale-105">
+                        <div className="h-9 w-9 rounded-2xl bg-gradient-to-br from-indigo-50 to-indigo-100 text-indigo-600 flex items-center justify-center text-lg shadow-sm">
                           📋
                         </div>
                         <div>
@@ -753,9 +770,9 @@ const HROperationsLocalHiring = () => {
                           <p className="text-xs text-slate-500">Local Hiring</p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-[11px] uppercase tracking-wide text-slate-500">Progress</p>
-                        <p className="text-sm font-semibold text-emerald-600">0%</p>
+                      <div className="flex items-center gap-2 text-xs text-slate-500">
+                        <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <span>{assignmentId ? 'Assignment in progress' : 'Waiting for next assignment'}</span>
                       </div>
                     </div>
 
@@ -774,8 +791,10 @@ const HROperationsLocalHiring = () => {
                       </div>
                     ) : (
                       <>
-                        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                          {getProfileFields(lead).map((f) => {
+                        <div className="mt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                          {getProfileFields(lead)
+                            .filter((f) => PROFILE_SUMMARY_LABELS.includes(f.label))
+                            .map((f) => {
                             const iconByLabel = {
                               Name: FiUser,
                               Experience: FiBriefcase,
@@ -797,9 +816,7 @@ const HROperationsLocalHiring = () => {
                             return (
                               <div
                                 key={f.label}
-                                className={`flex items-start gap-3 bg-gradient-to-br from-slate-50/80 to-white rounded-2xl px-4 py-3 border border-slate-100/60 shadow-sm transition-all duration-200 hover:shadow-md hover:border-slate-200/80 ${
-                                  f.full ? 'md:col-span-2 lg:col-span-4' : f.wide ? 'md:col-span-2' : ''
-                                }`}
+                                className="flex items-start gap-3 bg-gradient-to-br from-slate-50/80 to-white rounded-2xl px-3 py-2.5 border border-slate-100/60 shadow-sm transition-all duration-200 hover:shadow-md hover:border-slate-200/80"
                               >
                                 <div className="mt-1 h-8 w-8 rounded-2xl bg-gradient-to-br from-white to-slate-50 flex items-center justify-center text-indigo-600 flex-shrink-0 shadow-sm transition-transform duration-200 hover:scale-105">
                                   <Icon className="h-4 w-4" />
@@ -807,7 +824,7 @@ const HROperationsLocalHiring = () => {
                                 <div className="flex-1 min-w-0">
                                   <p className="text-[11px] uppercase tracking-wide text-slate-500">{f.label}</p>
                                   <p className="mt-1 text-sm font-semibold text-slate-900 break-words whitespace-pre-wrap">
-                                    {f.value}
+                                    <TruncatedText label={f.label} text={f.value} />
                                   </p>
                                 </div>
                               </div>
@@ -816,54 +833,17 @@ const HROperationsLocalHiring = () => {
                         </div>
 
                         <div className="mt-5 rounded-2xl border border-slate-100/70 bg-gradient-to-br from-slate-50/60 to-white p-4 shadow-sm">
-                          <div className="flex flex-col gap-3">
-                            <div className="flex items-center justify-between flex-wrap gap-2">
-                              <div>
-                                <p className="text-xs uppercase tracking-wide text-slate-500">Primary Email</p>
-                                <p className="text-sm text-slate-400">Keep candidate’s email accurate before saving status.</p>
-                              </div>
+                          <div className="flex items-start justify-between flex-wrap gap-3">
+                            <div>
+                              <p className="text-xs uppercase tracking-wide text-slate-500">Contact & Resume</p>
+                              <p className="text-sm text-slate-400">Maintain a clean primary email and latest resume before saving status.</p>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
                               {normalizedLeadEmail && (
                                 <span className="text-xs font-semibold text-slate-500 bg-white border border-slate-100 rounded-full px-3 py-1">
-                                  Current: {normalizedLeadEmail}
+                                  Email: {normalizedLeadEmail}
                                 </span>
                               )}
-                            </div>
-                            <div className="flex flex-col sm:flex-row gap-3">
-                              <input
-                                type="email"
-                                value={emailInput}
-                                onChange={(e) => setEmailInput(e.target.value)}
-                                className="flex-1 bg-white border border-slate-200/70 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-300 focus:shadow-sm transition-all duration-200"
-                                placeholder="name@example.com"
-                              />
-                              <div className="flex gap-2">
-                                <button
-                                  type="button"
-                                  onClick={handleEmailUpdate}
-                                  disabled={emailUpdateDisabled}
-                                  className="px-4 py-2.5 rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-700 text-white text-sm font-semibold disabled:opacity-60 shadow-sm transition-all duration-200 hover:shadow-md hover:scale-[1.01] active:scale-[0.99]"
-                                >
-                                  {emailSaving ? 'Updating…' : 'Update Email'}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={openEmailModalForCurrentLead}
-                                  className="px-4 py-2.5 rounded-2xl border border-indigo-100 bg-white text-indigo-700 text-sm font-semibold shadow-sm transition-all duration-200 hover:shadow-md hover:scale-[1.01] active:scale-[0.99]"
-                                >
-                                  Send Email
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="mt-4 rounded-2xl border border-slate-100/70 bg-gradient-to-br from-slate-50/60 to-white p-4 shadow-sm">
-                          <div className="flex flex-col gap-3">
-                            <div className="flex items-center justify-between flex-wrap gap-2">
-                              <div>
-                                <p className="text-xs uppercase tracking-wide text-slate-500">Resume</p>
-                                <p className="text-sm text-slate-400">Upload and access the candidate's latest resume.</p>
-                              </div>
                               {leadResumeUrl && (
                                 <a
                                   href={leadResumeUrl}
@@ -875,22 +855,57 @@ const HROperationsLocalHiring = () => {
                                 </a>
                               )}
                             </div>
-                            {!leadResumeUrl ? (
-                              <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+                          </div>
+                          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Primary Email</p>
+                              <div className="flex flex-col sm:flex-row gap-3">
                                 <input
-                                  type="file"
-                                  accept=".pdf,.doc,.docx"
-                                  onChange={handleResumeFileChange}
-                                  disabled={resumeUploading}
-                                  className="text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                                  type="email"
+                                  value={emailInput}
+                                  onChange={(e) => setEmailInput(e.target.value)}
+                                  className="flex-1 bg-white border border-slate-200/70 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-300 focus:shadow-sm transition-all duration-200"
+                                  placeholder="name@example.com"
                                 />
-                                {resumeUploading && (
-                                  <span className="text-[11px] text-slate-400">Uploading…</span>
-                                )}
+                                <div className="flex gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={handleEmailUpdate}
+                                    disabled={emailUpdateDisabled}
+                                    className="px-4 py-2.5 rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-700 text-white text-sm font-semibold disabled:opacity-60 shadow-sm transition-all duration-200 hover:shadow-md hover:scale-[1.01] active:scale-[0.99]"
+                                  >
+                                    {emailSaving ? 'Updating…' : 'Update Email'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={openEmailModalForCurrentLead}
+                                    className="px-4 py-2.5 rounded-2xl border border-indigo-100 bg-white text-indigo-700 text-sm font-semibold shadow-sm transition-all duration-200 hover:shadow-md hover:scale-[1.01] active:scale-[0.99]"
+                                  >
+                                    Send Email
+                                  </button>
+                                </div>
                               </div>
-                            ) : (
-                              <p className="text-xs text-slate-400">Resume already uploaded.</p>
-                            )}
+                            </div>
+                            <div>
+                              <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Resume</p>
+                              <p className="text-xs text-slate-400 mb-2">Upload and access the candidate's latest resume.</p>
+                              {!leadResumeUrl ? (
+                                <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+                                  <input
+                                    type="file"
+                                    accept=".pdf,.doc,.docx"
+                                    onChange={handleResumeFileChange}
+                                    disabled={resumeUploading}
+                                    className="text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                                  />
+                                  {resumeUploading && (
+                                    <span className="text-[11px] text-slate-400">Uploading…</span>
+                                  )}
+                                </div>
+                              ) : (
+                                <p className="text-xs text-slate-400">Resume already uploaded.</p>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </>
@@ -899,79 +914,94 @@ const HROperationsLocalHiring = () => {
                 </div>
 
                 {lead && (
-                  <div className="w-full max-w-6xl mx-auto space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      <div>
-                        <label className="text-sm font-semibold text-slate-700">Status</label>
-                        <div className="mt-2 bg-gradient-to-br from-slate-50/80 to-white border border-slate-200/60 rounded-2xl px-3 shadow-sm transition-all duration-200 focus-within:shadow-md focus-within:border-indigo-200">
-                          <select
-                            value={status}
-                            onChange={(e) => setStatus(e.target.value)}
-                            className="w-full bg-transparent py-3 text-sm focus:outline-none"
-                          >
-                            <option value="">Select…</option>
-                            {STATUS_OPTIONS.map((s) => (
-                              <option key={s} value={s}>{s}</option>
-                            ))}
-                          </select>
+                  <div className="w-full max-w-6xl mx-auto">
+                    <div className="rounded-2xl border border-slate-100/70 bg-gradient-to-br from-slate-50/60 to-white p-4 md:p-5 shadow-sm space-y-4">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div>
+                          <p className="text-xs uppercase tracking-wide text-slate-500">Disposition</p>
+                          <p className="text-xs text-slate-400">Capture final status and crisp remarks before moving to the next lead.</p>
                         </div>
                       </div>
-                      <div>
-                        <label className="text-sm font-semibold text-slate-700">Remarks</label>
-                        <div className="mt-2">
-                          <input
-                            type="text"
-                            value={remarks}
-                            onChange={(e) => setRemarks(e.target.value)}
-                            className="w-full bg-gradient-to-br from-slate-50/80 to-white border border-slate-200/60 rounded-2xl px-3 py-3 text-sm focus:outline-none focus:border-indigo-300 focus:shadow-sm transition-all duration-200"
-                            placeholder="Add remark…"
-                          />
-                        </div>
-                      </div>
-                    </div>
 
-                    {/* Dynamic Line-up Fields */}
-                    {status === 'Line up' && (
-                      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="text-sm font-semibold text-slate-700">Line-up Date & Time</label>
-                          <div className="mt-2">
-                            <input
-                              type="datetime-local"
-                              value={lineUpDateTime}
-                              onChange={(e) => setLineUpDateTime(e.target.value)}
-                              className="w-full bg-gradient-to-br from-slate-50/80 to-white border border-slate-200/60 rounded-2xl px-3 py-3 text-sm focus:outline-none focus:border-indigo-300 focus:shadow-sm transition-all duration-200"
-                              required
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="text-sm font-semibold text-slate-700">Type of Interview</label>
-                          <div className="mt-2">
+                          <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Status</label>
+                          <div className="mt-2 bg-gradient-to-br from-slate-50/80 to-white border border-slate-200/60 rounded-2xl px-3 shadow-sm transition-all duration-200 focus-within:shadow-md focus-within:border-indigo-200">
                             <select
-                              value={interviewType}
-                              onChange={(e) => setInterviewType(e.target.value)}
-                              className="w-full bg-gradient-to-br from-slate-50/80 to-white border border-slate-200/60 rounded-2xl px-3 py-3 text-sm focus:outline-none focus:border-indigo-300 focus:shadow-sm transition-all duration-200"
+                              value={status}
+                              onChange={(e) => setStatus(e.target.value)}
+                              className="w-full bg-transparent py-2.5 text-sm focus:outline-none"
                             >
-                              <option value="">Select type…</option>
-                              <option value="Virtual Interview">Virtual Interview</option>
-                              <option value="Personal Interview">Personal Interview</option>
+                              <option value="">Select…</option>
+                              {STATUS_OPTIONS.map((s) => (
+                                <option key={s} value={s}>{s}</option>
+                              ))}
                             </select>
                           </div>
                         </div>
+                        <div>
+                          <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Remarks</label>
+                          <div className="mt-2">
+                            <input
+                              type="text"
+                              value={remarks}
+                              onChange={(e) => setRemarks(e.target.value)}
+                              className="w-full bg-gradient-to-br from-slate-50/80 to-white border border-slate-200/60 rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-300 focus:shadow-sm transition-all duration-200"
+                              placeholder="Add remark…"
+                            />
+                          </div>
+                        </div>
                       </div>
-                    )}
 
-                    <div className="flex flex-wrap gap-3">
-                      <button
-                        type="button"
-                        onClick={updateLead}
-                        disabled={loading}
-                        className="px-5 py-2.5 rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-700 text-white text-sm font-semibold disabled:opacity-60 shadow-sm transition-all duration-200 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
-                      >
-                        {loading ? 'Saving…' : 'Save & Next'}
-                      </button>
-                      
+                      {status === 'Line up' && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Line-up Date & Time</label>
+                            <div className="mt-2">
+                              <input
+                                type="datetime-local"
+                                value={lineUpDateTime}
+                                onChange={(e) => setLineUpDateTime(e.target.value)}
+                                className="w-full bg-gradient-to-br from-slate-50/80 to-white border border-slate-200/60 rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-300 focus:shadow-sm transition-all duration-200"
+                                required
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Type of Interview</label>
+                            <div className="mt-2">
+                              <select
+                                value={interviewType}
+                                onChange={(e) => setInterviewType(e.target.value)}
+                                className="w-full bg-gradient-to-br from-slate-50/80 to-white border border-slate-200/60 rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-300 focus:shadow-sm transition-all duration-200"
+                              >
+                                <option value="">Select type…</option>
+                                <option value="Virtual Interview">Virtual Interview</option>
+                                <option value="Personal Interview">Personal Interview</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex flex-wrap items-center justify-end gap-3 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => updateLead(false)}
+                          disabled={loading}
+                          className="px-5 py-2.5 rounded-2xl bg-gradient-to-br from-slate-600 to-slate-700 text-white text-sm font-semibold disabled:opacity-60 shadow-sm transition-all duration-200 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
+                        >
+                          {loading ? 'Saving…' : 'Update'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateLead(true)}
+                          disabled={loading}
+                          className="px-5 py-2.5 rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-700 text-white text-sm font-semibold disabled:opacity-60 shadow-sm transition-all duration-200 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
+                        >
+                          {loading ? 'Saving…' : 'Save & Next'}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -979,7 +1009,7 @@ const HROperationsLocalHiring = () => {
             )}
 
             {tab === 'worksheet' && (
-              <div className="space-y-4">
+              <div className="space-y-4 flex-1 overflow-y-auto pr-1">
                 {/* Enhanced Search and Filter Controls */}
                 <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                   <div className="flex flex-col lg:flex-row gap-6">

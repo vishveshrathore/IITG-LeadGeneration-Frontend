@@ -1,4 +1,5 @@
-import React, { useState, useEffect, createContext, useContext, useRef } from "react";
+import React, { useState, useEffect, createContext, useContext, useRef, useMemo } from "react";
+import { createPortal } from "react-dom";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import { BASE_URL } from "../config";
@@ -33,6 +34,9 @@ const NaukriParser = () => {
   const [toast, setToast] = useState({ visible: false, message: "", type: "success" });
   const [query, setQuery] = useState("");
   const [expandedSkillRows, setExpandedSkillRows] = useState({});
+  const [columnFilters, setColumnFilters] = useState({});
+  const [activeFilter, setActiveFilter] = useState({ column: null, search: '' });
+  const [activeFilterSelection, setActiveFilterSelection] = useState([]);
   // Upload/selection states
   const [selectedIds, setSelectedIds] = useState([]);
   const [companies, setCompanies] = useState([]);
@@ -99,6 +103,270 @@ const NaukriParser = () => {
     setExpandedSkillRows({});
   }, [profiles]);
 
+  const getColumnTextForFilter = (row, key) => {
+    if (!row) return '';
+    const value = row[key];
+    if (value == null) return '';
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => (typeof item === 'object' ? JSON.stringify(item) : String(item)))
+        .join(' | ');
+    }
+    if (typeof value === 'object') {
+      return JSON.stringify(value);
+    }
+    return String(value);
+  };
+
+  const ColumnFilterHeader = ({
+    label,
+    columnKey,
+    profiles,
+    columnFilters,
+    setColumnFilters,
+    activeFilter,
+    setActiveFilter,
+    activeFilterSelection,
+    setActiveFilterSelection,
+  }) => {
+    const containerRef = useRef(null);
+    const panelRef = useRef(null);
+    const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
+    const open = activeFilter.column === columnKey;
+    const DROPDOWN_WIDTH = 232;
+    const ESTIMATED_HEIGHT = 280;
+
+    const allValues = useMemo(() => {
+      const set = new Set();
+      (profiles || []).forEach((p) => {
+        const v = String(getColumnTextForFilter(p, columnKey) || '').trim();
+        if (v) set.add(v);
+      });
+      return Array.from(set).sort((a, b) => a.localeCompare(b));
+    }, [profiles, columnKey]);
+
+    const applied = columnFilters[columnKey] || [];
+    const working = open ? activeFilterSelection : applied; // eslint-disable-line no-unused-vars
+    const search = open ? (activeFilter.search || '') : '';
+    const lcSearch = search.toLowerCase();
+    const filteredValues = lcSearch
+      ? allValues.filter((v) => v.toLowerCase().includes(lcSearch))
+      : allValues;
+
+    const close = () => {
+      setActiveFilter({ column: null, search: '' });
+      setActiveFilterSelection([]);
+    };
+
+    const updateDropdownPosition = () => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      let top = rect.bottom + 6;
+      let placement = 'below';
+      if (rect.bottom + ESTIMATED_HEIGHT + 20 > window.innerHeight) {
+        top = rect.top - ESTIMATED_HEIGHT - 6;
+        placement = 'above';
+      }
+      if (top < 8) {
+        top = 8;
+        placement = 'below';
+      }
+      let left = rect.left + rect.width - DROPDOWN_WIDTH;
+      if (left < 8) left = 8;
+      if (left + DROPDOWN_WIDTH > window.innerWidth - 8) {
+        left = window.innerWidth - DROPDOWN_WIDTH - 8;
+      }
+      setDropdownPos({ top, left, placement });
+    };
+
+    const openFilter = () => {
+      setActiveFilter({ column: columnKey, search: '' });
+      if (applied && applied.length) {
+        setActiveFilterSelection(applied);
+      } else {
+        setActiveFilterSelection(allValues);
+      }
+      setTimeout(updateDropdownPosition, 0);
+    };
+
+    const toggleValue = (value) => {
+      setActiveFilterSelection((prev) => {
+        const exists = prev.includes(value);
+        if (exists) return prev.filter((v) => v !== value);
+        return [...prev, value];
+      });
+    };
+
+    const selectAll = () => {
+      setActiveFilterSelection(filteredValues);
+    };
+
+    const clearSelection = () => {
+      setActiveFilterSelection([]);
+    };
+
+    const applyFilter = () => {
+      setColumnFilters((prev) => {
+        const next = { ...prev };
+        const allSelected =
+          Array.isArray(activeFilterSelection) &&
+          activeFilterSelection.length > 0 &&
+          activeFilterSelection.length === allValues.length;
+        if (!activeFilterSelection || activeFilterSelection.length === 0 || allSelected) {
+          delete next[columnKey];
+        } else {
+          next[columnKey] = activeFilterSelection.slice();
+        }
+        return next;
+      });
+      close();
+    };
+
+    const clearFilterCompletely = () => {
+      setColumnFilters((prev) => {
+        const next = { ...prev };
+        delete next[columnKey];
+        return next;
+      });
+      close();
+    };
+
+    const hasActiveFilter = Array.isArray(applied) && applied.length > 0;
+
+    useEffect(() => {
+      if (!open) return;
+      const handleClick = (e) => {
+        const containerEl = containerRef.current;
+        const panelEl = panelRef.current;
+        if (containerEl && containerEl.contains(e.target)) {
+          return;
+        }
+        if (panelEl && panelEl.contains(e.target)) {
+          return;
+        }
+        close();
+      };
+      const handleWindowChange = () => {
+        updateDropdownPosition();
+      };
+      document.addEventListener('mousedown', handleClick);
+      window.addEventListener('resize', handleWindowChange);
+      window.addEventListener('scroll', handleWindowChange, true);
+      return () => {
+        document.removeEventListener('mousedown', handleClick);
+        window.removeEventListener('resize', handleWindowChange);
+        window.removeEventListener('scroll', handleWindowChange, true);
+      };
+    }, [open]);
+
+    useEffect(() => {
+      if (!open) return;
+      updateDropdownPosition();
+    }, [open, profiles, columnFilters]);
+
+    return (
+      <div ref={containerRef} className="relative inline-flex items-center gap-1">
+        <span>{label}</span>
+        <button
+          type="button"
+          onClick={open ? close : openFilter}
+          className={`inline-flex h-5 w-5 items-center justify-center rounded border text-[10px] transition ${
+            hasActiveFilter
+              ? 'bg-indigo-50 text-indigo-700 border-indigo-300 hover:bg-indigo-100'
+              : 'bg-white text-gray-500 border-gray-300 hover:bg-gray-50'
+          }`}
+          title="Filter column values"
+        >
+          <svg viewBox="0 0 24 24" className="w-3 h-3">
+            <path
+              fill="currentColor"
+              d="M3 4h18v2l-7 7v5l-4 2v-7L3 6V4z"
+            />
+          </svg>
+        </button>
+        {hasActiveFilter && (
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-indigo-600" />
+        )}
+        {open && createPortal(
+          <div
+            ref={panelRef}
+            style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, width: DROPDOWN_WIDTH, zIndex: 9999 }}
+            className="rounded-lg border border-gray-200 bg-white p-2 text-xs shadow-2xl"
+          >
+            <div className="mb-2 flex items-center gap-1">
+              <input
+                type="text"
+                value={open ? (activeFilter.search || '') : ''}
+                onChange={(e) => setActiveFilter({ column: columnKey, search: e.target.value })}
+                placeholder="Search values"
+                className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
+              />
+            </div>
+            <div className="max-h-48 overflow-y-auto border-y border-gray-200 py-1 pr-1">
+              {filteredValues.length === 0 ? (
+                <div className="px-1 py-1 text-gray-500">No values</div>
+              ) : (
+                filteredValues.map((v) => {
+                  const checked = activeFilterSelection.includes(v);
+                  return (
+                    <label key={v} className="flex cursor-pointer items-center gap-2 px-1 py-0.5 hover:bg-gray-50">
+                      <input
+                        type="checkbox"
+                        className="h-3.5 w-3.5 rounded border-gray-300 text-indigo-600"
+                        checked={checked}
+                        onChange={() => toggleValue(v)}
+                      />
+                      <span className="truncate" title={v}>
+                        {v}
+                      </span>
+                    </label>
+                  );
+                })
+              )}
+            </div>
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={selectAll}
+                  className="rounded border border-gray-300 px-2 py-0.5 text-[11px] hover:bg-gray-50"
+                >
+                  Select All
+                </button>
+                <button
+                  type="button"
+                  onClick={clearSelection}
+                  className="rounded border border-gray-300 px-2 py-0.5 text-[11px] hover:bg-gray-50"
+                >
+                  Clear
+                </button>
+              </div>
+              <div className="flex gap-1">
+                {hasActiveFilter && (
+                  <button
+                    type="button"
+                    onClick={clearFilterCompletely}
+                    className="rounded border border-red-200 px-2 py-0.5 text-[11px] text-red-600 hover:bg-red-50"
+                  >
+                    Reset
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={applyFilter}
+                  className="rounded border border-indigo-500 bg-indigo-600 px-2 py-0.5 text-[11px] font-semibold text-white hover:bg-indigo-700"
+                >
+                  Apply
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+      </div>
+    );
+  };
+
   const showToast = (message, type = "success") => {
     setToast({ visible: true, message, type });
     setTimeout(() => setToast({ visible: false, message: "", type: "success" }), 3000);
@@ -126,13 +394,8 @@ const NaukriParser = () => {
     }
   }, [profiles]);
 
-  // Master select checkbox state
-  const allSelected = profiles.length > 0 && selectedIds.length === profiles.length;
-  const someSelected = selectedIds.length > 0 && selectedIds.length < profiles.length;
+  // Master select checkbox ref (indeterminate handled inline in render)
   const masterRef = useRef(null);
-  useEffect(() => {
-    if (masterRef.current) masterRef.current.indeterminate = someSelected;
-  }, [someSelected, selectedIds.length, profiles.length]);
 
   // Fetch companies for dropdown
   useEffect(() => {
@@ -244,6 +507,69 @@ const NaukriParser = () => {
       setSelectedCompany(byName._id);
     }
   }, [companies, fromCorporate, companyFromUrl]);
+
+  const displayedProfiles = useMemo(() => {
+    if (!profiles || !profiles.length) return [];
+    let list = profiles;
+
+    const needle = query.trim().toLowerCase();
+    if (needle) {
+      list = list.filter((p) => {
+        const hay = [
+          p.name,
+          p.location,
+          p.current_designation,
+          p.current_company,
+          p.education,
+          p.preferred_locations,
+          p.mobile,
+          p.email,
+          typeof p.skills === 'string' ? p.skills : '',
+        ]
+          .join(' ')
+          .toLowerCase();
+        return hay.includes(needle);
+      });
+    }
+
+    const hasColumnFilters =
+      columnFilters &&
+      Object.values(columnFilters).some((arr) => Array.isArray(arr) && arr.length > 0);
+    if (hasColumnFilters) {
+      list = list.filter((p) => {
+        for (const [col, selectedVals] of Object.entries(columnFilters)) {
+          if (!Array.isArray(selectedVals) || selectedVals.length === 0) continue;
+          const v = String(getColumnTextForFilter(p, col) || '');
+          if (!selectedVals.includes(v)) return false;
+        }
+        return true;
+      });
+    }
+
+    return list;
+  }, [profiles, query, columnFilters]);
+
+  const displayedIndexes = useMemo(
+    () => (displayedProfiles || [])
+      .map((p) => profiles.indexOf(p))
+      .filter((idx) => idx >= 0),
+    [displayedProfiles, profiles]
+  );
+
+  const allDisplayedSelected =
+    displayedIndexes.length > 0 &&
+    displayedIndexes.every((idx) => selectedIds.includes(idx));
+
+  const someDisplayedSelected =
+    displayedIndexes.length > 0 &&
+    !allDisplayedSelected &&
+    displayedIndexes.some((idx) => selectedIds.includes(idx));
+
+  useEffect(() => {
+    if (masterRef.current) {
+      masterRef.current.indeterminate = someDisplayedSelected;
+    }
+  }, [someDisplayedSelected]);
 
   // (Removed loadSample helper)
 
@@ -596,7 +922,12 @@ const NaukriParser = () => {
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 <button
-                  onClick={() => setSelectedIds(profiles.map((_, idx) => idx))}
+                  onClick={() => {
+                    const idxs = (displayedProfiles || [])
+                      .map((p) => profiles.indexOf(p))
+                      .filter((idx) => idx >= 0);
+                    setSelectedIds(idxs);
+                  }}
                   className="py-1 px-2 rounded border border-gray-300 bg-blue-600 text-white text-xs hover:bg-blue-700"
                 >
                   Select All
@@ -858,10 +1189,10 @@ const NaukriParser = () => {
                         ref={masterRef}
                         type="checkbox"
                         className="cursor-pointer"
-                        checked={allSelected}
+                        checked={allDisplayedSelected}
                         onChange={(e) => {
                           if (e.target.checked) {
-                            setSelectedIds(profiles.map((_, idx) => idx));
+                            setSelectedIds(displayedIndexes);
                           } else {
                             setSelectedIds([]);
                           }
@@ -876,34 +1207,29 @@ const NaukriParser = () => {
                           key === 'skills' ? 'min-w-[320px]' : ''
                         }`}
                       >
-                        {key.replace('activity.', '').replace(/_/g, ' ')}
+                        <ColumnFilterHeader
+                          label={key.replace('activity.', '').replace(/_/g, ' ')}
+                          columnKey={key}
+                          profiles={displayedProfiles}
+                          columnFilters={columnFilters}
+                          setColumnFilters={setColumnFilters}
+                          activeFilter={activeFilter}
+                          setActiveFilter={setActiveFilter}
+                          activeFilterSelection={activeFilterSelection}
+                          setActiveFilterSelection={setActiveFilterSelection}
+                        />
                       </th>
                     ))}
                   </tr>
                   </thead>
                   <tbody>
-                  {profiles
-                    .filter((p) => {
-                      if (!query.trim()) return true;
-                      const hay = [
-                        p.name,
-                        p.location,
-                        p.current_designation,
-                        p.current_company,
-                        p.education,
-                        p.preferred_locations,
-                        p.mobile,
-                        p.email,
-                        typeof p.skills === 'string' ? p.skills : '',
-                      ].join(' ').toLowerCase();
-                      return hay.includes(query.toLowerCase());
-                    })
-                    .map((p, i) => {
-                      const getVal = (obj, path) => path.split('.').reduce((acc, k) => (acc && acc[k] !== undefined ? acc[k] : ''), obj);
-                      const renderVal = (v) => {
-                        if (Array.isArray(v)) {
-                          const isRoleArray = v.every(item => item && typeof item === 'object' && ('designation' in item || 'company' in item));
-                          if (isRoleArray) {
+                  {displayedProfiles.map((p, i) => {
+                    const rowIndex = profiles.indexOf(p);
+                    const getVal = (obj, path) => path.split('.').reduce((acc, k) => (acc && acc[k] !== undefined ? acc[k] : ''), obj);
+                    const renderVal = (v) => {
+                      if (Array.isArray(v)) {
+                        const isRoleArray = v.every(item => item && typeof item === 'object' && ('designation' in item || 'company' in item));
+                        if (isRoleArray) {
                           // Render previous roles as badges
                           return (
                             <div className="flex flex-wrap gap-1">
@@ -930,13 +1256,15 @@ const NaukriParser = () => {
                           <input
                             type="checkbox"
                             className="cursor-pointer"
-                            checked={selectedIds.includes(i)}
+                            checked={rowIndex >= 0 && selectedIds.includes(rowIndex)}
                             onChange={(e) => {
+                              const idx = rowIndex;
+                              if (idx < 0) return;
                               setSelectedIds((prev) => {
                                 if (e.target.checked) {
-                                  return Array.from(new Set([...prev, i]));
+                                  return Array.from(new Set([...prev, idx]));
                                 } else {
-                                  return prev.filter((id) => id !== i);
+                                  return prev.filter((id) => id !== idx);
                                 }
                               });
                             }}

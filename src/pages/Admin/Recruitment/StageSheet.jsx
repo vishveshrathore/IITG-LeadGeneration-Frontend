@@ -64,6 +64,8 @@ const getColumnText = (p, key) => {
       return p.ctc || '';
     case 'location':
       return p.location || '';
+    case 'mobile':
+      return p.mobile || '';
     case 'current_designation':
       return p.current_designation || '';
     case 'current_company':
@@ -1113,6 +1115,19 @@ const StageSheet = ({ job, stageKey, title }) => {
                 <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Previous Roles</th>
                 <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Education</th>
                 <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Skills</th>
+                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">
+                  <ColumnFilterHeader
+                    label="Mobile"
+                    columnKey="mobile"
+                    profiles={displayedProfiles}
+                    columnFilters={columnFilters}
+                    setColumnFilters={setColumnFilters}
+                    activeFilter={activeFilter}
+                    setActiveFilter={setActiveFilter}
+                    activeFilterSelection={activeFilterSelection}
+                    setActiveFilterSelection={setActiveFilterSelection}
+                  />
+                </th>
                 <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Resume</th>
                 <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Actions</th>
               </tr>
@@ -1121,7 +1136,7 @@ const StageSheet = ({ job, stageKey, title }) => {
               {loading ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <tr key={`sk-${i}`} className="animate-pulse">
-                    {Array.from({ length: 13 }).map((__, j) => (
+                    {Array.from({ length: 14 }).map((__, j) => (
                       <td key={`skc-${i}-${j}`} className="px-3 py-2 border-b">
                         <div className="h-3 bg-gray-200 rounded w-3/4" />
                       </td>
@@ -1130,7 +1145,7 @@ const StageSheet = ({ job, stageKey, title }) => {
                 ))
               ) : displayedProfiles.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className="px-3 py-10">
+                  <td colSpan={14} className="px-3 py-10">
                     <div className="flex flex-col items-center justify-center text-center">
                       <div className="w-10 h-10 rounded-full bg-gray-100 border flex items-center justify-center mb-2">
                         <svg viewBox="0 0 24 24" className="w-5 h-5 text-gray-500"><path fill="currentColor" d="M12 12c2.21 0 4-1.79 4-4S14.21 4 12 4 8 5.79 8 8s1.79 4 4 4m0 2c-3.33 0-10 1.67-10 5v1h20v-1c0-3.33-6.67-5-10-5Z"/></svg>
@@ -1275,6 +1290,9 @@ const StageSheet = ({ job, stageKey, title }) => {
                           );
                         })()
                       ) : (p?.skills || '-')}
+                    </td>
+                    <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}>
+                      {p?.mobile || '-'}
                     </td>
 
                     <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}>
