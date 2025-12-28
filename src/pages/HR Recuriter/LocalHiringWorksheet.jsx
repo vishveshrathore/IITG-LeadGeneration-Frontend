@@ -28,6 +28,51 @@ const HRRecruiterLocalHiringWorksheet = () => {
   const [viewOpen, setViewOpen] = useState(false);
   const [viewItem, setViewItem] = useState(null);
 
+  const [positionFilter, setPositionFilter] = useState('all');
+
+  const getPositionMeta = (item) => {
+    const lead = item?.lead || {};
+    const pos = lead.position;
+
+    if (!pos) {
+      return { id: 'no-position', name: 'No Position', location: '' };
+    }
+
+    if (typeof pos === 'string') {
+      return { id: pos, name: pos, location: '' };
+    }
+
+    if (typeof pos === 'object') {
+      const id = String(pos._id || pos.id || '') || 'no-position';
+      return {
+        id,
+        name: pos.name || 'Position',
+        location: pos.location || '',
+        status: pos.status || '',
+      };
+    }
+
+    return { id: 'no-position', name: 'No Position', location: '' };
+  };
+
+  const positionOptions = useMemo(() => {
+    const map = new Map();
+
+    allRows.forEach((item) => {
+      const meta = getPositionMeta(item);
+      if (!meta.id) return;
+
+      const existing = map.get(meta.id);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        map.set(meta.id, { ...meta, count: 1 });
+      }
+    });
+
+    return Array.from(map.values());
+  }, [allRows]);
+
   const fetchWorksheet = async () => {
     if (!token) return;
     setLoading(true);
@@ -53,6 +98,12 @@ const HRRecruiterLocalHiringWorksheet = () => {
 
   useEffect(() => {
     let data = [...allRows];
+    if (positionFilter && positionFilter !== 'all') {
+      data = data.filter((a) => {
+        const meta = getPositionMeta(a);
+        return meta.id === positionFilter;
+      });
+    }
     if (statusFilter) {
       data = data.filter((a) => (a.currentStatus || '').toLowerCase() === statusFilter.toLowerCase());
     }
@@ -83,7 +134,7 @@ const HRRecruiterLocalHiringWorksheet = () => {
       });
     }
     setRows(data);
-  }, [allRows, statusFilter, completionFilter, search]);
+  }, [allRows, statusFilter, completionFilter, search, positionFilter]);
 
   const stats = useMemo(() => {
     const total = allRows.length;
@@ -185,6 +236,33 @@ const HRRecruiterLocalHiringWorksheet = () => {
           </section>
 
           <section className="bg-white rounded-4xl border border-slate-200 shadow-sm p-6 space-y-6">
+            {positionOptions.length > 0 && (
+              <div className="flex flex-wrap gap-2 items-center overflow-x-auto pb-1">
+                <button
+                  type="button"
+                  onClick={() => setPositionFilter('all')}
+                  className={positionFilter === 'all'
+                    ? 'px-3 py-1.5 rounded-2xl text-xs font-semibold bg-indigo-600 text-white shadow'
+                    : 'px-3 py-1.5 rounded-2xl text-xs font-semibold bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100'}
+                >
+                  All Positions ({allRows.length})
+                </button>
+                {positionOptions.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setPositionFilter(p.id)}
+                    className={positionFilter === p.id
+                      ? 'px-3 py-1.5 rounded-2xl text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm'
+                      : 'px-3 py-1.5 rounded-2xl text-xs font-semibold bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100'}
+                  >
+                    <span>{p.name || 'Position'}{p.location ? ` • ${p.location}` : ''}</span>
+                    <span className="ml-1 text-[11px] text-slate-500">({p.count})</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Status</label>
@@ -232,7 +310,7 @@ const HRRecruiterLocalHiringWorksheet = () => {
                 <table className="min-w-full divide-y divide-slate-200 text-sm">
                   <thead className="bg-slate-50">
                     <tr>
-                      {['Name', 'Mobile', 'Email', 'Location', 'Status', 'Remarks', 'Completed', 'Actions'].map((col) => (
+                      {['Name', 'Mobile', 'Email', 'Location', 'Position', 'Status', 'Remarks', 'Completed', 'Actions'].map((col) => (
                         <th key={col} className="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">
                           {col}
                         </th>
@@ -243,12 +321,24 @@ const HRRecruiterLocalHiringWorksheet = () => {
                     {rows.map((a) => {
                       const l = a?.lead || {};
                       const completed = !!a.completed;
+                      const positionMeta = getPositionMeta(a);
                       return (
                         <tr key={a._id} className="hover:bg-slate-50">
                           <td className="px-3 py-3">{l.name || l?.profile?.name || '—'}</td>
                           <td className="px-3 py-3">{Array.isArray(l.mobile) ? l.mobile.join(', ') : '—'}</td>
                           <td className="px-3 py-3 break-all">{l.email || l?.profile?.email || '—'}</td>
                           <td className="px-3 py-3">{l.location || l?.profile?.location || '—'}</td>
+                          <td className="px-3 py-3">
+                            <button
+                              type="button"
+                              onClick={() => setPositionFilter(positionMeta.id)}
+                              className={positionFilter === positionMeta.id
+                                ? 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200'
+                                : 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100'}
+                            >
+                              {positionMeta.name || '—'}
+                            </button>
+                          </td>
                           <td className="px-3 py-3 font-semibold text-slate-800">{a.currentStatus || '—'}</td>
                           <td className="px-3 py-3">{a.remarks || '—'}</td>
                           <td className="px-3 py-3">

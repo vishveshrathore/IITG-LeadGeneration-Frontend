@@ -64,6 +64,7 @@ const HROperationsLocalHiring = () => {
   const [status, setStatus] = useState('');
   const [remarks, setRemarks] = useState('');
   const [lineUpDateTime, setLineUpDateTime] = useState('');
+  const [interviewType, setInterviewType] = useState('');
   const [emailInput, setEmailInput] = useState('');
   const [emailSaving, setEmailSaving] = useState(false);
   const [editingEmailId, setEditingEmailId] = useState(null);
@@ -84,6 +85,8 @@ const HROperationsLocalHiring = () => {
   const [emailModalFile, setEmailModalFile] = useState(null);
   const [emailModalSending, setEmailModalSending] = useState(false);
   const [emailOpportunity, setEmailOpportunity] = useState('');
+
+  const [resumeUploading, setResumeUploading] = useState(false);
 
   const [recruiterInfo, setRecruiterInfo] = useState({
     name: user?.name || '',
@@ -262,6 +265,11 @@ const HROperationsLocalHiring = () => {
       return toast.error('Line-up date and time is required when status is "Line up"');
     }
 
+    // Validate interview type if status is "Line up"
+    if (status === 'Line up' && !interviewType) {
+      return toast.error('Type of Interview is required when status is "Line up"');
+    }
+
     setLoading(true);
     try {
       const requestData = { currentStatus: status, remarks };
@@ -269,6 +277,10 @@ const HROperationsLocalHiring = () => {
       // Add line-up date/time if status is "Line up"
       if (status === 'Line up' && lineUpDateTime) {
         requestData.lineUpDateTime = lineUpDateTime;
+      }
+
+      if (status === 'Line up' && interviewType) {
+        requestData.interviewType = interviewType;
       }
       
       const { data } = await axios.put(
@@ -288,6 +300,7 @@ const HROperationsLocalHiring = () => {
       setStatus('');
       setRemarks('');
       setLineUpDateTime('');
+      setInterviewType('');
       
       await fetchNext();
     } catch (e) {
@@ -347,6 +360,7 @@ const HROperationsLocalHiring = () => {
   const leadLocation = lead?.location || lead?.profile?.location || '—';
   const leadEmail = lead?.email || lead?.profile?.email || '—';
   const leadMobile = Array.isArray(lead?.mobile) ? lead.mobile.join(', ') : '—';
+  const leadResumeUrl = lead?.profile?.resumeUrl || '';
   const normalizedLeadEmail = lead ? String(lead?.email || lead?.profile?.email || '').trim().toLowerCase() : '';
   const normalizedInputEmail = String(emailInput || '').trim().toLowerCase();
   const emailUpdateDisabled = !lead || emailSaving || !normalizedInputEmail || normalizedInputEmail === normalizedLeadEmail;
@@ -397,6 +411,77 @@ const HROperationsLocalHiring = () => {
         </div>
       </div>
     );
+  };
+
+  const handleResumeFileChange = async (e) => {
+    if (!token) return toast.error('Not authenticated');
+    if (!lead?._id) return toast.error('No lead selected');
+
+    const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('resume', file);
+
+    try {
+      setResumeUploading(true);
+      const { data } = await axios.post(
+        `${BASE_URL}/api/local-hiring/lead/${lead._id}/resume`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+
+      if (!data?.success) {
+        toast.error(data?.message || 'Failed to upload resume');
+        return;
+      }
+
+      const url = data?.data?.resumeUrl || '';
+      setLead((prev) =>
+        prev
+          ? {
+              ...prev,
+              profile: {
+                ...(prev.profile || {}),
+                resumeUrl: url,
+              },
+            }
+          : prev
+      );
+
+      setWorksheet((prev) =>
+        Array.isArray(prev)
+          ? prev.map((item) => {
+              const l = item?.lead;
+              if (l?._id === lead._id) {
+                return {
+                  ...item,
+                  lead: {
+                    ...l,
+                    profile: { ...(l.profile || {}), resumeUrl: url },
+                  },
+                };
+              }
+              return item;
+            })
+          : prev
+      );
+
+      toast.success('Resume uploaded');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to upload resume');
+    } finally {
+      setResumeUploading(false);
+      // reset input so same file can be chosen again if needed
+      if (e.target) {
+        e.target.value = '';
+      }
+    }
   };
 
   const workflowCards = [
@@ -771,6 +856,43 @@ const HROperationsLocalHiring = () => {
                             </div>
                           </div>
                         </div>
+
+                        <div className="mt-4 rounded-2xl border border-slate-100/70 bg-gradient-to-br from-slate-50/60 to-white p-4 shadow-sm">
+                          <div className="flex flex-col gap-3">
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                              <div>
+                                <p className="text-xs uppercase tracking-wide text-slate-500">Resume</p>
+                                <p className="text-sm text-slate-400">Upload and access the candidate's latest resume.</p>
+                              </div>
+                              {leadResumeUrl && (
+                                <a
+                                  href={leadResumeUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-xs font-semibold text-indigo-700 bg-white border border-indigo-100 rounded-full px-3 py-1"
+                                >
+                                  View Resume
+                                </a>
+                              )}
+                            </div>
+                            {!leadResumeUrl ? (
+                              <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+                                <input
+                                  type="file"
+                                  accept=".pdf,.doc,.docx"
+                                  onChange={handleResumeFileChange}
+                                  disabled={resumeUploading}
+                                  className="text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                                />
+                                {resumeUploading && (
+                                  <span className="text-[11px] text-slate-400">Uploading…</span>
+                                )}
+                              </div>
+                            ) : (
+                              <p className="text-xs text-slate-400">Resume already uploaded.</p>
+                            )}
+                          </div>
+                        </div>
                       </>
                     )}
                   </div>
@@ -808,18 +930,34 @@ const HROperationsLocalHiring = () => {
                       </div>
                     </div>
 
-                    {/* Dynamic Line-up Date/Time Field */}
+                    {/* Dynamic Line-up Fields */}
                     {status === 'Line up' && (
-                      <div className="mt-4">
-                        <label className="text-sm font-semibold text-slate-700">Line-up Date & Time</label>
-                        <div className="mt-2">
-                          <input
-                            type="datetime-local"
-                            value={lineUpDateTime}
-                            onChange={(e) => setLineUpDateTime(e.target.value)}
-                            className="w-full bg-gradient-to-br from-slate-50/80 to-white border border-slate-200/60 rounded-2xl px-3 py-3 text-sm focus:outline-none focus:border-indigo-300 focus:shadow-sm transition-all duration-200"
-                            required
-                          />
+                      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-semibold text-slate-700">Line-up Date & Time</label>
+                          <div className="mt-2">
+                            <input
+                              type="datetime-local"
+                              value={lineUpDateTime}
+                              onChange={(e) => setLineUpDateTime(e.target.value)}
+                              className="w-full bg-gradient-to-br from-slate-50/80 to-white border border-slate-200/60 rounded-2xl px-3 py-3 text-sm focus:outline-none focus:border-indigo-300 focus:shadow-sm transition-all duration-200"
+                              required
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-sm font-semibold text-slate-700">Type of Interview</label>
+                          <div className="mt-2">
+                            <select
+                              value={interviewType}
+                              onChange={(e) => setInterviewType(e.target.value)}
+                              className="w-full bg-gradient-to-br from-slate-50/80 to-white border border-slate-200/60 rounded-2xl px-3 py-3 text-sm focus:outline-none focus:border-indigo-300 focus:shadow-sm transition-all duration-200"
+                            >
+                              <option value="">Select type…</option>
+                              <option value="Virtual Interview">Virtual Interview</option>
+                              <option value="Personal Interview">Personal Interview</option>
+                            </select>
+                          </div>
                         </div>
                       </div>
                     )}

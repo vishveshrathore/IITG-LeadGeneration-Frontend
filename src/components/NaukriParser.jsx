@@ -25,6 +25,7 @@ const NaukriParser = () => {
   const fromCorporate = searchParams.get('fromCorporate') === 'true';
   const jobIdFromUrl = searchParams.get('jobId') || '';
   const localHiringFromUrl = searchParams.get('localHiring') === 'true';
+  const localHiringPositionIdFromUrl = searchParams.get('localHiringPositionId') || '';
   
   const [rawData, setRawData] = useState("");
   const [profiles, setProfiles] = useState([]);
@@ -50,6 +51,12 @@ const NaukriParser = () => {
   const [newCompanyName, setNewCompanyName] = useState("");
   const [newIndustry, setNewIndustry] = useState("");
   const [addingCompany, setAddingCompany] = useState(false);
+  // Local Hiring HR team selection
+  const [hrRecruiters, setHrRecruiters] = useState([]);
+  const [hrOperations, setHrOperations] = useState([]);
+  const [hrLoading, setHrLoading] = useState(false);
+  const [hrError, setHrError] = useState('');
+  const [localHiringTeam, setLocalHiringTeam] = useState({ hrRecruiters: [], hrOperations: [] });
   const excelInputRef = useRef(null);
   const [excelFileName, setExcelFileName] = useState("");
   const STORAGE_KEY = "naukri_profiles_v1";
@@ -203,6 +210,31 @@ const NaukriParser = () => {
     };
     fetchRecruitmentCompanies();
   }, [uploadTab, companies, jobIdFromUrl, authToken]);
+
+  // Fetch HR users when Local Hiring tab is active
+  useEffect(() => {
+    const fetchHRUsers = async () => {
+      if (uploadTab !== 'localHiring') return;
+      if (!authToken) return;
+      if (hrRecruiters.length && hrOperations.length) return;
+      setHrLoading(true);
+      setHrError('');
+      try {
+        const { data } = await axios.get(`${BASE_URL}/api/admin/recruitment/hr-users`, {
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+        const hrData = data?.data || {};
+        setHrRecruiters(Array.isArray(hrData.hrRecruiters) ? hrData.hrRecruiters : []);
+        setHrOperations(Array.isArray(hrData.hrOperations) ? hrData.hrOperations : []);
+      } catch (e) {
+        console.error('[LocalHiring] HR users load error', e);
+        setHrError(e?.response?.data?.message || e?.message || 'Failed to load HR users');
+      } finally {
+        setHrLoading(false);
+      }
+    };
+    fetchHRUsers();
+  }, [uploadTab, authToken, hrRecruiters.length, hrOperations.length]);
 
   // When landed from Corporate, map company name in URL to actual company _id
   useEffect(() => {
@@ -577,78 +609,149 @@ const NaukriParser = () => {
                 </button>
 
                 <div className="flex items-center gap-2">
-                  <label className="text-xs text-gray-700">
-                    {uploadTab==='recruitment' ? 'Position:' : (uploadTab==='localHiring' ? 'Destination:' : 'Company:')}
-                  </label>
-                  {uploadTab==='recruitment' && (
-                    <input
-                      type="text"
-                      value={recruitmentJobQuery}
-                      onChange={(e) => setRecruitmentJobQuery(e.target.value)}
-                      placeholder="Search by code, organisation, position"
-                      className="text-xs px-2 py-1 border border-gray-300 rounded w-56"
-                    />
+                  {uploadTab === 'localHiring' ? (
+                    <span className="text-xs text-gray-700">
+                      Destination: <span className="font-semibold text-fuchsia-700">Local Hiring</span>
+                    </span>
+                  ) : (
+                    <>
+                      <label className="text-xs text-gray-700">
+                        {uploadTab==='recruitment' ? 'Position:' : 'Company:'}
+                      </label>
+                      {uploadTab==='recruitment' && (
+                        <input
+                          type="text"
+                          value={recruitmentJobQuery}
+                          onChange={(e) => setRecruitmentJobQuery(e.target.value)}
+                          placeholder="Search by code, organisation, position"
+                          className="text-xs px-2 py-1 border border-gray-300 rounded w-56"
+                        />
+                      )}
+                      <select
+                        value={selectedCompany}
+                        onChange={(e) => setSelectedCompany(e.target.value)}
+                        className={`text-xs px-2 py-1 border border-gray-300 rounded min-w-[280px] ${fromCorporate && selectedCompany ? 'bg-gray-100' : ''}`}
+                        disabled={
+                          uploadTab==='recruitment'
+                            ? recruitmentCompaniesLoading || !recruitmentCompanies.length
+                            : (companiesLoading || !companies.length || (fromCorporate && !!selectedCompany))
+                        }
+                      >
+                        {uploadTab==='recruitment' ? (
+                          <>
+                            <option value="" disabled>
+                              {recruitmentCompaniesLoading ? 'Loading positions...' : 'Select position'}
+                            </option>
+                            {recruitmentCompanies
+                              .filter((j) => {
+                                const label = String(j.label || '').toLowerCase();
+                                return label.includes(recruitmentJobQuery.toLowerCase());
+                              })
+                              .map((j) => (
+                                <option key={j.jobId} value={j.jobId}>
+                                  {j.label}
+                                </option>
+                              ))}
+                          </>
+                        ) : (
+                          (fromCorporate && selectedCompany ? (
+                            <option value={selectedCompany}>
+                              {companies.find((c) => c._id === selectedCompany)?.CompanyName ||
+                                companies.find((c) => c._id === selectedCompany)?.companyName ||
+                                companyFromUrl || 'Selected Company'}
+                            </option>
+                          ) : (
+                            <>
+                              <option value="" disabled>
+                                {companiesLoading ? "Loading companies..." : "Select company"}
+                              </option>
+                              {companies.map((c) => (
+                                <option key={c._id} value={c._id}>
+                                  {(c.CompanyName || c.companyName || c.name || 'Unnamed Company')}
+                                </option>
+                              ))}
+                            </>
+                          ))
+                        )}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => setShowAddCompany((s) => !s)}
+                        className="text-xs px-2 py-1 border border-gray-300 rounded bg-white hover:bg-gray-50"
+                      >
+                        {showAddCompany ? 'Close' : 'Add Company'}
+                      </button>
+                    </>
                   )}
-                  <select
-                    value={selectedCompany}
-                    onChange={(e) => setSelectedCompany(e.target.value)}
-                    className={`text-xs px-2 py-1 border border-gray-300 rounded min-w-[280px] ${fromCorporate && selectedCompany ? 'bg-gray-100' : ''}`}
-                    disabled={
-                      uploadTab==='localHiring'
-                        ? true
-                        : uploadTab==='recruitment'
-                        ? recruitmentCompaniesLoading || !recruitmentCompanies.length
-                        : (companiesLoading || !companies.length || (fromCorporate && !!selectedCompany))
-                    }
-                  >
-                    {uploadTab==='localHiring' ? (
-                      <option value="">Local Hiring</option>
-                    ) : uploadTab==='recruitment' ? (
-                      <>
-                        <option value="" disabled>
-                          {recruitmentCompaniesLoading ? 'Loading positions...' : 'Select position'}
-                        </option>
-                        {recruitmentCompanies
-                          .filter((j) => {
-                            const label = String(j.label || '').toLowerCase();
-                            return label.includes(recruitmentJobQuery.toLowerCase());
-                          })
-                          .map((j) => (
-                            <option key={j.jobId} value={j.jobId}>
-                              {j.label}
-                            </option>
-                          ))}
-                      </>
-                    ) : (
-                      (fromCorporate && selectedCompany ? (
-                        <option value={selectedCompany}>
-                          {companies.find((c) => c._id === selectedCompany)?.CompanyName ||
-                            companies.find((c) => c._id === selectedCompany)?.companyName ||
-                            companyFromUrl || 'Selected Company'}
-                        </option>
-                      ) : (
-                        <>
-                          <option value="" disabled>
-                            {companiesLoading ? "Loading companies..." : "Select company"}
-                          </option>
-                          {companies.map((c) => (
-                            <option key={c._id} value={c._id}>
-                              {(c.CompanyName || c.companyName || c.name || 'Unnamed Company')}
-                            </option>
-                          ))}
-                        </>
-                      ))
-                    )}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => setShowAddCompany((s) => !s)}
-                    className="text-xs px-2 py-1 border border-gray-300 rounded bg-white hover:bg-gray-50"
-                    disabled={uploadTab==='localHiring'}
-                  >
-                    {showAddCompany ? 'Close' : 'Add Company'}
-                  </button>
                 </div>
+
+                {uploadTab === 'localHiring' && (
+                  <div className="w-full mt-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[11px] text-gray-800 flex flex-col gap-1">
+                        <span>Recruiter</span>
+                        <select
+                          className="text-[11px] px-2 py-1 border border-gray-300 rounded min-w-[220px] bg-white"
+                          disabled={hrLoading || !hrRecruiters.length}
+                          value={(localHiringTeam.hrRecruiters && localHiringTeam.hrRecruiters[0]) || ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setLocalHiringTeam((prev) => ({
+                              ...prev,
+                              hrRecruiters: val ? [val] : [],
+                            }));
+                          }}
+                        >
+                          <option value="">
+                            {hrLoading ? 'Loading recruiters…' : 'Select recruiter'}
+                          </option>
+                          {hrRecruiters.map((u) => {
+                            const uid = String(u._id || u.id || '');
+                            const label = `${u.name || ''}${u.email ? ` | ${u.email}` : u.mobile ? ` | ${u.mobile}` : ''}`;
+                            return (
+                              <option key={uid} value={uid}>
+                                {label}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </label>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] text-gray-800 flex flex-col gap-1">
+                        <span>Manager Operation</span>
+                        <select
+                          className="text-[11px] px-2 py-1 border border-gray-300 rounded min-w-[220px] bg-white"
+                          disabled={hrLoading || !hrOperations.length}
+                          value={(localHiringTeam.hrOperations && localHiringTeam.hrOperations[0]) || ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setLocalHiringTeam((prev) => ({
+                              ...prev,
+                              hrOperations: val ? [val] : [],
+                            }));
+                          }}
+                        >
+                          <option value="">
+                            {hrLoading ? 'Loading Manager Operation…' : 'Select Manager Operation'}
+                          </option>
+                          {hrOperations.map((u) => {
+                            const uid = String(u._id || u.id || '');
+                            const label = `${u.name || ''}${u.email ? ` | ${u.email}` : u.mobile ? ` | ${u.mobile}` : ''}`;
+                            return (
+                              <option key={uid} value={uid}>
+                                {label}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </label>
+                    </div>
+                    {hrError ? (
+                      <p className="text-[11px] text-red-600 col-span-full">{hrError}</p>
+                    ) : null}
+                  </div>
+                )}
 
                 {showAddCompany && (
                   <div className="w-full flex flex-wrap items-center gap-2">
@@ -942,6 +1045,15 @@ const NaukriParser = () => {
                           profiles: toUpload,
                           ...(toRecruitment && jobIdToSend ? { jobId: jobIdToSend } : {}),
                         };
+                        if (uploadTab === 'localHiring' && localHiringPositionIdFromUrl) {
+                          payload.positionId = localHiringPositionIdFromUrl;
+                          if (Array.isArray(localHiringTeam.hrRecruiters) && localHiringTeam.hrRecruiters.length) {
+                            payload.hrRecruiters = localHiringTeam.hrRecruiters;
+                          }
+                          if (Array.isArray(localHiringTeam.hrOperations) && localHiringTeam.hrOperations.length) {
+                            payload.hrOperations = localHiringTeam.hrOperations;
+                          }
+                        }
                         console.log('[Naukri] Upload payload', payload);
                         let endpoint;
                         const config = {};

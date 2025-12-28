@@ -55,7 +55,11 @@ import RecruitmentDashboard from "./pages/Admin/Recruitment/RecruitmentDashboard
 import PositionMIS from "./pages/Admin/Recruitment/PositionMIS.jsx";
 import PositionDashboard from "./pages/Admin/Recruitment/PositionDashboard.jsx";
 import PositionAssignment from "./pages/Admin/Recruitment/PositionAssignment.jsx";
-import AdminLocalHiring from "./pages/Admin/Recruitment/LocalHiring.jsx";
+import AdminLocalHiring from './pages/Admin/Recruitment/LocalHiring';
+import AdminLocalHiringWorksheet from './pages/Admin/Recruitment/LocalHiringWorksheet';
+import AdminLocalHiringUserReport from './pages/Admin/Recruitment/LocalHiringUserReport';
+import AdminLocalHiringPublicApplications from './pages/Admin/Recruitment/LocalHiringPublicApplications';
+import AdminLocalHiringCurrentPositions from './pages/Admin/Recruitment/LocalHiringCurrentPositions';
 import DataAnalystDashboard from "./pages/DataAnalyst/DataAnalystDashboard.jsx";
 import RecruitmentQCDashboard from "./pages/RecruitmentQC/RecruitmentQCDashboard.jsx";
 import LGStats from "./pages/Admin/LGStats.jsx";
@@ -518,6 +522,38 @@ function App() {
           element={
             <ProtectedRoute roles={["admin", "Recruitment / QC Manager"]}>
               <AdminLocalHiring />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/recruitment/local-hiring/current-positions"
+          element={
+            <ProtectedRoute roles={["admin", "Recruitment / QC Manager"]}>
+              <AdminLocalHiringCurrentPositions />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/recruitment/local-hiring/worksheet"
+          element={
+            <ProtectedRoute roles={["admin", "Recruitment / QC Manager"]}>
+              <AdminLocalHiringWorksheet />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/recruitment/local-hiring/user-report"
+          element={
+            <ProtectedRoute roles={["admin", "Recruitment / QC Manager"]}>
+              <AdminLocalHiringUserReport />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/recruitment/local-hiring/public-applications/:positionId"
+          element={
+            <ProtectedRoute roles={["admin", "Recruitment / QC Manager"]}>
+              <AdminLocalHiringPublicApplications />
             </ProtectedRoute>
           }
         />

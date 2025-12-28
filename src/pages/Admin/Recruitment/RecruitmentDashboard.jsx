@@ -20,17 +20,18 @@ const RecruitmentDashboard = () => {
       color: 'bg-pink-100',
     },
     {
-      title: 'Create Team',
-      icon: <BsBuildingCheck size={20} />,
-      route: '/admin/recruitment/position-assignment',
-      color: 'bg-blue-100',
-    },
-    {
       title: 'Local Hiring',
       icon: <BsPeople size={20} />,
       route: '/admin/recruitment/local-hiring',
       color: 'bg-green-100',
     },
+    // {
+    //   title: 'Create Team',
+    //   icon: <BsBuildingCheck size={20} />,
+    //   route: '/admin/recruitment/position-assignment',
+    //   color: 'bg-blue-100',
+    // },
+    
   ];
 
   return (
