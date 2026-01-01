@@ -842,6 +842,22 @@ const StageSheet = ({ job, stageKey, title }) => {
     'JoiningStatus',
     'Billing'
   ];
+  const stageDisplayNames = {
+    BooleanDataSheet: '1) Boolean Data Sheet',
+    'BooleanDataSheet(C)': '2) Boolean Data Sheet (C)',
+    FQC: '3) First QC Sheet',
+    FirstLineup: '4) Final QC',
+    OfficeInterview: '5) First Lineup Sheet For Client ShortListing',
+    FinalLineup: '6) Final Lineup Sheet',
+    FinalInterview: '7) Final Interview',
+    InterviewSheet: '8) Interview Sheet',
+    InterviewStatus: '9) Interview Status',
+    Selection: '10) Selection Sheet',
+    Joining: '11) Joining Sheet',
+    JoiningStatus: '12) Joining Status',
+    Billing: '13) Forward to Billing',
+  };
+  const getStageDisplayName = (stage) => stageDisplayNames[stage] || stage;
   const normalizeStage = (s) => {
     const v = String(s || '').trim();
     if (v === 'Boolean') return 'BooleanDataSheet';
@@ -1022,7 +1038,7 @@ const StageSheet = ({ job, stageKey, title }) => {
           <span className="text-gray-600">Selected: {selectedIds.length}</span>
         </div>
         <div className="flex items-center gap-2">
-          <button type="button" onClick={bulkMoveSelected} disabled={bulkSaving || selectedIds.length===0} className={`px-3 py-1.5 text-xs rounded ${bulkSaving || selectedIds.length===0 ? 'bg-indigo-600/60 text-white cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 text-white'}`}>{bulkSaving? 'Moving…' : `Move Selected to ${nextStage(stageKey)}`}</button>
+          <button type="button" onClick={bulkMoveSelected} disabled={bulkSaving || selectedIds.length===0} className={`px-3 py-1.5 text-xs rounded ${bulkSaving || selectedIds.length===0 ? 'bg-indigo-600/60 text-white cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 text-white'}`}>{bulkSaving? 'Moving…' : `Move Selected to ${getStageDisplayName(nextStage(stageKey))}`}</button>
         </div>
       </div>
       <div className="border rounded overflow-hidden">
@@ -1456,7 +1472,7 @@ const StageSheet = ({ job, stageKey, title }) => {
                   className={`inline-flex items-center gap-1 px-3 py-1.5 text-xs rounded ${bulkSaving || selectedIds.length===0 ? 'bg-indigo-600/60 text-white cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 text-white'}`}
                 >
                   <svg viewBox="0 0 24 24" className="w-3.5 h-3.5"><path fill="currentColor" d="M5 12h12.17l-4.59-4.59L13 6l7 7l-7 7l-1.41-1.41L17.17 14H5z"/></svg>
-                  {bulkSaving? 'Moving…' : `Move Selected to ${nextStage(stageKey)}`}
+                  {bulkSaving? 'Moving…' : `Move Selected to ${getStageDisplayName(nextStage(stageKey))}`}
                 </button>
                 <button type="button" onClick={clearSelection} className="px-3 py-1.5 text-xs rounded border bg-white hover:bg-gray-50">Clear</button>
               </div>
