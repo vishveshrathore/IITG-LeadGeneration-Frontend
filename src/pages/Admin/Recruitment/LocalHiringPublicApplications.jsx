@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import toast, { Toaster } from 'react-hot-toast';
 import { useNavigate, useParams } from 'react-router-dom';
 import AdminNavbar from '../../../components/AdminNavbar';
 import { useAuth } from '../../../context/AuthContext';
@@ -16,6 +17,12 @@ const AdminLocalHiringPublicApplications = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0, limit: 20 });
+  const [hrRecruiters, setHrRecruiters] = useState([]);
+  const [hrOperations, setHrOperations] = useState([]);
+  const [hrLoading, setHrLoading] = useState(false);
+  const [hrError, setHrError] = useState('');
+  const [assignSelection, setAssignSelection] = useState({});
+  const [assigning, setAssigning] = useState({});
 
   const fetchApplications = async (pageOverride) => {
     if (!token) return;
@@ -59,8 +66,27 @@ const AdminLocalHiringPublicApplications = () => {
     }
   };
 
+  const fetchHRUsers = async () => {
+    if (!token) return;
+    setHrLoading(true);
+    setHrError('');
+    try {
+      const { data } = await axios.get(`${BASE_URL}/api/admin/recruitment/hr-users`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const hrData = data?.data || {};
+      setHrRecruiters(Array.isArray(hrData.hrRecruiters) ? hrData.hrRecruiters : []);
+      setHrOperations(Array.isArray(hrData.hrOperations) ? hrData.hrOperations : []);
+    } catch (e) {
+      setHrError(e?.response?.data?.message || 'Failed to load HR users');
+    } finally {
+      setHrLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchApplications(1);
+    fetchHRUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, positionId]);
 
@@ -70,11 +96,62 @@ const AdminLocalHiringPublicApplications = () => {
     fetchApplications(p);
   };
 
+  const handleAssignLead = async (leadId) => {
+    if (!token) return;
+    const selectedUserId = String(assignSelection[leadId] || '').trim();
+    if (!selectedUserId) {
+      toast.error('Please select a user');
+      return;
+    }
+
+    try {
+      setAssigning((prev) => ({ ...prev, [leadId]: true }));
+      const url = `${BASE_URL}/api/local-hiring/admin/leads/${leadId}/assign`;
+      const { data } = await axios.put(
+        url,
+        { userId: selectedUserId },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+
+      if (!data?.success) {
+        toast.error(data?.message || 'Failed to assign lead');
+        return;
+      }
+
+      const payload = data.data || {};
+      const assignedUser = payload.assignedTo;
+
+      setApplications((prev) =>
+        Array.isArray(prev)
+          ? prev.map((item) =>
+              String(item?._id || '') === String(leadId)
+                ? {
+                    ...item,
+                    assignedTo: assignedUser || item.assignedTo || selectedUserId,
+                  }
+                : item,
+            )
+          : prev,
+      );
+
+      toast.success(data?.message || 'Lead assigned');
+    } catch (e) {
+      toast.error(e?.response?.data?.message || 'Failed to assign lead');
+    } finally {
+      setAssigning((prev) => {
+        const next = { ...prev };
+        delete next[leadId];
+        return next;
+      });
+    }
+  };
+
   const title = position?.name ? `Public Applications – ${position.name}` : 'Public Applications';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/30">
       <AdminNavbar />
+      <Toaster position="top-right" />
 
       <div className="pt-20 px-4 sm:px-6 lg:px-10 pb-16 space-y-8">
         <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -215,7 +292,66 @@ const AdminLocalHiringPublicApplications = () => {
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="font-semibold text-slate-900">{app?.name || '—'}</div>
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-slate-600">{assignedLabel}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-slate-600">
+                          {assigned ? (
+                            assignedLabel
+                          ) : (
+                            <div className="flex flex-col gap-1 min-w-[220px]">
+                              <div className="flex items-center gap-2">
+                                <select
+                                  value={assignSelection[id] || ''}
+                                  onChange={(e) =>
+                                    setAssignSelection((prev) => ({
+                                      ...prev,
+                                      [id]: e.target.value,
+                                    }))
+                                  }
+                                  className="border border-slate-300 rounded-lg px-2 py-1 text-xs bg-white focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100"
+                                  disabled={hrLoading || !!assigning[id]}
+                                >
+                                  <option value="">Select user</option>
+                                  {hrRecruiters.length > 0 && (
+                                    <optgroup label="HR Recruiters">
+                                      {hrRecruiters.map((u) => {
+                                        const uid = String(u?._id || u?.id || '');
+                                        if (!uid) return null;
+                                        return (
+                                          <option key={uid} value={uid}>
+                                            {u.name || u.email || uid}
+                                          </option>
+                                        );
+                                      })}
+                                    </optgroup>
+                                  )}
+                                  {hrOperations.length > 0 && (
+                                    <optgroup label="HR Operations">
+                                      {hrOperations.map((u) => {
+                                        const uid = String(u?._id || u?.id || '');
+                                        if (!uid) return null;
+                                        return (
+                                          <option key={uid} value={uid}>
+                                            {u.name || u.email || uid}
+                                          </option>
+                                        );
+                                      })}
+                                    </optgroup>
+                                  )}
+                                </select>
+                                <button
+                                  type="button"
+                                  onClick={() => handleAssignLead(id)}
+                                  className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 text-white text-[11px] font-semibold px-2.5 py-1 shadow-sm hover:bg-indigo-700 disabled:opacity-60"
+                                  disabled={!!assigning[id] || !assignSelection[id]}
+                                >
+                                  {assigning[id] ? 'Assigning…' : 'Assign'}
+                                </button>
+                              </div>
+                              {hrError && (
+                                <span className="text-[11px] text-rose-500">{hrError}</span>
+                              )}
+                            </div>
+                          )}
+                        </td>
                         <td className="px-4 py-3 whitespace-nowrap text-slate-600">{app?.email || '—'}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-slate-600">{mobile}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-slate-600">{exp || '—'}</td>

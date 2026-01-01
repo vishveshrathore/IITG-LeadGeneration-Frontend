@@ -25,6 +25,9 @@ const AdminLocalHiringWorksheet = () => {
   const [worksheetLimit, setWorksheetLimit] = useState(25);
   const [worksheetTotal, setWorksheetTotal] = useState(0);
   const [worksheetTotalPages, setWorksheetTotalPages] = useState(1);
+  const [meetDoneRemarkById, setMeetDoneRemarkById] = useState({});
+  const [selectedRemarkById, setSelectedRemarkById] = useState({});
+  const [savingRemark, setSavingRemark] = useState({});
 
   const fetchWorksheet = async (options = {}) => {
     if (!token) {
@@ -103,6 +106,59 @@ const AdminLocalHiringWorksheet = () => {
     if (event.key === 'Enter') {
       event.preventDefault();
       fetchWorksheet({ page: 1 });
+    }
+  };
+
+  const handleSaveAssignmentRemark = async (assignmentId, type) => {
+    if (!token) {
+      toast.error('Not authenticated');
+      return;
+    }
+
+    const key = `${assignmentId}:${type}`;
+    const remarkMap = type === 'meetDone' ? meetDoneRemarkById : selectedRemarkById;
+    const remark = String(remarkMap[assignmentId] ?? '').trim();
+
+    if (!remark) {
+      toast.error('Remark is required');
+      return;
+    }
+
+    try {
+      setSavingRemark((prev) => ({ ...prev, [key]: true }));
+      const url = `${BASE_URL}/api/local-hiring/admin/assignment/${assignmentId}/remark`;
+      const { data } = await axios.put(
+        url,
+        { type, remark },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+
+      if (data?.success) {
+        toast.success(data?.message || 'Remark saved');
+        const payload = data.data || {};
+        setWorksheet((prev) =>
+          Array.isArray(prev)
+            ? prev.map((item) =>
+                String(item?._id) === String(assignmentId)
+                  ? {
+                      ...item,
+                      meetDoneRemark: payload.meetDoneRemark ?? item.meetDoneRemark,
+                      selectedRemark: payload.selectedRemark ?? item.selectedRemark,
+                    }
+                  : item,
+              )
+            : prev,
+        );
+      }
+    } catch (e) {
+      const message = e?.response?.data?.message || 'Failed to save remark';
+      toast.error(message);
+    } finally {
+      setSavingRemark((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
     }
   };
 
@@ -292,7 +348,7 @@ const AdminLocalHiringWorksheet = () => {
                 <table className="min-w-full text-xs md:text-sm">
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
-                      {['Candidate', 'Mobile', 'Email', 'Status', 'Line-up', 'Interview Type', 'Assigned To', 'Updated At', 'Remarks'].map((h) => (
+                      {['Candidate', 'Mobile', 'Email', 'Status', 'Line-up', 'Interview Type', 'Assigned To', 'Updated At', 'Remarks', 'Meet Done Remark', 'Selected Remark'].map((h) => (
                         <th key={h} className="px-3 py-2 text-left font-semibold text-slate-600 whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -314,6 +370,17 @@ const AdminLocalHiringWorksheet = () => {
                             hour12: true,
                           })
                         : '—';
+                      const assignmentId = a._id;
+                      const meetDoneValue =
+                        meetDoneRemarkById[assignmentId] !== undefined
+                          ? meetDoneRemarkById[assignmentId]
+                          : a.meetDoneRemark || '';
+                      const selectedValue =
+                        selectedRemarkById[assignmentId] !== undefined
+                          ? selectedRemarkById[assignmentId]
+                          : a.selectedRemark || '';
+                      const isSavingMeet = !!savingRemark[`${assignmentId}:meetDone`];
+                      const isSavingSelected = !!savingRemark[`${assignmentId}:selected`];
                       const assignedName = user.name || user.fullName || '—';
                       const updatedAtLabel = a.updatedAt
                         ? new Date(a.updatedAt).toLocaleString('en-IN', {
@@ -345,6 +412,54 @@ const AdminLocalHiringWorksheet = () => {
                           <td className="px-3 py-2 whitespace-nowrap">{updatedAtLabel}</td>
                           <td className="px-3 py-2 max-w-xs">
                             <span className="block truncate" title={a.remarks || '—'}>{a.remarks || '—'}</span>
+                          </td>
+                          <td className="px-3 py-2 whitespace-nowrap">
+                            <div className="flex flex-col gap-1 min-w-[220px]">
+                              <input
+                                type="text"
+                                value={meetDoneValue}
+                                onChange={(e) =>
+                                  setMeetDoneRemarkById((prev) => ({
+                                    ...prev,
+                                    [assignmentId]: e.target.value,
+                                  }))
+                                }
+                                className="border border-slate-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100"
+                                placeholder="Meet Done remark"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleSaveAssignmentRemark(assignmentId, 'meetDone')}
+                                className="self-start inline-flex items-center gap-1 rounded-lg bg-indigo-600 text-white text-[11px] font-semibold px-2.5 py-1 shadow-sm hover:bg-indigo-700 disabled:opacity-60"
+                                disabled={isSavingMeet || !String(meetDoneValue).trim()}
+                              >
+                                {isSavingMeet ? 'Saving…' : 'Meet Done'}
+                              </button>
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 whitespace-nowrap">
+                            <div className="flex flex-col gap-1 min-w-[220px]">
+                              <input
+                                type="text"
+                                value={selectedValue}
+                                onChange={(e) =>
+                                  setSelectedRemarkById((prev) => ({
+                                    ...prev,
+                                    [assignmentId]: e.target.value,
+                                  }))
+                                }
+                                className="border border-slate-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-100"
+                                placeholder="Selected remark"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleSaveAssignmentRemark(assignmentId, 'selected')}
+                                className="self-start inline-flex items-center gap-1 rounded-lg bg-emerald-600 text-white text-[11px] font-semibold px-2.5 py-1 shadow-sm hover:bg-emerald-700 disabled:opacity-60"
+                                disabled={isSavingSelected || !String(selectedValue).trim()}
+                              >
+                                {isSavingSelected ? 'Saving…' : 'Selected'}
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );

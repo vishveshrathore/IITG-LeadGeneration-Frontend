@@ -24,9 +24,6 @@ const AdminLocalHiringUserReport = () => {
   const [dailyMetrics, setDailyMetrics] = useState({});
   const [dailyLoading, setDailyLoading] = useState(false);
 
-  const [meetDoneRemarks, setMeetDoneRemarks] = useState({});
-  const [selectedRemarks, setSelectedRemarks] = useState({});
-
   const fetchUsers = async () => {
     if (!token) return;
     setUsersLoading(true);
@@ -146,48 +143,6 @@ const AdminLocalHiringUserReport = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, reportDate, allUsers.length]);
 
-  const handleMeetDoneClick = async (userId) => {
-    const remark = String(meetDoneRemarks[userId] || '').trim();
-    const date = reportDate;
-    if (!remark || !date) return;
-    try {
-      const { data } = await axios.post(
-        `${BASE_URL}/api/local-hiring/admin/user-remark`,
-        { userId, date, type: 'meetDone', remark },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (data?.success) {
-        // eslint-disable-next-line no-console
-        console.log('Meet Done saved:', data.data);
-        // Optional: clear the field on success
-        setMeetDoneRemarks((prev) => ({ ...prev, [userId]: '' }));
-      }
-    } catch (e) {
-      console.error('Failed to save Meet Done remark:', e);
-    }
-  };
-
-  const handleSelectedClick = async (userId) => {
-    const remark = String(selectedRemarks[userId] || '').trim();
-    const date = reportDate;
-    if (!remark || !date) return;
-    try {
-      const { data } = await axios.post(
-        `${BASE_URL}/api/local-hiring/admin/user-remark`,
-        { userId, date, type: 'selected', remark },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (data?.success) {
-        // eslint-disable-next-line no-console
-        console.log('Selected saved:', data.data);
-        // Optional: clear the field on success
-        setSelectedRemarks((prev) => ({ ...prev, [userId]: '' }));
-      }
-    } catch (e) {
-      console.error('Failed to save Selected remark:', e);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/30">
       <AdminNavbar />
@@ -285,8 +240,6 @@ const AdminLocalHiringUserReport = () => {
                   <th className="px-4 py-3 text-right font-semibold text-slate-600 whitespace-nowrap">Positive</th>
                   <th className="px-4 py-3 text-right font-semibold text-slate-600 whitespace-nowrap">Negative</th>
                   <th className="px-4 py-3 text-right font-semibold text-slate-600 whitespace-nowrap">RNR</th>
-                  <th className="px-4 py-3 text-left font-semibold text-slate-600 whitespace-nowrap">Meet Done Remark</th>
-                  <th className="px-4 py-3 text-left font-semibold text-slate-600 whitespace-nowrap">Selected Remark</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -303,8 +256,6 @@ const AdminLocalHiringUserReport = () => {
                     const id = String(u?._id || u?.id || '');
                     const mobile = Array.isArray(u?.mobile) ? u.mobile.join(', ') : (u?.mobile || '—');
                     const metrics = dailyMetrics[id] || {};
-                    const meetRemark = meetDoneRemarks[id] || '';
-                    const selectedRemark = selectedRemarks[id] || '';
 
                     return (
                       <tr key={id} className="hover:bg-slate-50/70 transition align-top">
@@ -328,54 +279,6 @@ const AdminLocalHiringUserReport = () => {
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-right">
                           <span className="inline-flex min-w-[2.25rem] justify-end rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 border border-amber-100">{metrics.rnr ?? 0}</span>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="flex flex-col gap-1 min-w-[220px]">
-                            <input
-                              type="text"
-                              value={meetRemark}
-                              onChange={(e) =>
-                                setMeetDoneRemarks((prev) => ({
-                                  ...prev,
-                                  [id]: e.target.value,
-                                }))
-                              }
-                              className="border border-slate-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100"
-                              placeholder="Meet Done remark"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => handleMeetDoneClick(id)}
-                              className="self-start inline-flex items-center gap-1 rounded-lg bg-indigo-600 text-white text-[11px] font-semibold px-2.5 py-1 shadow-sm hover:bg-indigo-700 disabled:opacity-50"
-                              disabled={!meetRemark.trim() || !reportDate}
-                            >
-                              Meet Done
-                            </button>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="flex flex-col gap-1 min-w-[220px]">
-                            <input
-                              type="text"
-                              value={selectedRemark}
-                              onChange={(e) =>
-                                setSelectedRemarks((prev) => ({
-                                  ...prev,
-                                  [id]: e.target.value,
-                                }))
-                              }
-                              className="border border-slate-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100"
-                              placeholder="Selected remark"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => handleSelectedClick(id)}
-                              className="self-start inline-flex items-center gap-1 rounded-lg bg-emerald-600 text-white text-[11px] font-semibold px-2.5 py-1 shadow-sm hover:bg-emerald-700 disabled:opacity-50"
-                              disabled={!selectedRemark.trim() || !reportDate}
-                            >
-                              Selected
-                            </button>
-                          </div>
                         </td>
                       </tr>
                     );
