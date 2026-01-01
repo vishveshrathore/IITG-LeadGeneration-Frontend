@@ -70,6 +70,10 @@ const getColumnText = (p, key) => {
       return p.current_designation || '';
     case 'current_company':
       return p.current_company || '';
+    case 'education':
+      return Array.isArray(p.education) 
+        ? p.education.map(e => e.degree || e.fieldOfStudy || '').filter(Boolean).join(', ')
+        : p.education || '';
     default:
       return '';
   }
@@ -1129,7 +1133,19 @@ const StageSheet = ({ job, stageKey, title }) => {
                   />
                 </th>
                 <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Previous Roles</th>
-                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Education</th>
+                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">
+                  <ColumnFilterHeader
+                    label="Education"
+                    columnKey="education"
+                    profiles={displayedProfiles}
+                    columnFilters={columnFilters}
+                    setColumnFilters={setColumnFilters}
+                    activeFilter={activeFilter}
+                    setActiveFilter={setActiveFilter}
+                    activeFilterSelection={activeFilterSelection}
+                    setActiveFilterSelection={setActiveFilterSelection}
+                  />
+                </th>
                 <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Skills</th>
                 <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">
                   <ColumnFilterHeader
