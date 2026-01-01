@@ -71,12 +71,16 @@ const getColumnText = (p, key) => {
     case 'current_company':
       return p.current_company || '';
     case 'education':
-      return Array.isArray(p.education) 
-        ? p.education.map(e => e.degree || e.fieldOfStudy || '').filter(Boolean).join(', ')
-        : p.education || '';
+      if (!Array.isArray(p.education)) return p.education || '';
+      // Get all education entries, extract degree/fieldOfStudy, filter out empty values
+      const educationItems = p.education
+        .map(e => (e.degree || e.fieldOfStudy || '').trim())
+        .filter(Boolean);
+      // Remove duplicates using Set and join with comma
+      return [...new Set(educationItems)].join(', ');
     default:
       return '';
-  }
+  }   
 };
 
 const ColumnFilterHeader = ({
