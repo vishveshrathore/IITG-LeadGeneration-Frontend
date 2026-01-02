@@ -13,13 +13,11 @@ const tabs = [
   { key: 'firstLineup', label: '4) Final QC' },
   { key: 'office', label: '5) First Lineup Sheet For Client ShortListing' },
   { key: 'finalLineup', label: '6) Final Lineup Sheet' },
-  { key: 'final', label: '7) Final Interview' },
-  { key: 'interviewSheet', label: '8) Interview Sheet' },
-  { key: 'status', label: '9) Interview Status' },
-  { key: 'selection', label: '10) Selection Sheet' },
-  { key: 'joining', label: '11) Joining Sheet' },
-  { key: 'joiningStatus', label: '12) Joining Status' },
-  { key: 'billing', label: '13) Forward to Billing' },
+  { key: 'status', label: '7) Interview Status' },
+  { key: 'selection', label: '8) Selection Sheet' },
+  { key: 'joining', label: '9) Joining Sheet' },
+  { key: 'joiningStatus', label: '10) Joining Status' },
+  { key: 'billing', label: '11) Forward to Billing' },
 ];
 
 const roleTabVisibility = {
@@ -27,7 +25,6 @@ const roleTabVisibility = {
     'firstLineup',
     'office',
     'finalLineup',
-    'interviewSheet',
     'status',
     'selection',
     'joining',
@@ -36,8 +33,6 @@ const roleTabVisibility = {
   hrrecruiter: [
     'fqc',
     'finalLineup',
-    'final',
-    'interviewSheet',
     'status',
     'selection',
     'joining',
@@ -48,17 +43,17 @@ const tabGroups = [
   {
     id: 'client',
     label: 'Client',
-    items: ['booleanC', 'firstLineup', 'finalLineup', 'interviewSheet', 'selection', 'joiningStatus'],
+    items: ['booleanC', 'firstLineup', 'finalLineup', 'selection', 'joiningStatus'],
   },
   {
     id: 'recruiter',
     label: 'Recruiter',
-    items: ['fqc', 'firstLineup', 'finalLineup', 'interviewSheet', 'selection'],
+    items: ['fqc', 'firstLineup', 'finalLineup', 'selection'],
   },
   {
     id: 'operations',
     label: 'HR Operations',
-    items: ['boolean', 'booleanC', 'fqc', 'firstLineup', 'office', 'finalLineup', 'final', 'interviewSheet', 'status', 'interviewStatus', 'selection', 'joining', 'joiningStatus', 'billing'],
+    items: ['boolean', 'booleanC', 'fqc', 'firstLineup', 'office', 'finalLineup', 'status', 'interviewStatus', 'selection', 'joining', 'joiningStatus', 'billing'],
   },
 ];
 
@@ -144,13 +139,11 @@ const PositionDashboard = () => {
       case 'firstLineup': return { stageKey: 'FirstLineup', title: '4) Final QC' };
       case 'office': return { stageKey: 'OfficeInterview', title: '5) First Lineup Sheet For Client ShortListing' };
       case 'finalLineup': return { stageKey: 'FinalLineup', title: '6) Final Lineup Sheet' };
-      case 'final': return { stageKey: 'FinalInterview', title: '7) Final Interview' };
-      case 'interviewSheet': return { stageKey: 'InterviewSheet', title: '8) Interview Sheet' };
-      case 'status': return { stageKey: 'InterviewStatus', title: '9) Interview Status' };
-      case 'selection': return { stageKey: 'Selection', title: '10) Selection Sheet' };
-      case 'joining': return { stageKey: 'Joining', title: '11) Joining Sheet' };
-      case 'joiningStatus': return { stageKey: 'JoiningStatus', title: '12) Joining Status' };
-      case 'billing': return { stageKey: 'Billing', title: '13) Forward to Billing' };
+      case 'status': return { stageKey: 'InterviewStatus', title: '7) Interview Status' };
+      case 'selection': return { stageKey: 'Selection', title: '8) Selection Sheet' };
+      case 'joining': return { stageKey: 'Joining', title: '9) Joining Sheet' };
+      case 'joiningStatus': return { stageKey: 'JoiningStatus', title: '10) Joining Status' };
+      case 'billing': return { stageKey: 'Billing', title: '11) Forward to Billing' };
       default: return { stageKey: 'BooleanDataSheet', title: '1) Boolean Data Sheet' };
     }
   }, [activeTab]);
@@ -162,13 +155,11 @@ const PositionDashboard = () => {
     'FirstLineup',
     'OfficeInterview',
     'FinalLineup',
-    'FinalInterview',
-    'InterviewSheet',
     'InterviewStatus',
     'Selection',
     'Joining',
     'JoiningStatus',
-    'Billing'
+    'Billing',
   ];
   const normalizeStage = (s) => {
     const v = String(s || '').trim();
@@ -306,10 +297,6 @@ const PositionDashboard = () => {
         return counts['OfficeInterview'] || 0;
       case 'finalLineup':
         return counts['FinalLineup'] || 0;
-      case 'final':
-        return counts['FinalInterview'] || 0;
-      case 'interviewSheet':
-        return counts['InterviewSheet'] || 0;
       case 'status':
         return counts['InterviewStatus'] || 0;
       case 'selection':
@@ -461,70 +448,40 @@ const PositionDashboard = () => {
               </div>
             </div>
 
-            {/* Sticky Tabs: grouped by role for easier navigation */}
+            {/* Sticky Tabs */}
             <div className="sticky top-16 z-30 bg-white/90 backdrop-blur border-b">
-              <div className="px-4 md:px-6 py-3 space-y-3">
-                {tabGroups
-                  .filter(group => {
-                    if (isRecruitmentQC) {
-                      return group.id === 'operations';
-                    }
-                    if (allowedTabs && allowedTabs.length && roleNorm === 'hrrecruiter') {
-                      return group.id === 'recruiter';
-                    }
-                    if (allowedTabs && allowedTabs.length) {
-                      return group.items.some(key => allowedTabs.includes(key));
-                    }
-                    return true;
-                  })
-                  .map(group => {
-                    const groupItems = allowedTabs && allowedTabs.length
-                      ? group.items.filter(key => allowedTabs.includes(key))
-                      : group.items;
-                    if (!groupItems.length) return null;
+              <div className="px-4 md:px-6 py-3">
+                <div className="flex flex-wrap gap-x-2 gap-y-2">
+                  {(allowedTabs && allowedTabs.length ? allowedTabs : tabs.map(t => t.key)).map((key) => {
+                    const t = tabs.find(tab => tab.key === key);
+                    if (!t) return null;
+                    const isActive = activeTab === key;
+                    const count = getCountForTab(key);
                     return (
-                  <div key={group.id} className="space-y-1">
-                    {!isRecruitmentQC && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-                          {group.label}
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setActiveTab(key)}
+                        className={`whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium border transition ${
+                          isActive
+                            ? 'bg-indigo-600 border-indigo-600 text-white shadow'
+                            : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        {t.label}
+                        <span
+                          className={`ml-2 inline-flex items-center justify-center min-w-[22px] h-[18px] px-1.5 rounded-full text-[10px] border ${
+                            isActive
+                              ? 'bg-white/15 border-white/20 text-white'
+                              : 'bg-gray-50 border-gray-200 text-gray-700'
+                          }`}
+                        >
+                          {count}
                         </span>
-                      </div>
-                    )}
-                    <div className="flex flex-wrap gap-x-2 gap-y-2">
-                      {groupItems.map((key) => {
-                        const t = tabs.find(tab => tab.key === key);
-                        if (!t) return null;
-                        const isActive = activeTab === key;
-                        const count = getCountForTab(key);
-                        return (
-                          <button
-                            key={key}
-                            type="button"
-                            onClick={() => setActiveTab(key)}
-                            className={`whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium border transition ${
-                              isActive
-                                ? 'bg-indigo-600 border-indigo-600 text-white shadow'
-                                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                            }`}
-                          >
-                            {t.label}
-                            <span
-                              className={`ml-2 inline-flex items-center justify-center min-w-[22px] h-[18px] px-1.5 rounded-full text-[10px] border ${
-                                isActive
-                                  ? 'bg-white/15 border-white/20 text-white'
-                                  : 'bg-gray-50 border-gray-200 text-gray-700'
-                              }`}
-                            >
-                              {count}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
+                      </button>
+                    );
                   })}
+                </div>
               </div>
             </div>
 

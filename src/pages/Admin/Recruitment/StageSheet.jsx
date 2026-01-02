@@ -83,6 +83,12 @@ const getColumnText = (p, key) => {
   }   
 };
 
+const normalizeFilterValue = (v) =>
+  String(v || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+
 const ColumnFilterHeader = ({
   label,
   columnKey,
@@ -102,12 +108,14 @@ const ColumnFilterHeader = ({
   const ESTIMATED_HEIGHT = 280;
 
   const allValues = React.useMemo(() => {
-    const set = new Set();
+    const map = new Map();
     (profiles || []).forEach((p) => {
-      const v = String(getColumnText(p, columnKey) || '').trim();
-      if (v) set.add(v);
+      const raw = String(getColumnText(p, columnKey) || '').trim();
+      const norm = normalizeFilterValue(raw);
+      if (!norm) return;
+      if (!map.has(norm)) map.set(norm, raw);
     });
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
+    return Array.from(map.values()).sort((a, b) => a.localeCompare(b));
   }, [profiles, columnKey]);
 
   const applied = columnFilters[columnKey] || [];
@@ -337,7 +345,7 @@ const ColumnFilterHeader = ({
   );
 };
 
-const StageSheet = ({ job, stageKey, title }) => {
+const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView = false }) => {
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -401,13 +409,71 @@ const StageSheet = ({ job, stageKey, title }) => {
   const [columnFilters, setColumnFilters] = useState({});
   const [activeFilter, setActiveFilter] = useState({ column: null, search: '' });
   const [activeFilterSelection, setActiveFilterSelection] = useState([]);
+  const [assigningNext, setAssigningNext] = useState(false);
+  const [sendingActivation, setSendingActivation] = useState(false);
+  const [sendingFinalQC, setSendingFinalQC] = useState(false);
+  const [candidateModal, setCandidateModal] = useState({ open: false, profile: null });
+  const [candidateForm, setCandidateForm] = useState({
+    email: '',
+    mobile: '',
+    interviewDate: '',
+    interviewTime: '',
+    contactPerson: '',
+    contactNumber: '',
+    location: '',
+    address: '',
+  });
+  const [sendingFinalLineupCandidate, setSendingFinalLineupCandidate] = useState(false);
 
   const companyName = useMemo(() => {
     const c = job?.createdBy || {};
     return c.companyName || c.CompanyName || '';
   }, [job]);
 
+  const candidateSuggestions = useMemo(() => {
+    const profile = candidateModal.profile;
+    if (!profile) return {};
+    return {
+      name: profile.name || '',
+      designation: profile.current_designation || '',
+      company: profile.current_company || '',
+      email: profile.email || '',
+      mobile: profile.mobile || '',
+      location: job?.jobLocation || job?.locationDisplay || profile.location || '',
+    };
+  }, [candidateModal.profile, job]);
+
+  const applyCandidateSuggestion = (field) => {
+    if (!field) return;
+    setCandidateForm((prev) => ({ ...prev, [field]: candidateSuggestions[field] || '' }));
+  };
+
   const jobId = job?._id;
+  const isRecruiterFQC = recruiterFQC && stageKey === 'FQC';
+  const recruiterUserId = user?.id || user?._id || null;
+  const recruiterFilterActive = recruiterView && !!recruiterUserId;
+
+  const allFQCProcessed = useMemo(() => {
+    if (!isRecruiterFQC) return true;
+    if (!Array.isArray(profiles) || profiles.length === 0) return true;
+
+    for (const p of profiles) {
+      const decisions = Array.isArray(p?.decisions) ? p.decisions : [];
+      if (!decisions.length) {
+        return false;
+      }
+      const last = decisions[decisions.length - 1] || {};
+      const dec = String(last.decision || '').trim();
+      const remark = String(last.remark || '').trim();
+      if (!dec || !remark) {
+        return false;
+      }
+    }
+
+    return true;
+  }, [isRecruiterFQC, profiles]);
+
+  const nextDisabled = assigningNext || !allFQCProcessed;
 
   useEffect(() => {
     try {
@@ -747,7 +813,9 @@ const StageSheet = ({ job, stageKey, title }) => {
         for (const [col, selectedVals] of Object.entries(columnFilters)) {
           if (!Array.isArray(selectedVals) || selectedVals.length === 0) continue;
           const v = String(getColumnText(p, col) || '');
-          if (!selectedVals.includes(v)) return false;
+          const vNorm = normalizeFilterValue(v);
+          const selectedNorm = new Set(selectedVals.map(normalizeFilterValue));
+          if (!selectedNorm.has(vNorm)) return false;
         }
         return true;
       });
@@ -842,13 +910,11 @@ const StageSheet = ({ job, stageKey, title }) => {
     'FirstLineup',
     'OfficeInterview',
     'FinalLineup',
-    'FinalInterview',
-    'InterviewSheet',
     'InterviewStatus',
     'Selection',
     'Joining',
     'JoiningStatus',
-    'Billing'
+    'Billing',
   ];
   const stageDisplayNames = {
     BooleanDataSheet: '1) Boolean Data Sheet',
@@ -857,13 +923,11 @@ const StageSheet = ({ job, stageKey, title }) => {
     FirstLineup: '4) Final QC',
     OfficeInterview: '5) First Lineup Sheet For Client ShortListing',
     FinalLineup: '6) Final Lineup Sheet',
-    FinalInterview: '7) Final Interview',
-    InterviewSheet: '8) Interview Sheet',
-    InterviewStatus: '9) Interview Status',
-    Selection: '10) Selection Sheet',
-    Joining: '11) Joining Sheet',
-    JoiningStatus: '12) Joining Status',
-    Billing: '13) Forward to Billing',
+    InterviewStatus: '7) Interview Status',
+    Selection: '8) Selection Sheet',
+    Joining: '9) Joining Sheet',
+    JoiningStatus: '10) Joining Status',
+    Billing: '11) Forward to Billing',
   };
   const getStageDisplayName = (stage) => stageDisplayNames[stage] || stage;
   const normalizeStage = (s) => {
@@ -879,6 +943,15 @@ const StageSheet = ({ job, stageKey, title }) => {
     return idx >= 0 && idx < pipeline.length - 1 ? pipeline[idx + 1] : norm;
   };
 
+  const sortProfilesByRecent = (list) => {
+    if (!Array.isArray(list)) return [];
+    return list.slice().sort((a, b) => {
+      const ta = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const tb = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return tb - ta;
+    });
+  };
+
   const load = async (jId) => {
     setLoading(true);
     setError('');
@@ -887,15 +960,32 @@ const StageSheet = ({ job, stageKey, title }) => {
         setProfiles([]);
         return;
       }
-      const { data } = await axios.get(
-        `${BASE_URL}/api/admin/recruitment/parsed-profiles`,
-        {
-          params: { jobId: jId },
-          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+      if (isRecruiterFQC) {
+        const { data } = await axios.get(
+          `${BASE_URL}/api/admin/recruitment/recruiter/fqc-assigned`,
+          {
+            params: { jobId: jId },
+            headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+          }
+        );
+        const list = Array.isArray(data?.data) ? data.data : [];
+        setProfiles(sortProfilesByRecent(list));
+      } else {
+        const { data } = await axios.get(
+          `${BASE_URL}/api/admin/recruitment/parsed-profiles`,
+          {
+            params: { jobId: jId },
+            headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+          }
+        );
+        const list = Array.isArray(data?.data) ? data.data : [];
+        let filtered = list;
+        if (recruiterFilterActive && recruiterUserId) {
+          filtered = filtered.filter(p => String(p?.assignedtoRecruiters) === String(recruiterUserId));
         }
-      );
-      const list = Array.isArray(data?.data) ? data.data : [];
-      setProfiles(list.filter(p => matchStage(p?.currentStage)));
+        const stageList = filtered.filter(p => matchStage(p?.currentStage));
+        setProfiles(sortProfilesByRecent(stageList));
+      }
     } catch (e) {
       setError(e?.response?.data?.message || e?.message || 'Failed to load data');
     } finally {
@@ -913,19 +1003,69 @@ const StageSheet = ({ job, stageKey, title }) => {
     if (!jobId) return;
     try {
       setLoading(true);
-      const { data } = await axios.get(
-        `${BASE_URL}/api/admin/recruitment/parsed-profiles`,
-        {
-          params: { jobId },
-          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+      if (isRecruiterFQC) {
+        const { data } = await axios.get(
+          `${BASE_URL}/api/admin/recruitment/recruiter/fqc-assigned`,
+          {
+            params: { jobId },
+            headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+          }
+        );
+        const list = Array.isArray(data?.data) ? data.data : [];
+        setProfiles(sortProfilesByRecent(list));
+      } else {
+        const { data } = await axios.get(
+          `${BASE_URL}/api/admin/recruitment/parsed-profiles`,
+          {
+            params: { jobId },
+            headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+          }
+        );
+        const list = Array.isArray(data?.data) ? data.data : [];
+        let filtered = list;
+        if (recruiterFilterActive && recruiterUserId) {
+          filtered = filtered.filter(p => String(p?.assignedtoRecruiters) === String(recruiterUserId));
         }
-      );
-      const list = Array.isArray(data?.data) ? data.data : [];
-      setProfiles(list.filter(p => matchStage(p?.currentStage)));
+        const stageList = filtered.filter(p => matchStage(p?.currentStage));
+        setProfiles(sortProfilesByRecent(stageList));
+      }
     } catch (e) {
       // ignore
     } finally {
       setLoading(false);
+    }
+  };
+
+  const assignNextRecruiterFQC = async () => {
+    if (!isRecruiterFQC || !jobId || !authToken) return;
+    try {
+      setAssigningNext(true);
+      const { data } = await axios.post(
+        `${BASE_URL}/api/admin/recruitment/recruiter/fqc-assign-next`,
+        { jobId },
+        {
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+        }
+      );
+      const doc = data?.data || null;
+      if (!doc) {
+        setToast({ visible: true, message: data?.message || 'No more profiles available', type: 'error' });
+        setTimeout(() => setToast({ visible: false, message: '', type: 'error' }), 2500);
+        return;
+      }
+      setProfiles((prev) => {
+        const idx = prev.findIndex((p) => String(p._id) === String(doc._id));
+        if (idx >= 0) {
+          const without = prev.filter((p) => String(p._id) !== String(doc._id));
+          return [doc, ...without];
+        }
+        return [doc, ...prev];
+      });
+    } catch (e) {
+      setToast({ visible: true, message: e?.response?.data?.message || e?.message || 'Failed to assign profile', type: 'error' });
+      setTimeout(() => setToast({ visible: false, message: '', type: 'error' }), 2500);
+    } finally {
+      setAssigningNext(false);
     }
   };
 
@@ -938,10 +1078,17 @@ const StageSheet = ({ job, stageKey, title }) => {
     if (!profileId) return;
     try {
       setSavingId(profileId);
+      const remarkValue = String(remarkById[profileId] || '').trim();
+      if (!remarkValue) {
+        setToast({ visible: true, message: 'Remark is required before submitting.', type: 'error' });
+        setTimeout(() => setToast({ visible: false, message: '', type: 'error' }), 2500);
+        return;
+      }
+
       const payload = {
         profileId,
         decision,
-        remark: remarkById[profileId] || '',
+        remark: remarkValue,
         markerType: 'user',
         markerId: user?.id,
         markerName: user?.name,
@@ -964,7 +1111,12 @@ const StageSheet = ({ job, stageKey, title }) => {
           deltas[to] = 1;
         }
         if (Object.keys(deltas).length) {
-          window.dispatchEvent(new CustomEvent('recruitment:countsDelta', { detail: { deltas } }));
+          window.dispatchEvent(new CustomEvent('recruitment:countsDelta', {
+            detail: {
+              deltas,
+              markerId: user?.id || user?._id || null,
+            },
+          }));
         }
       }
       await refresh();
@@ -1006,6 +1158,138 @@ const StageSheet = ({ job, stageKey, title }) => {
     }
   };
 
+  const sendJobActivationNotification = async () => {
+    if (!jobId || !authToken) {
+      setToast({ visible: true, message: 'Unable to send notification (missing job or auth).', type: 'error' });
+      setTimeout(() => setToast({ visible: false, message: '', type: 'error' }), 2500);
+      return;
+    }
+    try {
+      setSendingActivation(true);
+      const { data } = await axios.post(
+        `${BASE_URL}/api/admin/recruitment/job/${jobId}/notify-activation`,
+        {},
+        {
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+        }
+      );
+      const msg = data?.message || 'Notification sent';
+      setToast({ visible: true, message: msg, type: 'success' });
+      setTimeout(() => setToast({ visible: false, message: '', type: 'success' }), 2500);
+    } catch (e) {
+      setToast({
+        visible: true,
+        message: e?.response?.data?.message || e?.message || 'Failed to send notification',
+        type: 'error',
+      });
+      setTimeout(() => setToast({ visible: false, message: '', type: 'error' }), 2500);
+    } finally {
+      setSendingActivation(false);
+    }
+  };
+
+  const sendFinalQCUpdateClient = async () => {
+    if (!jobId || !authToken) {
+      setToast({ visible: true, message: 'Unable to send notification (missing job or auth).', type: 'error' });
+      setTimeout(() => setToast({ visible: false, message: '', type: 'error' }), 2500);
+      return;
+    }
+    try {
+      setSendingFinalQC(true);
+      const { data } = await axios.post(
+        `${BASE_URL}/api/admin/recruitment/job/${jobId}/notify-final-qc`,
+        {},
+        {
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+        }
+      );
+      const msg = data?.message || 'Final QC update sent to client.';
+      setToast({ visible: true, message: msg, type: 'success' });
+      setTimeout(() => setToast({ visible: false, message: '', type: 'success' }), 2500);
+    } catch (e) {
+      setToast({
+        visible: true,
+        message: e?.response?.data?.message || e?.message || 'Failed to send notification',
+        type: 'error',
+      });
+      setTimeout(() => setToast({ visible: false, message: '', type: 'error' }), 2500);
+    } finally {
+      setSendingFinalQC(false);
+    }
+  };
+
+  const openFinalLineupCandidateModal = (profile) => {
+    if (!profile) return;
+    setCandidateModal({ open: true, profile });
+    setCandidateForm({
+      email: '',
+      mobile: '',
+      interviewDate: '',
+      interviewTime: '',
+      contactPerson: '',
+      contactNumber: '',
+      location: '',
+      address: '',
+    });
+  };
+
+  const sendFinalLineupUpdateCandidate = async () => {
+    if (!jobId || !authToken) {
+      setToast({ visible: true, message: 'Unable to send notification (missing job or auth).', type: 'error' });
+      setTimeout(() => setToast({ visible: false, message: '', type: 'error' }), 2500);
+      return;
+    }
+
+    const trimmedEmail = String(candidateForm.email || '').trim();
+    const trimmedMobile = String(candidateForm.mobile || '').trim();
+
+    if (!trimmedEmail && !trimmedMobile) {
+      setToast({ visible: true, message: 'Please enter candidate email or mobile number.', type: 'error' });
+      setTimeout(() => setToast({ visible: false, message: '', type: 'error' }), 2500);
+      return;
+    }
+
+    if (!candidateForm.interviewDate || !candidateForm.interviewTime || !candidateForm.contactPerson || !candidateForm.location) {
+      setToast({ visible: true, message: 'Please fill interview date, time, contact person and location.', type: 'error' });
+      setTimeout(() => setToast({ visible: false, message: '', type: 'error' }), 2500);
+      return;
+    }
+
+    try {
+      setSendingFinalLineupCandidate(true);
+      const { data } = await axios.post(
+        `${BASE_URL}/api/admin/recruitment/job/${jobId}/notify-final-lineup-candidate`,
+        {
+          email: trimmedEmail || undefined,
+          mobile: trimmedMobile || undefined,
+          interviewDate: candidateForm.interviewDate,
+          interviewTime: candidateForm.interviewTime,
+          contactPerson: candidateForm.contactPerson,
+          contactNumber: candidateForm.contactNumber,
+          location: candidateForm.location,
+          address: candidateForm.address,
+        },
+        {
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+        }
+      );
+
+      const msg = data?.message || 'Final lineup interview notification sent to candidate.';
+      setCandidateModal({ open: false, profile: null });
+      setToast({ visible: true, message: msg, type: 'success' });
+      setTimeout(() => setToast({ visible: false, message: '', type: 'success' }), 2500);
+    } catch (e) {
+      setToast({
+        visible: true,
+        message: e?.response?.data?.message || e?.message || 'Failed to send notification',
+        type: 'error',
+      });
+      setTimeout(() => setToast({ visible: false, message: '', type: 'error' }), 2500);
+    } finally {
+      setSendingFinalLineupCandidate(false);
+    }
+  };
+
   const hasError = !!error;
 
   return (
@@ -1024,6 +1308,36 @@ const StageSheet = ({ job, stageKey, title }) => {
             <button onClick={()=>setDensity('comfortable')} className={`text-[11px] px-1.5 py-0.5 rounded ${density==='comfortable'?'bg-gray-900 text-white':'text-gray-700 hover:bg-gray-100'}`}>Comfort</button>
             <button onClick={()=>setDensity('compact')} className={`text-[11px] px-1.5 py-0.5 rounded ${density==='compact'?'bg-gray-900 text-white':'text-gray-700 hover:bg-gray-100'}`}>Compact</button>
           </div>
+          {isRecruiterFQC && (
+            <button
+              type="button"
+              onClick={assignNextRecruiterFQC}
+              disabled={nextDisabled}
+              className={`ml-2 px-3 py-1.5 text-xs rounded ${nextDisabled ? 'bg-indigo-600/60 text-white cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 text-white'}`}
+            >
+              {assigningNext ? 'Loading…' : 'Next'}
+            </button>
+          )}
+          {stageKey==='BooleanDataSheet' && jobId && !recruiterView && (
+            <button
+              type="button"
+              onClick={sendJobActivationNotification}
+              disabled={sendingActivation}
+              className={`ml-2 px-3 py-1.5 text-xs rounded ${sendingActivation ? 'bg-sky-600/60 text-white cursor-not-allowed' : 'bg-sky-600 hover:bg-sky-700 text-white'}`}
+            >
+              {sendingActivation ? 'Sending…' : 'Trigger Client'}
+            </button>
+          )}
+          {stageKey==='FirstLineup' && jobId && !recruiterView && (
+            <button
+              type="button"
+              onClick={sendFinalQCUpdateClient}
+              disabled={sendingFinalQC}
+              className={`ml-2 px-3 py-1.5 text-xs rounded ${sendingFinalQC ? 'bg-sky-700/60 text-white cursor-not-allowed' : 'bg-sky-700 hover:bg-sky-800 text-white'}`}
+            >
+              {sendingFinalQC ? 'Sending…' : 'Update Client'}
+            </button>
+          )}
           {stageKey==='BooleanDataSheet' && (
             <button type="button" onClick={()=> setNewOpen(true)} className="ml-2 px-3 py-1.5 text-xs rounded bg-emerald-600 hover:bg-emerald-700 text-white">Add Profile</button>
           )}
@@ -1050,8 +1364,7 @@ const StageSheet = ({ job, stageKey, title }) => {
         </div>
       </div>
       <div className="border rounded overflow-hidden">
-        <div className="overflow-y-auto max-h-[65vh]">
-          <table className="w-full table-auto text-xs">
+        <table className="w-full table-auto text-xs">
             <thead className="bg-gray-50 sticky top-0 z-10">
               <tr>
                 <th className="px-2 py-2 text-left font-medium text-gray-600 border-b">
@@ -1164,7 +1477,9 @@ const StageSheet = ({ job, stageKey, title }) => {
                     setActiveFilterSelection={setActiveFilterSelection}
                   />
                 </th>
-                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Resume</th>
+                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">
+                  Resume
+                </th>
                 <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Actions</th>
               </tr>
             </thead>
@@ -1317,10 +1632,22 @@ const StageSheet = ({ job, stageKey, title }) => {
                                 <span key={si} className="px-2 py-0.5 rounded text-[11px] border bg-slate-50 text-slate-700 border-slate-200" title={String(s)}>{String(s)}</span>
                               ))}
                               {all.length > shown.length && (
-                                <button type="button" onClick={()=> toggleSkills(p._id)} className="px-2 py-0.5 text-[11px] rounded border bg-white hover:bg-gray-50">+{all.length - shown.length} more</button>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleSkills(p._id)}
+                                  className="px-2 py-0.5 text-[11px] rounded border bg-white hover:bg-gray-50 text-sky-700"
+                                >
+                                  Show more{all.length - shown.length > 0 ? ` (+${all.length - shown.length})` : ''}
+                                </button>
                               )}
                               {expanded && all.length > 8 && (
-                                <button type="button" onClick={()=> toggleSkills(p._id)} className="px-2 py-0.5 text-[11px] rounded border bg-white hover:bg-gray-50">Show less</button>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleSkills(p._id)}
+                                  className="px-2 py-0.5 text-[11px] rounded border bg-white hover:bg-gray-50 text-sky-700"
+                                >
+                                  Show less
+                                </button>
                               )}
                             </div>
                           );
@@ -1338,7 +1665,7 @@ const StageSheet = ({ job, stageKey, title }) => {
                             <svg viewBox="0 0 24 24" className="w-4 h-4"><path fill="currentColor" d="M6 2h7l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2m7 1.5V8h5.5"/></svg>
                             {getFileExt(p.resumeUrl)}
                           </span>
-                          <a href={getResumeViewUrl(p.resumeUrl)} target="_blank" rel="noreferrer" className="text-xs text-indigo-600 underline">Preview</a>
+                          <a href={getResumeViewUrl(p.resumeUrl)} target="_blank" rel="noreferrer" className="text-xs text-indigo-600 underline">Review</a>
                           <a href={p.resumeUrl} download className="text-xs text-indigo-600 underline">Download</a>
                           <button
                             onClick={() => deleteResume(p._id)}
@@ -1360,31 +1687,48 @@ const StageSheet = ({ job, stageKey, title }) => {
                         const last = decisions.length ? decisions[decisions.length - 1] : null;
                         const lastDec = String(last?.decision || '').toUpperCase();
                         const isNo = lastDec === 'NO';
+                        const lastRemark = last?.remark || '';
 
                         if (isNo) {
                           return (
-                            <div className="flex items-center gap-2">
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full border bg-red-50 text-red-700 border-red-200">
-                                Status: NO
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => setHistoryModal({ open: true, profile: p })}
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] rounded border border-gray-300 bg-white hover:bg-gray-50 shadow-sm"
-                              >
-                                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5"><path fill="currentColor" d="M12 8v5h5v-2h-3V8zM12 1a11 11 0 1 0 11 11A11 11 0 0 0 12 1Zm0 20a9 9 0 1 1 9-9a9 9 0 0 1-9 9Z"/></svg>
-                                History
-                              </button>
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center gap-2">
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full border bg-red-50 text-red-700 border-red-200">
+                                  Status: NO
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setHistoryModal({ open: true, profile: p })}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] rounded border border-gray-300 bg-white hover:bg-gray-50 shadow-sm"
+                                >
+                                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5"><path fill="currentColor" d="M12 8v5h5v-2h-3V8zM12 1a11 11 0 1 0 11 11A11 11 0 0 0 12 1Zm0 20a9 9 0 1 1 9-9a9 9 0 0 1-9 9Z"/></svg>
+                                  History
+                                </button>
+                                {stageKey === 'FinalLineup' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => openFinalLineupCandidateModal(p)}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] rounded border border-sky-500 text-sky-700 bg-white hover:bg-sky-50 shadow-sm"
+                                  >
+                                    Update to Candidate
+                                  </button>
+                                )}
+                              </div>
+                              {lastRemark && (
+                                <div className="text-[11px] text-gray-500 max-w-xs truncate" title={lastRemark}>
+                                  Last remark: <span className="font-medium text-gray-700">{lastRemark}</span>
+                                </div>
+                              )}
                             </div>
                           );
                         }
 
-                        const lastRemark = last?.remark || '';
+                        const inlineRemark = String(remarkById[p._id] || '').trim();
+                        const remarkMissing = !inlineRemark;
 
                         return (
                           <div className="flex flex-col gap-1">
                             <div className="flex flex-wrap items-center gap-2">
-                              {/* FQC stage requires resume upload before YES */}
                               {stageKey === 'FQC' && !p?.resumeUrl && (
                                 <div className="flex items-center gap-2 mr-2">
                                   <label className={`inline-flex items-center gap-1 text-xs px-2 py-1 border rounded ${uploadingId===String(p._id)?'opacity-60 cursor-wait':'cursor-pointer bg-white hover:bg-gray-50'}`}>
@@ -1404,7 +1748,6 @@ const StageSheet = ({ job, stageKey, title }) => {
                                   </label>
                                 </div>
                               )}
-                              {/* Inline Remark */}
                               <input
                                 type="text"
                                 value={remarkById[p._id] || ''}
@@ -1415,10 +1758,10 @@ const StageSheet = ({ job, stageKey, title }) => {
                               <div className="flex items-center gap-2">
                                 <button
                                   type="button"
-                                  disabled={savingId===String(p._id) || (stageKey==='FQC' && !p?.resumeUrl)}
+                                  disabled={savingId===String(p._id) || (stageKey==='FQC' && !p?.resumeUrl) || remarkMissing}
                                   onClick={() => openDecision(p._id, 'YES')}
                                   className={`relative inline-flex items-center gap-2 px-3.5 py-1.5 text-[11px] font-semibold rounded-full text-white shadow-md transition ${
-                                    (savingId===String(p._id) || (stageKey==='FQC' && !p?.resumeUrl))
+                                    (savingId===String(p._id) || (stageKey==='FQC' && !p?.resumeUrl) || remarkMissing)
                                       ? 'bg-gradient-to-r from-emerald-400 to-emerald-500/70 cursor-not-allowed opacity-70'
                                       : 'bg-gradient-to-r from-emerald-500 via-emerald-600 to-emerald-700 hover:shadow-lg hover:-translate-y-0.5'
                                   }`}
@@ -1432,10 +1775,10 @@ const StageSheet = ({ job, stageKey, title }) => {
                                 </button>
                                 <button
                                   type="button"
-                                  disabled={savingId===String(p._id)}
+                                  disabled={savingId===String(p._id) || remarkMissing}
                                   onClick={() => openDecision(p._id, 'NO')}
                                   className={`relative inline-flex items-center gap-2 px-3.5 py-1.5 text-[11px] font-semibold rounded-full text-white shadow-md transition ${
-                                    savingId===String(p._id)
+                                    (savingId===String(p._id) || remarkMissing)
                                       ? 'bg-gradient-to-r from-rose-400 to-rose-500/70 cursor-wait opacity-70'
                                       : 'bg-gradient-to-r from-rose-500 via-rose-600 to-rose-700 hover:shadow-lg hover:-translate-y-0.5'
                                   }`}
@@ -1456,6 +1799,15 @@ const StageSheet = ({ job, stageKey, title }) => {
                                 <svg viewBox="0 0 24 24" className="w-3.5 h-3.5"><path fill="currentColor" d="M12 8v5h5v-2h-3V8zM12 1a11 11 0 1 0 11 11A11 11 0 0 0 12 1Zm0 20a9 9 0 1 1 9-9a9 9 0 0 1-9 9Z"/></svg>
                                 History
                               </button>
+                              {stageKey === 'FinalLineup' && (
+                                <button
+                                  type="button"
+                                  onClick={() => openFinalLineupCandidateModal(p)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] rounded border border-sky-500 text-sky-700 bg-white hover:bg-sky-50 shadow-sm"
+                                >
+                                  Update to Candidate
+                                </button>
+                              )}
                             </div>
                             {lastRemark && (
                               <div className="text-[11px] text-gray-500 max-w-xs truncate" title={lastRemark}>
@@ -1471,8 +1823,7 @@ const StageSheet = ({ job, stageKey, title }) => {
                 ))
               )}
             </tbody>
-          </table>
-        </div>
+        </table>
       </div>
 
       {hasError && (
@@ -1499,6 +1850,225 @@ const StageSheet = ({ job, stageKey, title }) => {
             </div>
           </div>
         </div>
+      )}
+
+      {candidateModal.open && candidateModal.profile && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] overflow-y-auto border border-slate-100">
+            <div className="p-6 border-b flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-500">Final Lineup</p>
+                <h3 className="text-2xl font-semibold text-slate-900">Update Candidate</h3>
+                <p className="text-sm text-slate-600">
+                  Send interview schedule to {candidateModal.profile?.name || 'candidate'} for {job?.position || 'this position'}.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCandidateModal({ open: false, profile: null })}
+                className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+              >
+                Close
+              </button>
+            </div>
+            <div className="p-6 space-y-6">
+              <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4 sm:p-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 mb-3">Candidate snapshot</p>
+                <div className="flex flex-wrap gap-2 text-sm">
+                  {candidateSuggestions.name && (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1 text-slate-800">
+                      <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                      {candidateSuggestions.name}
+                    </span>
+                  )}
+                  {candidateSuggestions.designation && (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-blue-800">
+                      {candidateSuggestions.designation}
+                    </span>
+                  )}
+                  {candidateSuggestions.company && (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-amber-100 bg-amber-50 px-3 py-1 text-amber-800">
+                      {candidateSuggestions.company}
+                    </span>
+                  )}
+                  {(candidateSuggestions.email || candidateSuggestions.mobile) && (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1 text-slate-700">
+                      {candidateSuggestions.email || '—'} · {candidateSuggestions.mobile || '—'}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid gap-6 lg:grid-cols-2">
+                <div className="space-y-5 rounded-2xl border border-slate-100 p-5">
+                  <p className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                    <span className="h-6 w-6 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center text-xs font-bold">1</span>
+                    Candidate contact
+                  </p>
+
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <label className="font-medium text-slate-700">Candidate Email</label>
+                      {candidateSuggestions.email && (
+                        <button
+                          type="button"
+                          onClick={() => applyCandidateSuggestion('email')}
+                          className="text-sky-600 hover:text-sky-800 font-semibold"
+                        >
+                          Use {candidateSuggestions.email}
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      type="email"
+                      value={candidateForm.email}
+                      onChange={(e) => setCandidateForm(prev => ({ ...prev, email: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm shadow-inner shadow-transparent focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                      placeholder="Type email address"
+                    />
+                    <p className="text-[11px] text-slate-500">We’ll send the interview details to this address.</p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <label className="font-medium text-slate-700">Candidate Mobile</label>
+                      {candidateSuggestions.mobile && (
+                        <button
+                          type="button"
+                          onClick={() => applyCandidateSuggestion('mobile')}
+                          className="text-sky-600 hover:text-sky-800 font-semibold"
+                        >
+                          Use {candidateSuggestions.mobile}
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      value={candidateForm.mobile}
+                      onChange={(e) => setCandidateForm(prev => ({ ...prev, mobile: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm shadow-inner shadow-transparent focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                      placeholder="Type mobile number"
+                    />
+                    <p className="text-[11px] text-slate-500">Optional but recommended for SMS alert.</p>
+                  </div>
+                </div>
+
+                <div className="space-y-5 rounded-2xl border border-slate-100 p-5">
+                  <p className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                    <span className="h-6 w-6 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center text-xs font-bold">2</span>
+                    Interview schedule
+                  </p>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-slate-700">Interview Date *</label>
+                      <input
+                        type="date"
+                        value={candidateForm.interviewDate}
+                        onChange={(e) => setCandidateForm(prev => ({ ...prev, interviewDate: e.target.value }))}
+                        className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm shadow-inner shadow-transparent focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                      />
+                      <p className="text-[11px] text-slate-500">Select the exact date shared by the client.</p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-slate-700">Interview Time *</label>
+                      <input
+                        type="time"
+                        value={candidateForm.interviewTime}
+                        onChange={(e) => setCandidateForm(prev => ({ ...prev, interviewTime: e.target.value }))}
+                        className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm shadow-inner shadow-transparent focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                      />
+                      <p className="text-[11px] text-slate-500">Use 24-hour or AM/PM format.</p>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-slate-700">Contact Person *</label>
+                      <input
+                        type="text"
+                        value={candidateForm.contactPerson}
+                        onChange={(e) => setCandidateForm(prev => ({ ...prev, contactPerson: e.target.value }))}
+                        className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm shadow-inner shadow-transparent focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                        placeholder="Name of interviewer / HR"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-slate-700">Contact Number</label>
+                      <input
+                        type="text"
+                        value={candidateForm.contactNumber}
+                        onChange={(e) => setCandidateForm(prev => ({ ...prev, contactNumber: e.target.value }))}
+                        className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm shadow-inner shadow-transparent focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                        placeholder="Phone number for coordination"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-5 rounded-2xl border border-slate-100 p-5">
+                <p className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                  <span className="h-6 w-6 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center text-xs font-bold">3</span>
+                  Venue details
+                </p>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <label className="font-medium text-slate-700">Location *</label>
+                      {candidateSuggestions.location && (
+                        <button
+                          type="button"
+                          onClick={() => applyCandidateSuggestion('location')}
+                          className="text-sky-600 hover:text-sky-800 font-semibold"
+                        >
+                          Use {candidateSuggestions.location}
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      value={candidateForm.location}
+                      onChange={(e) => setCandidateForm(prev => ({ ...prev, location: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm shadow-inner shadow-transparent focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                      placeholder="City / Office location"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-700">Address / Landmark</label>
+                    <textarea
+                      rows={3}
+                      value={candidateForm.address}
+                      onChange={(e) => setCandidateForm(prev => ({ ...prev, address: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm shadow-inner shadow-transparent focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                      placeholder="Full office address, floor, landmark, meeting room, etc."
+                    />
+                  </div>
+                </div>
+                <p className="text-[11px] text-slate-500">Make sure all mandatory fields marked * are filled before sending the update.</p>
+              </div>
+            </div>
+            <div className="p-6 border-t bg-slate-50 rounded-b-2xl flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setCandidateModal({ open: false, profile: null })}
+                className="w-full sm:w-auto rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={sendFinalLineupUpdateCandidate}
+                disabled={sendingFinalLineupCandidate}
+                className="w-full sm:w-auto rounded-xl border border-transparent bg-gradient-to-r from-sky-600 to-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:from-sky-700 hover:to-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {sendingFinalLineupCandidate ? 'Sending...' : 'Send Update'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
 
       {/* Add Profile Modal */}

@@ -13,13 +13,11 @@ const tabs = [
   { key: 'firstLineup', label: '4) Final QC' },
   { key: 'office', label: '5) First Lineup Sheet For Client ShortListing' },
   { key: 'finalLineup', label: '6) Final Lineup Sheet' },
-  { key: 'final', label: '7) Final Interview' },
-  { key: 'interviewSheet', label: '8) Interview Sheet' },
-  { key: 'status', label: '9) Interview Status' },
-  { key: 'selection', label: '10) Selection Sheet' },
-  { key: 'joining', label: '11) Joining Sheet' },
-  { key: 'joiningStatus', label: '12) Joining Status' },
-  { key: 'billing', label: '13) Forward to Billing' },
+  { key: 'status', label: '7) Interview Status' },
+  { key: 'selection', label: '8) Selection Sheet' },
+  { key: 'joining', label: '9) Joining Sheet' },
+  { key: 'joiningStatus', label: '10) Joining Status' },
+  { key: 'billing', label: '11) Forward to Billing' },
 ];
 
 // Only Manager Operation tab group
@@ -27,7 +25,7 @@ const tabGroups = [
   {
     id: 'operations',
     label: 'Manager Operation',
-    items: ['boolean', 'booleanC', 'fqc', 'firstLineup', 'office', 'finalLineup', 'final', 'interviewSheet', 'status', 'selection', 'joining', 'joiningStatus', 'billing'],
+    items: ['boolean', 'booleanC', 'fqc', 'firstLineup', 'office', 'finalLineup', 'status', 'selection', 'joining', 'joiningStatus', 'billing'],
   },
 ];
 
@@ -84,13 +82,11 @@ const HROperationsStageSheet = () => {
       case 'firstLineup': return { stageKey: 'FirstLineup', title: '4) Final QC' };
       case 'office': return { stageKey: 'OfficeInterview', title: '5) First Lineup Sheet For Client ShortListing' };
       case 'finalLineup': return { stageKey: 'FinalLineup', title: '6) Final Lineup Sheet' };
-      case 'final': return { stageKey: 'FinalInterview', title: '7) Final Interview' };
-      case 'interviewSheet': return { stageKey: 'InterviewSheet', title: '8) Interview Sheet' };
-      case 'status': return { stageKey: 'InterviewStatus', title: '9) Interview Status' };
-      case 'selection': return { stageKey: 'Selection', title: '10) Selection Sheet' };
-      case 'joining': return { stageKey: 'Joining', title: '11) Joining Sheet' };
-      case 'joiningStatus': return { stageKey: 'JoiningStatus', title: '12) Joining Status' };
-      case 'billing': return { stageKey: 'Billing', title: '13) Forward to Billing' };
+      case 'status': return { stageKey: 'InterviewStatus', title: '7) Interview Status' };
+      case 'selection': return { stageKey: 'Selection', title: '8) Selection Sheet' };
+      case 'joining': return { stageKey: 'Joining', title: '9) Joining Sheet' };
+      case 'joiningStatus': return { stageKey: 'JoiningStatus', title: '10) Joining Status' };
+      case 'billing': return { stageKey: 'Billing', title: '11) Forward to Billing' };
       default: return { stageKey: 'BooleanDataSheet', title: '1) Boolean Data Sheet' };
     }
   }, [activeTab]);
@@ -102,13 +98,11 @@ const HROperationsStageSheet = () => {
     'FirstLineup',
     'OfficeInterview',
     'FinalLineup',
-    'FinalInterview',
-    'InterviewSheet',
     'InterviewStatus',
     'Selection',
     'Joining',
     'JoiningStatus',
-    'Billing'
+    'Billing',
   ];
 
   const normalizeStage = (s) => {
@@ -156,10 +150,6 @@ const HROperationsStageSheet = () => {
         return counts['OfficeInterview'] || 0;
       case 'finalLineup':
         return counts['FinalLineup'] || 0;
-      case 'final':
-        return counts['FinalInterview'] || 0;
-      case 'interviewSheet':
-        return counts['InterviewSheet'] || 0;
       case 'status':
         return counts['InterviewStatus'] || 0;
       case 'selection':

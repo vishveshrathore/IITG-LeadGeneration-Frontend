@@ -9,18 +9,16 @@ import { useAuth } from '../../context/AuthContext.jsx';
 const tabs = [
   { key: 'fqc', label: '3) First QC Sheet' },
   { key: 'finalLineup', label: '6) Final Lineup Sheet' },
-  { key: 'final', label: '7) Final Interview' },
-  { key: 'interviewSheet', label: '8) Interview Sheet' },
-  { key: 'status', label: '9) Interview Status' },
-  { key: 'selection', label: '10) Selection Sheet' },
-  { key: 'joining', label: '11) Joining Sheet' },
+  { key: 'status', label: '7) Interview Status' },
+  { key: 'selection', label: '8) Selection Sheet' },
+  { key: 'joining', label: '9) Joining Sheet' },
 ];
 
 const tabGroups = [
   {
     id: 'recruiter',
     label: 'Recruiter',
-    items: ['fqc', 'finalLineup', 'final', 'interviewSheet', 'status', 'selection', 'joining'],
+    items: ['fqc', 'finalLineup', 'status', 'selection', 'joining'],
   },
 ];
 
@@ -38,7 +36,7 @@ const HeaderStat = ({ title, value }) => (
 const HRRecruiterStageSheet = () => {
   const { state } = useLocation();
   const { id } = useParams();
-  const { authToken } = useAuth();
+  const { authToken, user } = useAuth();
   const [job, setJob] = useState(state?.job || null);
   const [loading, setLoading] = useState(!state?.job);
   const [activeTab, setActiveTab] = useState('fqc');
@@ -71,14 +69,18 @@ const HRRecruiterStageSheet = () => {
 
   const activeStage = useMemo(() => {
     switch (activeTab) {
-      case 'fqc': return { stageKey: 'FQC', title: '3) First QC Sheet' };
-      case 'finalLineup': return { stageKey: 'FinalLineup', title: '6) Final Lineup Sheet' };
-      case 'final': return { stageKey: 'FinalInterview', title: '7) Final Interview' };
-      case 'interviewSheet': return { stageKey: 'InterviewSheet', title: '8) Interview Sheet' };
-      case 'status': return { stageKey: 'InterviewStatus', title: '9) Interview Status' };
-      case 'selection': return { stageKey: 'Selection', title: '10) Selection Sheet' };
-      case 'joining': return { stageKey: 'Joining', title: '11) Joining Sheet' };
-      default: return { stageKey: 'FQC', title: '3) First QC Sheet' };
+      case 'fqc':
+        return { stageKey: 'FQC', title: '3) First QC Sheet' };
+      case 'finalLineup':
+        return { stageKey: 'FinalLineup', title: '6) Final Lineup Sheet' };
+      case 'status':
+        return { stageKey: 'InterviewStatus', title: '7) Interview Status' };
+      case 'selection':
+        return { stageKey: 'Selection', title: '8) Selection Sheet' };
+      case 'joining':
+        return { stageKey: 'Joining', title: '9) Joining Sheet' };
+      default:
+        return { stageKey: 'FQC', title: '3) First QC Sheet' };
     }
   }, [activeTab]);
 
@@ -116,8 +118,12 @@ const HRRecruiterStageSheet = () => {
           headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
         });
         const list = Array.isArray(data?.data) ? data.data : [];
+        const recruiterId = user?.id || user?._id;
+        const source = recruiterId
+          ? list.filter(p => String(p?.assignedtoRecruiters) === String(recruiterId))
+          : list;
         const map = {};
-        for (const p of list) {
+        for (const p of source) {
           const ns = normalizeStage(p?.currentStage);
           map[ns] = (map[ns] || 0) + 1;
         }
@@ -127,7 +133,7 @@ const HRRecruiterStageSheet = () => {
       }
     };
     loadCounts();
-  }, [job, authToken]);
+  }, [job, authToken, user]);
 
   const getCountForTab = (key) => {
     switch (key) {
@@ -135,10 +141,6 @@ const HRRecruiterStageSheet = () => {
         return counts['FQC'] || 0;
       case 'finalLineup':
         return counts['FinalLineup'] || 0;
-      case 'final':
-        return counts['FinalInterview'] || 0;
-      case 'interviewSheet':
-        return counts['InterviewSheet'] || 0;
       case 'status':
         return counts['InterviewStatus'] || 0;
       case 'selection':
@@ -155,6 +157,13 @@ const HRRecruiterStageSheet = () => {
       const detail = e?.detail || {};
       const deltas = detail.deltas || {};
       if (!deltas || typeof deltas !== 'object') return;
+
+      const markerId = detail.markerId;
+      const recruiterId = user?.id || user?._id;
+      if (markerId && recruiterId && String(markerId) !== String(recruiterId)) {
+        return;
+      }
+
       setCounts(prev => {
         const next = { ...prev };
         Object.entries(deltas).forEach(([stage, d]) => {
@@ -165,7 +174,7 @@ const HRRecruiterStageSheet = () => {
     };
     window.addEventListener('recruitment:countsDelta', onDelta);
     return () => window.removeEventListener('recruitment:countsDelta', onDelta);
-  }, []);
+  }, [user]);
 
   const company = job?.createdBy || {};
   const companyLine = useMemo(() => {
@@ -314,7 +323,13 @@ const HRRecruiterStageSheet = () => {
                   <div className="text-sm text-gray-600">Loading…</div>
                 ) : (
                   <div className="bg-white border rounded-xl p-3 md:p-4 min-h-[60vh]">
-                    <StageSheet job={job} stageKey={activeStage.stageKey} title={activeStage.title} />
+                    <StageSheet
+                      job={job}
+                      stageKey={activeStage.stageKey}
+                      title={activeStage.title}
+                      recruiterFQC={activeStage.stageKey === 'FQC'}
+                      recruiterView={true}
+                    />
                   </div>
                 )}
               </div>
