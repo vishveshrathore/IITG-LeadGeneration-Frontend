@@ -412,6 +412,8 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
   const [assigningNext, setAssigningNext] = useState(false);
   const [sendingActivation, setSendingActivation] = useState(false);
   const [sendingFinalQC, setSendingFinalQC] = useState(false);
+  const [sendingFinalLineupClient, setSendingFinalLineupClient] = useState(false);
+  const [sendingFQCManager, setSendingFQCManager] = useState(false);
   const [candidateModal, setCandidateModal] = useState({ open: false, profile: null });
   const [candidateForm, setCandidateForm] = useState({
     email: '',
@@ -559,6 +561,36 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
         mobile: row?.mobile || '',
         email: row?.email || '',
       });
+    }
+  };
+
+  const sendFinalLineupInformClient = async () => {
+    if (!jobId || !authToken) {
+      setToast({ visible: true, message: 'Unable to send notification (missing job or auth).', type: 'error' });
+      setTimeout(() => setToast({ visible: false, message: '', type: 'error' }), 2500);
+      return;
+    }
+    try {
+      setSendingFinalLineupClient(true);
+      const { data } = await axios.post(
+        `${BASE_URL}/api/admin/recruitment/job/${jobId}/notify-final-lineup-client`,
+        {},
+        {
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+        }
+      );
+      const msg = data?.message || 'Final Lineup update sent to client.';
+      setToast({ visible: true, message: msg, type: 'success' });
+      setTimeout(() => setToast({ visible: false, message: '', type: 'success' }), 2500);
+    } catch (e) {
+      setToast({
+        visible: true,
+        message: e?.response?.data?.message || e?.message || 'Failed to send notification',
+        type: 'error',
+      });
+      setTimeout(() => setToast({ visible: false, message: '', type: 'error' }), 2500);
+    } finally {
+      setSendingFinalLineupClient(false);
     }
   };
 
@@ -1218,6 +1250,36 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
     }
   };
 
+  const sendFirstQCUpdateManager = async () => {
+    if (!jobId || !authToken) {
+      setToast({ visible: true, message: 'Unable to send notification (missing job or auth).', type: 'error' });
+      setTimeout(() => setToast({ visible: false, message: '', type: 'error' }), 2500);
+      return;
+    }
+    try {
+      setSendingFQCManager(true);
+      const { data } = await axios.post(
+        `${BASE_URL}/api/admin/recruitment/job/${jobId}/notify-first-qc-manager`,
+        {},
+        {
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+        }
+      );
+      const msg = data?.message || 'First QC update sent to QC manager.';
+      setToast({ visible: true, message: msg, type: 'success' });
+      setTimeout(() => setToast({ visible: false, message: '', type: 'success' }), 2500);
+    } catch (e) {
+      setToast({
+        visible: true,
+        message: e?.response?.data?.message || e?.message || 'Failed to send notification',
+        type: 'error',
+      });
+      setTimeout(() => setToast({ visible: false, message: '', type: 'error' }), 2500);
+    } finally {
+      setSendingFQCManager(false);
+    }
+  };
+
   const openFinalLineupCandidateModal = (profile) => {
     if (!profile) return;
     setCandidateModal({ open: true, profile });
@@ -1308,6 +1370,16 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
             <button onClick={()=>setDensity('comfortable')} className={`text-[11px] px-1.5 py-0.5 rounded ${density==='comfortable'?'bg-gray-900 text-white':'text-gray-700 hover:bg-gray-100'}`}>Comfort</button>
             <button onClick={()=>setDensity('compact')} className={`text-[11px] px-1.5 py-0.5 rounded ${density==='compact'?'bg-gray-900 text-white':'text-gray-700 hover:bg-gray-100'}`}>Compact</button>
           </div>
+          {stageKey === 'FQC' && (
+            <button
+              type="button"
+              onClick={sendFirstQCUpdateManager}
+              disabled={sendingFQCManager}
+              className={`ml-2 px-3 py-1.5 text-xs rounded ${sendingFQCManager ? 'bg-sky-600/60 text-white cursor-not-allowed' : 'bg-sky-600 hover:bg-sky-700 text-white'}`}
+            >
+              {sendingFQCManager ? 'Sending…' : 'Update to QC Manager'}
+            </button>
+          )}
           {isRecruiterFQC && (
             <button
               type="button"
@@ -1328,14 +1400,14 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
               {sendingActivation ? 'Sending…' : 'Trigger Client'}
             </button>
           )}
-          {stageKey==='FirstLineup' && jobId && !recruiterView && (
+          {stageKey==='FinalLineup' && jobId && !recruiterView && (
             <button
               type="button"
-              onClick={sendFinalQCUpdateClient}
-              disabled={sendingFinalQC}
-              className={`ml-2 px-3 py-1.5 text-xs rounded ${sendingFinalQC ? 'bg-sky-700/60 text-white cursor-not-allowed' : 'bg-sky-700 hover:bg-sky-800 text-white'}`}
+              onClick={sendFinalLineupInformClient}
+              disabled={sendingFinalLineupClient}
+              className={`ml-2 px-3 py-1.5 text-xs rounded ${sendingFinalLineupClient ? 'bg-sky-600/60 text-white cursor-not-allowed' : 'bg-sky-600 hover:bg-sky-700 text-white'}`}
             >
-              {sendingFinalQC ? 'Sending…' : 'Update Client'}
+              {sendingFinalLineupClient ? 'Sending…' : 'Update Client'}
             </button>
           )}
           {stageKey==='BooleanDataSheet' && (
