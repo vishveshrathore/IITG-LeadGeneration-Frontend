@@ -579,7 +579,7 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
           headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
         }
       );
-      const msg = data?.message || 'Final Lineup update sent to client.';
+      const msg = data?.message || 'Final Lineup sheet update sent to client.';
       setToast({ visible: true, message: msg, type: 'success' });
       setTimeout(() => setToast({ visible: false, message: '', type: 'success' }), 2500);
     } catch (e) {
@@ -1265,7 +1265,7 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
           headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
         }
       );
-      const msg = data?.message || 'First QC update sent to QC manager.';
+      const msg = data?.message || 'First QC sheet trigger sent to QC manager.';
       setToast({ visible: true, message: msg, type: 'success' });
       setTimeout(() => setToast({ visible: false, message: '', type: 'success' }), 2500);
     } catch (e) {
