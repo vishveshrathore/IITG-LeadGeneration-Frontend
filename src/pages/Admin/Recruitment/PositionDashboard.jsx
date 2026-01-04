@@ -368,6 +368,10 @@ const PositionDashboard = () => {
     return parts.length ? parts.join(', ') : 'Location —';
   }, [job]);
 
+  const clientName = orgName || company.companyName || company.CompanyName || company.name || company.hrName || '';
+  const clientMobile = company.mobile || '';
+  const clientEmail = company.email || '';
+
   const exp = [job?.expFrom, job?.expTo].filter(Boolean).join(' – ');
   const ctcUpper = typeof job?.ctcUpper === 'number'
     ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(job.ctcUpper)
@@ -526,6 +530,24 @@ const PositionDashboard = () => {
                 <div className="text-[11px] text-gray-500">Position ID: {job?.positionId || '-'}</div>
               </div>
 
+              <div className="mb-3 text-gray-700">
+                <div className="text-[11px] font-semibold text-gray-900">Client</div>
+                <div className="mt-1 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div>
+                    <span className="text-[11px] text-gray-500 mr-1">Name:</span>
+                    <span className="text-[11px] font-medium text-gray-900">{clientName || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-gray-500 mr-1">Mobile:</span>
+                    <span className="text-[11px] font-medium text-gray-900">{clientMobile || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-gray-500 mr-1">Email:</span>
+                    <span className="text-[11px] font-medium text-gray-900">{clientEmail || '-'}</span>
+                  </div>
+                </div>
+              </div>
+
               {teamError && (
                 <div className="mb-3 text-[11px] text-red-700 bg-red-50 border border-red-200 px-3 py-2 rounded">
                   {teamError}
@@ -536,6 +558,53 @@ const PositionDashboard = () => {
                 <div className="text-[11px] text-gray-600">Loading team data…</div>
               ) : (
                 <div className="space-y-4">
+                  <div>
+                    <h3 className="text-[11px] font-semibold text-gray-900 mb-1">Manager Operations</h3>
+                    <div className="flex flex-col gap-1 max-h-48 overflow-y-auto border border-gray-200 rounded-md px-2 py-2">
+                      {hrOperations.length === 0 ? (
+                        <span className="text-[11px] text-gray-500">No Manager Operations users</span>
+                      ) : (
+                        hrOperations.map((u) => {
+                          const uid = String(u._id);
+                          const checked = (teamDraft.hrOperations || []).includes(uid);
+                          return (
+                            <label
+                              key={uid}
+                              className="flex items-center gap-2 text-[11px] text-gray-800"
+                            >
+                              <input
+                                type="checkbox"
+                                className="h-3 w-3 rounded border-gray-300 text-indigo-600"
+                                checked={checked}
+                                onChange={() => {
+                                  const current = teamDraft.hrOperations || [];
+                                  const exists = current.includes(uid);
+                                  const values = exists
+                                    ? current.filter((x) => x !== uid)
+                                    : [...current, uid];
+                                  handleTeamChange('hrOperations', values);
+                                }}
+                              />
+                              <span
+                                className="truncate"
+                                title={`${u.name || ''} ${u.mobile || ''} ${u.email || ''}`.trim()}
+                              >
+                                <span className="font-medium">{u.name}</span>
+                                {(u.mobile || u.email) && (
+                                  <span className="ml-1 text-[10px] text-gray-500">
+                                    {u.mobile || '-'}
+                                    {u.mobile && u.email ? ' / ' : ' '}
+                                    {u.email || '-'}
+                                  </span>
+                                )}
+                              </span>
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+
                   {!isRecruitmentQC && (
                     <div>
                       <div className="flex items-center justify-between mb-1">
@@ -550,102 +619,58 @@ const PositionDashboard = () => {
                         <option value="">Select QC Manager</option>
                         {recruitmentQCManagers.map((u) => (
                           <option key={u._id} value={String(u._id)}>
-                            {u.name} {u.email ? `(${u.email})` : ''}
+                            {u.name}
+                            {(u.mobile || u.email) && ` - ${u.mobile || '-'} / ${u.email || '-'}`}
                           </option>
                         ))}
                       </select>
                     </div>
                   )}
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <h3 className="text-[11px] font-semibold text-gray-900 mb-1">Recruiters</h3>
-                      <div className="flex flex-col gap-1 max-h-48 overflow-y-auto border border-gray-200 rounded-md px-2 py-2">
-                        {hrRecruiters.length === 0 ? (
-                          <span className="text-[11px] text-gray-500">No Recruiters</span>
-                        ) : (
-                          hrRecruiters.map((u) => {
-                            const uid = String(u._id);
-                            const checked = (teamDraft.hrRecruiters || []).includes(uid);
-                            return (
-                              <label
-                                key={uid}
-                                className="flex items-center gap-2 text-[11px] text-gray-800"
+                  <div>
+                    <h3 className="text-[11px] font-semibold text-gray-900 mb-1">Recruiters</h3>
+                    <div className="flex flex-col gap-1 max-h-48 overflow-y-auto border border-gray-200 rounded-md px-2 py-2">
+                      {hrRecruiters.length === 0 ? (
+                        <span className="text-[11px] text-gray-500">No Recruiters</span>
+                      ) : (
+                        hrRecruiters.map((u) => {
+                          const uid = String(u._id);
+                          const checked = (teamDraft.hrRecruiters || []).includes(uid);
+                          return (
+                            <label
+                              key={uid}
+                              className="flex items-center gap-2 text-[11px] text-gray-800"
+                            >
+                              <input
+                                type="checkbox"
+                                className="h-3 w-3 rounded border-gray-300 text-indigo-600"
+                                checked={checked}
+                                onChange={() => {
+                                  const current = teamDraft.hrRecruiters || [];
+                                  const exists = current.includes(uid);
+                                  const values = exists
+                                    ? current.filter((x) => x !== uid)
+                                    : [...current, uid];
+                                  handleTeamChange('hrRecruiters', values);
+                                }}
+                              />
+                              <span
+                                className="truncate"
+                                title={`${u.name || ''} ${u.mobile || ''} ${u.email || ''}`.trim()}
                               >
-                                <input
-                                  type="checkbox"
-                                  className="h-3 w-3 rounded border-gray-300 text-indigo-600"
-                                  checked={checked}
-                                  onChange={() => {
-                                    const current = teamDraft.hrRecruiters || [];
-                                    const exists = current.includes(uid);
-                                    const values = exists
-                                      ? current.filter((x) => x !== uid)
-                                      : [...current, uid];
-                                    handleTeamChange('hrRecruiters', values);
-                                  }}
-                                />
-                                <span
-                                  className="truncate"
-                                  title={`${u.name || ''} ${u.email || u.mobile || ''}`.trim()}
-                                >
-                                  {u.name}{' '}
-                                  {u.email
-                                    ? `(${u.email})`
-                                    : u.mobile
-                                    ? `(${u.mobile})`
-                                    : ''}
-                                </span>
-                              </label>
-                            );
-                          })
-                        )}
-                      </div>
-                    </div>
-
-                    <div>
-                      <h3 className="text-[11px] font-semibold text-gray-900 mb-1">Manager Operation</h3>
-                      <div className="flex flex-col gap-1 max-h-48 overflow-y-auto border border-gray-200 rounded-md px-2 py-2">
-                        {hrOperations.length === 0 ? (
-                          <span className="text-[11px] text-gray-500">No Manager Operation users</span>
-                        ) : (
-                          hrOperations.map((u) => {
-                            const uid = String(u._id);
-                            const checked = (teamDraft.hrOperations || []).includes(uid);
-                            return (
-                              <label
-                                key={uid}
-                                className="flex items-center gap-2 text-[11px] text-gray-800"
-                              >
-                                <input
-                                  type="checkbox"
-                                  className="h-3 w-3 rounded border-gray-300 text-indigo-600"
-                                  checked={checked}
-                                  onChange={() => {
-                                    const current = teamDraft.hrOperations || [];
-                                    const exists = current.includes(uid);
-                                    const values = exists
-                                      ? current.filter((x) => x !== uid)
-                                      : [...current, uid];
-                                    handleTeamChange('hrOperations', values);
-                                  }}
-                                />
-                                <span
-                                  className="truncate"
-                                  title={`${u.name || ''} ${u.email || u.mobile || ''}`.trim()}
-                                >
-                                  {u.name}{' '}
-                                  {u.email
-                                    ? `(${u.email})`
-                                    : u.mobile
-                                    ? `(${u.mobile})`
-                                    : ''}
-                                </span>
-                              </label>
-                            );
-                          })
-                        )}
-                      </div>
+                                <span className="font-medium">{u.name}</span>
+                                {(u.mobile || u.email) && (
+                                  <span className="ml-1 text-[10px] text-gray-500">
+                                    {u.mobile || '-'}
+                                    {u.mobile && u.email ? '  ' : ' '}
+                                    {u.email || '-'}
+                                  </span>
+                                )}
+                              </span>
+                            </label>
+                          );
+                        })
+                      )}
                     </div>
                   </div>
                 </div>
