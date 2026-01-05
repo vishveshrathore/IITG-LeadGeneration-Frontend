@@ -69,11 +69,11 @@ const NaukriParser = () => {
     "experience",
     "ctc",
     "location",
+    "preferred_locations",
     "current_designation",
     "current_company",
     "previous_roles",
     "education",
-    "preferred_locations",
     "skills",
     "mobile",
     "email",
@@ -1247,7 +1247,9 @@ const NaukriParser = () => {
                         }
                         return JSON.stringify(v);
                       }
-                      return v !== undefined && v !== null ? String(v) : '';
+                      const s = v !== undefined && v !== null ? String(v).trim() : '';
+                      if (s.toUpperCase() === 'N/A') return '';
+                      return s;
                     };
                     return (
                       <tr key={i} className="odd:bg-white even:bg-gray-50 hover:bg-indigo-50">

@@ -11,6 +11,18 @@ const synonyms = {
   'InterviewSheet': ['InterviewSheet'],
 };
 
+const sanitizeValue = (value) => {
+  if (value == null) return '';
+  const str = String(value).trim();
+  if (!str) return '';
+  return str.toUpperCase() === 'N/A' ? '' : str;
+};
+
+const displayValue = (value, fallback = '-') => {
+  const clean = sanitizeValue(value);
+  return clean || fallback;
+};
+
 // Compute total experience for LinkedIn profiles from raw.experience (excluding current role)
 const getLinkedInTotalExperienceFromRawForFilter = (experience = []) => {
   if (!Array.isArray(experience) || !experience.length) return '';
@@ -51,36 +63,59 @@ const getColumnText = (p, key) => {
   if (!p) return '';
   switch (key) {
     case 'name':
-      return p.name || '';
+      return sanitizeValue(p.name);
     case 'experience': {
       const src = String(p?.source || '').toLowerCase();
       if (src === 'linkedin') {
         const rawExp = Array.isArray(p?.raw?.experience) ? p.raw.experience : [];
-        return getLinkedInTotalExperienceFromRawForFilter(rawExp) || '';
+        return sanitizeValue(getLinkedInTotalExperienceFromRawForFilter(rawExp));
       }
-      return p.experience || '';
+      return sanitizeValue(p.experience);
     }
     case 'ctc':
-      return p.ctc || '';
+      return sanitizeValue(p.ctc);
     case 'location':
-      return p.location || '';
+      return sanitizeValue(p.location);
+    case 'preferred_locations':
+      if (Array.isArray(p.preferred_locations)) {
+        return p.preferred_locations.map(sanitizeValue).filter(Boolean).join(', ');
+      }
+      return sanitizeValue(p.preferred_locations);
     case 'mobile':
-      return p.mobile || '';
+      return sanitizeValue(p.mobile);
     case 'current_designation':
-      return p.current_designation || '';
+      return sanitizeValue(p.current_designation);
     case 'current_company':
-      return p.current_company || '';
+      return sanitizeValue(p.current_company);
     case 'education':
-      if (!Array.isArray(p.education)) return p.education || '';
+      if (!Array.isArray(p.education)) return sanitizeValue(p.education);
       // Get all education entries, extract degree/fieldOfStudy, filter out empty values
       const educationItems = p.education
-        .map(e => (e.degree || e.fieldOfStudy || '').trim())
+        .map(e => sanitizeValue(e.degree || e.fieldOfStudy || ''))
         .filter(Boolean);
       // Remove duplicates using Set and join with comma
       return [...new Set(educationItems)].join(', ');
+    case 'skills': {
+      const raw = p.skills;
+      if (!raw) return '';
+      if (Array.isArray(raw)) {
+        const items = raw
+          .map((s) => {
+            if (s == null) return '';
+            if (typeof s === 'string') return sanitizeValue(s);
+            if (typeof s === 'object') {
+              return sanitizeValue(s.name || s.skill || s.value || '');
+            }
+            return sanitizeValue(s);
+          })
+          .filter(Boolean);
+        return [...new Set(items)].join(', ');
+      }
+      return sanitizeValue(raw);
+    }
     default:
       return '';
-  }   
+  }
 };
 
 const normalizeFilterValue = (v) =>
@@ -88,6 +123,13 @@ const normalizeFilterValue = (v) =>
     .trim()
     .replace(/\s+/g, ' ')
     .toLowerCase();
+
+const getFilterValuesForColumn = (p, key) => {
+  if (!p) return [];
+  // Excel-style: treat each cell's full text as a single filterable value
+  const single = String(getColumnText(p, key) || '').trim();
+  return single ? [single] : [];
+};
 
 const ColumnFilterHeader = ({
   label,
@@ -110,10 +152,12 @@ const ColumnFilterHeader = ({
   const allValues = React.useMemo(() => {
     const map = new Map();
     (profiles || []).forEach((p) => {
-      const raw = String(getColumnText(p, columnKey) || '').trim();
-      const norm = normalizeFilterValue(raw);
-      if (!norm) return;
-      if (!map.has(norm)) map.set(norm, raw);
+      const values = getFilterValuesForColumn(p, columnKey);
+      values.forEach((raw) => {
+        const norm = normalizeFilterValue(raw);
+        if (!norm) return;
+        if (!map.has(norm)) map.set(norm, raw);
+      });
     });
     return Array.from(map.values()).sort((a, b) => a.localeCompare(b));
   }, [profiles, columnKey]);
@@ -815,7 +859,11 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
       setToast({ visible: true, message: 'Resume deleted', type: 'success' });
       setTimeout(() => setToast({ visible: false, message: '', type: 'success' }), 2000);
     } catch (e) {
-      setToast({ visible: true, message: e?.response?.data?.message || e?.message || 'Delete failed', type: 'error' });
+      setToast({
+        visible: true,
+        message: e?.response?.data?.message || e?.message || 'Delete failed',
+        type: 'error',
+      });
       setTimeout(() => setToast({ visible: false, message: '', type: 'error' }), 2500);
     } finally {
       setDeletingId('');
@@ -826,40 +874,57 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
     let list = profiles;
     const needle = q.trim().toLowerCase();
     if (needle) {
-      list = list.filter(p => [p?.name, p?.email, p?.mobile].filter(Boolean).join(' ').toLowerCase().includes(needle));
+      list = list.filter((p) =>
+        [p?.name, p?.email, p?.mobile]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+          .includes(needle)
+      );
     }
     const loc = filterLocation.trim().toLowerCase();
     if (loc) {
-      list = list.filter(p => String(p?.location || '').toLowerCase().includes(loc));
+      list = list.filter((p) => String(p?.location || '').toLowerCase().includes(loc));
     }
     const skill = filterSkill.trim().toLowerCase();
     if (skill) {
-      list = list.filter(p => {
+      list = list.filter((p) => {
         const s = Array.isArray(p?.skills) ? p.skills.join(' ') : String(p?.skills || '');
         return s.toLowerCase().includes(skill);
       });
     }
-    const hasColumnFilters = columnFilters && Object.values(columnFilters).some(arr => Array.isArray(arr) && arr.length > 0);
+
+    const hasColumnFilters =
+      columnFilters && Object.values(columnFilters).some((arr) => Array.isArray(arr) && arr.length > 0);
     if (hasColumnFilters) {
       list = list.filter((p) => {
         for (const [col, selectedVals] of Object.entries(columnFilters)) {
           if (!Array.isArray(selectedVals) || selectedVals.length === 0) continue;
-          const v = String(getColumnText(p, col) || '');
-          const vNorm = normalizeFilterValue(v);
+
+          const values = getFilterValuesForColumn(p, col);
+          if (!values.length) return false;
+
           const selectedNorm = new Set(selectedVals.map(normalizeFilterValue));
-          if (!selectedNorm.has(vNorm)) return false;
+          const matched = values.some((val) => selectedNorm.has(normalizeFilterValue(val)));
+          if (!matched) return false;
         }
         return true;
       });
     }
+
     return list;
   }, [profiles, q, filterLocation, filterSkill, columnFilters]);
 
-  const selectedIds = useMemo(() => Object.keys(selectedMap).filter(k => selectedMap[k]), [selectedMap]);
-  const allShownSelected = useMemo(() => displayedProfiles.length > 0 && displayedProfiles.every(p => selectedMap[p._id]), [displayedProfiles, selectedMap]);
-  const toggleSelect = (id, val) => {
-    setSelectedMap(prev => ({ ...prev, [id]: val ?? !prev[id] }));
-  };
+  const selectedIds = useMemo(
+    () => Object.keys(selectedMap).filter((k) => selectedMap[k]),
+    [selectedMap]
+  );
+
+  const allShownSelected = useMemo(
+    () => displayedProfiles.length > 0 && displayedProfiles.every((p) => selectedMap[p._id]),
+    [displayedProfiles, selectedMap]
+  );
+
   const selectAllShown = (val) => {
     const next = { ...selectedMap };
     displayedProfiles.forEach(p => { next[p._id] = !!val; });
@@ -1497,6 +1562,19 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
                 </th>
                 <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">
                   <ColumnFilterHeader
+                    label="Preferred Locations"
+                    columnKey="preferred_locations"
+                    profiles={displayedProfiles}
+                    columnFilters={columnFilters}
+                    setColumnFilters={setColumnFilters}
+                    activeFilter={activeFilter}
+                    setActiveFilter={setActiveFilter}
+                    activeFilterSelection={activeFilterSelection}
+                    setActiveFilterSelection={setActiveFilterSelection}
+                  />
+                </th>
+                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">
+                  <ColumnFilterHeader
                     label="Designation"
                     columnKey="current_designation"
                     profiles={displayedProfiles}
@@ -1535,7 +1613,19 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
                     setActiveFilterSelection={setActiveFilterSelection}
                   />
                 </th>
-                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Skills</th>
+                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">
+                  <ColumnFilterHeader
+                    label="Skills"
+                    columnKey="skills"
+                    profiles={displayedProfiles}
+                    columnFilters={columnFilters}
+                    setColumnFilters={setColumnFilters}
+                    activeFilter={activeFilter}
+                    setActiveFilter={setActiveFilter}
+                    activeFilterSelection={activeFilterSelection}
+                    setActiveFilterSelection={setActiveFilterSelection}
+                  />
+                </th>
                 <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">
                   <ColumnFilterHeader
                     label="Mobile"
@@ -1559,7 +1649,7 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
               {loading ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <tr key={`sk-${i}`} className="animate-pulse">
-                    {Array.from({ length: 14 }).map((__, j) => (
+                    {Array.from({ length: 15 }).map((__, j) => (
                       <td key={`skc-${i}-${j}`} className="px-3 py-2 border-b">
                         <div className="h-3 bg-gray-200 rounded w-3/4" />
                       </td>
@@ -1568,7 +1658,7 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
                 ))
               ) : displayedProfiles.length === 0 ? (
                 <tr>
-                  <td colSpan={14} className="px-3 py-10">
+                  <td colSpan={15} className="px-3 py-10">
                     <div className="flex flex-col items-center justify-center text-center">
                       <div className="w-10 h-10 rounded-full bg-gray-100 border flex items-center justify-center mb-2">
                         <svg viewBox="0 0 24 24" className="w-5 h-5 text-gray-500"><path fill="currentColor" d="M12 12c2.21 0 4-1.79 4-4S14.21 4 12 4 8 5.79 8 8s1.79 4 4 4m0 2c-3.33 0-10 1.67-10 5v1h20v-1c0-3.33-6.67-5-10-5Z"/></svg>
@@ -1606,10 +1696,21 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
                         return renderExperience(p?.experience);
                       })()}
                     </td>
-                    <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}>{p?.ctc || '-'}</td>
-                    <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}>{p?.location || '-'}</td>
-                    <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}><span className="px-1.5 py-0.5 rounded text-[10px] border bg-indigo-50 text-indigo-700 border-indigo-200">{p?.current_designation || '-'}</span></td>
-                    <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}><span className="px-1.5 py-0.5 rounded text-[10px] border bg-emerald-50 text-emerald-700 border-emerald-200">{p?.current_company || '-'}</span></td>
+                    <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}>{displayValue(p?.ctc)}</td>
+                    <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}>{displayValue(p?.location)}</td>
+                    <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top break-words whitespace-normal`}>
+                      {(() => {
+                        const v = p?.preferred_locations;
+                        if (!v) return '-';
+                        if (Array.isArray(v)) {
+                          const clean = v.map(sanitizeValue).filter(Boolean).join(', ');
+                          return clean || '-';
+                        }
+                        return displayValue(v);
+                      })()}
+                    </td>
+                    <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}><span className="px-1.5 py-0.5 rounded text-[10px] border bg-indigo-50 text-indigo-700 border-indigo-200">{displayValue(p?.current_designation)}</span></td>
+                    <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}><span className="px-1.5 py-0.5 rounded text-[10px] border bg-emerald-50 text-emerald-700 border-emerald-200">{displayValue(p?.current_company)}</span></td>
                     <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top break-words whitespace-normal`}>
                       {(() => {
                         const isLinkedIn = String(p?.source || '').toLowerCase() === 'linkedin';
@@ -1782,7 +1883,7 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
                                     onClick={() => openFinalLineupCandidateModal(p)}
                                     className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] rounded border border-sky-500 text-sky-700 bg-white hover:bg-sky-50 shadow-sm"
                                   >
-                                    Update to Candidate
+                                    Create Interview Letter 
                                   </button>
                                 )}
                               </div>
@@ -1877,7 +1978,7 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
                                   onClick={() => openFinalLineupCandidateModal(p)}
                                   className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] rounded border border-sky-500 text-sky-700 bg-white hover:bg-sky-50 shadow-sm"
                                 >
-                                  Update to Candidate
+                                  Create Interview Letter
                                 </button>
                               )}
                             </div>
