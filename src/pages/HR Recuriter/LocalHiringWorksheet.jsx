@@ -23,6 +23,7 @@ const HRRecruiterLocalHiringWorksheet = () => {
 
   const [statusFilter, setStatusFilter] = useState('');
   const [completionFilter, setCompletionFilter] = useState('');
+  const [jdSentFilter, setJdSentFilter] = useState(''); // '', 'sent', 'not-sent'
   const [search, setSearch] = useState('');
 
   const [viewOpen, setViewOpen] = useState(false);
@@ -98,20 +99,30 @@ const HRRecruiterLocalHiringWorksheet = () => {
 
   useEffect(() => {
     let data = [...allRows];
+
     if (positionFilter && positionFilter !== 'all') {
       data = data.filter((a) => {
         const meta = getPositionMeta(a);
         return meta.id === positionFilter;
       });
     }
+
     if (statusFilter) {
       data = data.filter((a) => (a.currentStatus || '').toLowerCase() === statusFilter.toLowerCase());
     }
+
     if (completionFilter === 'completed') {
       data = data.filter((a) => !!a.completed);
     } else if (completionFilter === 'pending') {
       data = data.filter((a) => !a.completed);
     }
+
+    if (jdSentFilter) {
+      data = data.filter((a) =>
+        jdSentFilter === 'sent' ? !!a.emailSent : !a.emailSent
+      );
+    }
+
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       data = data.filter((a) => {
@@ -133,8 +144,9 @@ const HRRecruiterLocalHiringWorksheet = () => {
         return text.includes(q);
       });
     }
+
     setRows(data);
-  }, [allRows, statusFilter, completionFilter, search, positionFilter]);
+  }, [allRows, statusFilter, completionFilter, jdSentFilter, search, positionFilter]);
 
   const stats = useMemo(() => {
     const total = allRows.length;
@@ -263,7 +275,7 @@ const HRRecruiterLocalHiringWorksheet = () => {
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <div>
                 <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Status</label>
                 <select
@@ -289,6 +301,18 @@ const HRRecruiterLocalHiringWorksheet = () => {
                   <option value="pending">Pending</option>
                 </select>
               </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">JD Status</label>
+                <select
+                  value={jdSentFilter}
+                  onChange={(e) => setJdSentFilter(e.target.value)}
+                  className="mt-2 w-full border border-slate-200 rounded-2xl px-3 py-2 text-sm bg-slate-50 focus:outline-none"
+                >
+                  <option value="">All</option>
+                  <option value="sent">JD Sent</option>
+                  <option value="not-sent">JD Not Sent</option>
+                </select>
+              </div>
               <div className="md:col-span-2">
                 <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Search</label>
                 <input
@@ -310,7 +334,7 @@ const HRRecruiterLocalHiringWorksheet = () => {
                 <table className="min-w-full divide-y divide-slate-200 text-sm">
                   <thead className="bg-slate-50">
                     <tr>
-                      {['Name', 'Mobile', 'Email', 'Location', 'Position', 'Status', 'Remarks', 'Completed', 'Actions'].map((col) => (
+                      {['Name', 'Mobile', 'Email', 'Location', 'Position', 'Status', 'JD Sent', 'Line-up', 'Interview Type', 'Remarks', 'Completed', 'Actions'].map((col) => (
                         <th key={col} className="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">
                           {col}
                         </th>
@@ -322,13 +346,24 @@ const HRRecruiterLocalHiringWorksheet = () => {
                       const l = a?.lead || {};
                       const completed = !!a.completed;
                       const positionMeta = getPositionMeta(a);
+                      const lineUpLabel = a.currentStatus === 'Line up' && a.lineUpDateTime
+                        ? new Date(a.lineUpDateTime).toLocaleString('en-IN', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: true,
+                          })
+                        : '—';
+
                       return (
                         <tr key={a._id} className="hover:bg-slate-50">
-                          <td className="px-3 py-3">{l.name || l?.profile?.name || '—'}</td>
-                          <td className="px-3 py-3">{Array.isArray(l.mobile) ? l.mobile.join(', ') : '—'}</td>
-                          <td className="px-3 py-3 break-all">{l.email || l?.profile?.email || '—'}</td>
-                          <td className="px-3 py-3">{l.location || l?.profile?.location || '—'}</td>
-                          <td className="px-3 py-3">
+                          <td className="px-3 py-3 whitespace-nowrap">{l.name || l?.profile?.name || '—'}</td>
+                          <td className="px-3 py-3 whitespace-nowrap">{Array.isArray(l.mobile) ? l.mobile.join(', ') : '—'}</td>
+                          <td className="px-3 py-3 break-all whitespace-nowrap">{l.email || l?.profile?.email || '—'}</td>
+                          <td className="px-3 py-3 whitespace-nowrap">{l.location || l?.profile?.location || '—'}</td>
+                          <td className="px-3 py-3 whitespace-nowrap">
                             <button
                               type="button"
                               onClick={() => setPositionFilter(positionMeta.id)}
@@ -339,14 +374,29 @@ const HRRecruiterLocalHiringWorksheet = () => {
                               {positionMeta.name || '—'}
                             </button>
                           </td>
-                          <td className="px-3 py-3 font-semibold text-slate-800">{a.currentStatus || '—'}</td>
-                          <td className="px-3 py-3">{a.remarks || '—'}</td>
-                          <td className="px-3 py-3">
-                            <span className={completed ? 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200' : 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200'}>
+                          <td className="px-3 py-3 font-semibold text-slate-800 whitespace-nowrap">{a.currentStatus || '—'}</td>
+                          <td className="px-3 py-3 whitespace-nowrap">
+                            <span
+                              className={a.emailSent
+                                ? 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                : 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200'}
+                            >
+                              {a.emailSent ? 'Yes' : 'No'}
+                            </span>
+                          </td>
+                          <td className="px-3 py-3 whitespace-nowrap">{lineUpLabel}</td>
+                          <td className="px-3 py-3 whitespace-nowrap">{a.interviewType || '—'}</td>
+                          <td className="px-3 py-3 max-w-xs">
+                            <span className="block truncate" title={a.remarks || '—'}>{a.remarks || '—'}</span>
+                          </td>
+                          <td className="px-3 py-3 whitespace-nowrap">
+                            <span className={completed
+                              ? 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200'}>
                               {completed ? 'Yes' : 'No'}
                             </span>
                           </td>
-                          <td className="px-3 py-3">
+                          <td className="px-3 py-3 whitespace-nowrap">
                             <button
                               type="button"
                               onClick={() => { setViewItem(a); setViewOpen(true); }}

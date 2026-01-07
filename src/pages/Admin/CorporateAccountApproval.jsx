@@ -15,6 +15,10 @@ export default function CorporateAccountApproval() {
   const [counts, setCounts] = useState({}); 
   const [companyFilter, setCompanyFilter] = useState("");
   const [hrFilter, setHrFilter] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(25);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [profilesModalOpen, setProfilesModalOpen] = useState(false);
   const [profilesModalTitle, setProfilesModalTitle] = useState("");
   const [profilesModalType, setProfilesModalType] = useState("");
@@ -64,9 +68,31 @@ export default function CorporateAccountApproval() {
   const fetchAccounts = async () => {
     setLoading(true);
     try {
-      const { data } = await axios.get(`${API_BASE}/getAccounts/all`);
+      const params = {
+        page,
+        limit: pageSize,
+      };
+      if (companyFilter) {
+        params.company = companyFilter;
+      }
+      if (hrFilter) {
+        params.hrName = hrFilter;
+      }
+
+      const { data } = await axios.get(`${API_BASE}/getAccounts/all`, { params });
       const list = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
-      setAccounts(list.slice().reverse());
+      setAccounts(list);
+      if (typeof data?.count === "number") {
+        setTotalCount(data.count);
+      } else {
+        setTotalCount(list.length);
+      }
+      if (typeof data?.totalPages === "number" && data.totalPages > 0) {
+        setTotalPages(data.totalPages);
+      } else {
+        setTotalPages(1);
+      }
+
       try {
         const queries = list
           .map((acc) => acc?.companyName)
@@ -100,193 +126,9 @@ export default function CorporateAccountApproval() {
 
   useEffect(() => {
     fetchAccounts();
-  }, []);
+  }, [page, companyFilter, hrFilter]);
 
-  const approveAccount = async (accountId) => {
-    try {
-      await toast.promise(
-        axios.post(`${API_BASE}/approve/corporate`, { accountId }),
-        {
-          loading: "Approving account...",
-          success: "Account approved",
-          error: "Failed to approve account",
-        }
-      );
-      fetchAccounts();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const fetchDemoProfiles = async () => {
-    try {
-      const response = await toast.promise(
-        axios.get(`${ADMIN_API_BASE}/gettopctcprofiles`, {
-          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
-        }),
-        {
-          loading: "Fetching demo profiles...",
-          success: "Demo profiles fetched",
-          error: "Failed to fetch demo profiles",
-        }
-      );
-      const list = Array.isArray(response?.data?.data)
-        ? response.data.data
-        : Array.isArray(response?.data)
-        ? response.data
-        : [];
-      setProfilesModalTitle("Top CTC Profiles (Demo)");
-      setProfilesModalType("demo");
-      setProfilesModalData(list);
-      setProfilesModalOpen(true);
-    } catch (err) {
-      console.error("Error fetching demo profiles", err);
-    }
-  };
-
-  const fetchServiceProfiles = async () => {
-    try {
-      const response = await toast.promise(
-        axios.get(`${ADMIN_API_BASE}/getallprofilesforadmin`, {
-          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
-        }),
-        {
-          loading: "Fetching service profiles...",
-          success: "Service profiles fetched",
-          error: "Failed to fetch service profiles",
-        }
-      );
-      const list = Array.isArray(response?.data?.data)
-        ? response.data.data
-        : Array.isArray(response?.data)
-        ? response.data
-        : [];
-      setProfilesModalTitle("All Profiles (Service)");
-      setProfilesModalType("service");
-      setProfilesModalData(list);
-      setProfilesModalOpen(true);
-    } catch (err) {
-      console.error("Error fetching service profiles", err);
-    }
-  };
-
-  const fetchDemoProfilesForCompany = async (companyName) => {
-    if (!companyName) {
-      toast.error("Company name not available for this row");
-      return;
-    }
-    try {
-      const response = await toast.promise(
-        axios.get(`${ADMIN_API_BASE}/gettopctcprofiles`, {
-          params: { companyName },
-          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
-        }),
-        {
-          loading: `Fetching demo profiles for ${companyName}...`,
-          success: `Demo profiles fetched for ${companyName}`,
-          error: "Failed to fetch demo profiles",
-        }
-      );
-      const list = Array.isArray(response?.data?.data)
-        ? response.data.data
-        : Array.isArray(response?.data)
-        ? response.data
-        : [];
-      setProfilesModalTitle(`Top CTC Profiles (Demo) - ${companyName}`);
-      setProfilesModalType("demo");
-      setProfilesModalData(list);
-      setProfilesModalOpen(true);
-    } catch (err) {
-      console.error("Error fetching demo profiles for company", companyName, err);
-    }
-  };
-
-  const fetchServiceProfilesForCompany = async (companyName) => {
-    if (!companyName) {
-      toast.error("Company name not available for this row");
-      return;
-    }
-    try {
-      const response = await toast.promise(
-        axios.get(`${ADMIN_API_BASE}/getallprofilesforadmin`, {
-          params: { companyName },
-          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
-        }),
-        {
-          loading: `Fetching service profiles for ${companyName}...`,
-          success: `Service profiles fetched for ${companyName}`,
-          error: "Failed to fetch service profiles",
-        }
-      );
-      const list = Array.isArray(response?.data?.data)
-        ? response.data.data
-        : Array.isArray(response?.data)
-        ? response.data
-        : [];
-      setProfilesModalTitle(`All Profiles (Service) - ${companyName}`);
-      setProfilesModalType("service");
-      setProfilesModalData(list);
-      setProfilesModalOpen(true);
-    } catch (err) {
-      console.error("Error fetching service profiles for company", companyName, err);
-    }
-  };
-
-  const disapproveAccount = async (accountId) => {
-    try {
-      await toast.promise(
-        axios.post(`${API_BASE}/disapprove/corporate`, { accountId }),
-        {
-          loading: "Disapproving account...",
-          success: "Account disapproved",
-          error: "Failed to disapprove account",
-        }
-      );
-      fetchAccounts();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const viewAccount = (account) => {
-    // Navigate to NaukriParser with the company name
-    window.location.href = `/naukri-parser?company=${encodeURIComponent(account.companyName)}&fromCorporate=true`;
-  };
-
-  const viewAccountLinkedIn = (account) => {
-    // Navigate to LinkedInPParser with the company name
-    window.location.href = `/linkedin-parser?company=${encodeURIComponent(account.companyName)}&fromCorporate=true`;
-  };
-
-  const deleteAccount = async (accountId) => {
-    if (!window.confirm("Are you sure you want to delete this account?")) {
-      return;
-    }
-    
-    try {
-      await toast.promise(
-        axios.delete(`${API_BASE}/delete/corporate/${accountId}`),
-        {
-          loading: "Deleting account...",
-          success: "Account deleted successfully",
-          error: "Failed to delete account",
-        }
-      );
-      fetchAccounts();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const filteredAccounts = accounts.filter((acc) => {
-    if (companyFilter && !(acc.companyName || "").toLowerCase().includes(companyFilter.toLowerCase())) {
-      return false;
-    }
-    if (hrFilter && !(acc.hrName || "").toLowerCase().includes(hrFilter.toLowerCase())) {
-      return false;
-    }
-    return true;
-  });
+  const filteredAccounts = accounts;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -299,17 +141,15 @@ export default function CorporateAccountApproval() {
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={fetchDemoProfiles}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition"
+              onClick={() => {
+                setCompanyFilter("");
+                setHrFilter("");
+                setPage(1);
+              }}
+              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition"
+              title="Clear all filters"
             >
-              Demo
-            </button>
-            <button
-              type="button"
-              onClick={fetchServiceProfiles}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition"
-            >
-              Service
+              Clear All
             </button>
           </div>
         </div>
@@ -324,7 +164,7 @@ export default function CorporateAccountApproval() {
               <input
                 type="text"
                 value={companyFilter}
-                onChange={(e) => setCompanyFilter(e.target.value)}
+                onChange={(e) => { setCompanyFilter(e.target.value); setPage(1); }}
                 placeholder="Search by company"
                 className="pl-10 pr-10 py-2 w-64 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm transition"
               />
@@ -351,7 +191,7 @@ export default function CorporateAccountApproval() {
               <input
                 type="text"
                 value={hrFilter}
-                onChange={(e) => setHrFilter(e.target.value)}
+                onChange={(e) => { setHrFilter(e.target.value); setPage(1); }}
                 placeholder="Search by HR name"
                 className="pl-10 pr-10 py-2 w-64 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm transition"
               />
@@ -371,7 +211,7 @@ export default function CorporateAccountApproval() {
           </div>
           {(companyFilter || hrFilter) && (
             <button
-              onClick={() => { setCompanyFilter(""); setHrFilter(""); }}
+              onClick={() => { setCompanyFilter(""); setHrFilter(""); setPage(1); }}
               type="button"
               className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition"
               title="Clear all filters"
@@ -544,6 +384,44 @@ export default function CorporateAccountApproval() {
                 ))}
               </tbody>
             </table>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t text-sm text-gray-700">
+                <span>
+                  Showing {accounts.length > 0 ? (page - 1) * pageSize + 1 : 0}
+                  {" - "}
+                  {(page - 1) * pageSize + accounts.length} of {totalCount} records
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => Math.max(p - 1, 1))}
+                    disabled={page === 1 || loading}
+                    className={`px-3 py-1 rounded-lg border text-sm font-medium ${
+                      page === 1 || loading
+                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                        : "bg-white text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    Previous
+                  </button>
+                  <span className="text-gray-600">
+                    Page {page} of {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+                    disabled={page === totalPages || loading}
+                    className={`px-3 py-1 rounded-lg border text-sm font-medium ${
+                      page === totalPages || loading
+                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                        : "bg-white text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

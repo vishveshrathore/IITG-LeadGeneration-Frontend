@@ -83,6 +83,8 @@ const getColumnText = (p, key) => {
       return sanitizeValue(p.preferred_locations);
     case 'mobile':
       return sanitizeValue(p.mobile);
+    case 'email':
+      return sanitizeValue(p.email);
     case 'current_designation':
       return sanitizeValue(p.current_designation);
     case 'current_company':
@@ -448,8 +450,11 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
 
   const [qInput, setQInput] = useState('');
   const [expandSkills, setExpandSkills] = useState({});
+  const [expandExperience, setExpandExperience] = useState({});
   const [expandPreviousRoles, setExpandPreviousRoles] = useState({});
   const [expandEducation, setExpandEducation] = useState({});
+  const [expandPreferredLocations, setExpandPreferredLocations] = useState({});
+  const [expandLocation, setExpandLocation] = useState({});
   const [columnFilters, setColumnFilters] = useState({});
   const [activeFilter, setActiveFilter] = useState({ column: null, search: '' });
   const [activeFilterSelection, setActiveFilterSelection] = useState([]);
@@ -468,8 +473,12 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
     contactNumber: '',
     location: '',
     address: '',
+    interviewType: 'PI',
+    interviewLink: '',
   });
   const [sendingFinalLineupCandidate, setSendingFinalLineupCandidate] = useState(false);
+  const [contactEdits, setContactEdits] = useState({});
+  const [contactSavingId, setContactSavingId] = useState('');
 
   const companyName = useMemo(() => {
     const c = job?.createdBy || {};
@@ -489,9 +498,60 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
     };
   }, [candidateModal.profile, job]);
 
+  const interviewType = candidateForm.interviewType || 'PI';
+  const isVirtualInterview = interviewType === 'VI';
+
   const applyCandidateSuggestion = (field) => {
     if (!field) return;
     setCandidateForm((prev) => ({ ...prev, [field]: candidateSuggestions[field] || '' }));
+  };
+
+  const getContactDraft = (p) => {
+    const draft = contactEdits[p._id] || {};
+    return {
+      mobile: draft.mobile != null ? draft.mobile : (p?.mobile || ''),
+      email: draft.email != null ? draft.email : (p?.email || ''),
+    };
+  };
+
+  const updateContactDraft = (id, field, value) => {
+    setContactEdits((prev) => ({
+      ...prev,
+      [id]: { ...(prev[id] || {}), [field]: value },
+    }));
+  };
+
+  const saveContact = async (p) => {
+    const id = p?._id;
+    if (!id || !authToken) return;
+    const draft = contactEdits[id] || {};
+    const payload = {};
+    if (draft.mobile != null) payload.mobile = draft.mobile;
+    if (draft.email != null) payload.email = draft.email;
+    if (!Object.keys(payload).length) return;
+    try {
+      setContactSavingId(String(id));
+      await axios.patch(
+        `${BASE_URL}/api/admin/recruitment/profile/${id}`,
+        payload,
+        {
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+        }
+      );
+      await refresh();
+      setContactEdits((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      setToast({ visible: true, message: 'Contact updated', type: 'success' });
+      setTimeout(() => setToast({ visible: false, message: '', type: 'success' }), 2000);
+    } catch (e) {
+      setToast({ visible: true, message: e?.response?.data?.message || e?.message || 'Update failed', type: 'error' });
+      setTimeout(() => setToast({ visible: false, message: '', type: 'error' }), 2500);
+    } finally {
+      setContactSavingId('');
+    }
   };
 
   const jobId = job?._id;
@@ -662,10 +722,16 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
     }
   };
 
-  const renderChips = (arr) => {
+  const chipVariantClasses = {
+    neutral: 'bg-gray-50 text-gray-700 border-gray-200',
+    info: 'bg-blue-50 text-blue-700 border-blue-200',
+  };
+
+  const renderChips = (arr, variant = 'neutral') => {
     if (!Array.isArray(arr) || arr.length === 0) return '-';
+    const colorClasses = chipVariantClasses[variant] || chipVariantClasses.neutral;
     return (
-      <div className="flex flex-wrap gap-1 max-w-[320px]">
+      <div className="flex flex-wrap gap-1 max-w-[260px] text-[10px] leading-tight">
         {arr.map((it, i) => {
           let label;
           if (it && typeof it === 'object') {
@@ -681,7 +747,7 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
           } else {
             label = String(it);
           }
-          return <span key={i} className="px-1.5 py-0.5 rounded text-[10px] border bg-gray-50 text-gray-700 border-gray-200" title={label}>{label}</span>;
+          return <span key={i} className={`px-1.5 py-0.5 rounded text-[10px] border ${colorClasses}`} title={label}>{label}</span>;
         })}
       </div>
     );
@@ -842,8 +908,11 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
   };
 
   const toggleSkills = (id) => setExpandSkills(prev => ({ ...prev, [id]: !prev[id] }));
+  const toggleExperience = (id) => setExpandExperience(prev => ({ ...prev, [id]: !prev[id] }));
   const togglePreviousRoles = (id) => setExpandPreviousRoles(prev => ({ ...prev, [id]: !prev[id] }));
   const toggleEducation = (id) => setExpandEducation(prev => ({ ...prev, [id]: !prev[id] }));
+  const togglePreferredLocations = (id) => setExpandPreferredLocations(prev => ({ ...prev, [id]: !prev[id] }));
+  const toggleLocation = (id) => setExpandLocation(prev => ({ ...prev, [id]: !prev[id] }));
 
   const deleteResume = async (profileId) => {
     try {
@@ -924,6 +993,20 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
     () => displayedProfiles.length > 0 && displayedProfiles.every((p) => selectedMap[p._id]),
     [displayedProfiles, selectedMap]
   );
+
+  const toggleSelect = (id, value) => {
+    if (!id) return;
+    setSelectedMap((prev) => {
+      const next = { ...prev };
+      const nextVal = typeof value === 'boolean' ? value : !next[id];
+      if (nextVal) {
+        next[id] = true;
+      } else {
+        delete next[id];
+      }
+      return next;
+    });
+  };
 
   const selectAllShown = (val) => {
     const next = { ...selectedMap };
@@ -1357,6 +1440,8 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
       contactNumber: '',
       location: '',
       address: '',
+      interviewType: 'PI',
+      interviewLink: '',
     });
   };
 
@@ -1369,6 +1454,8 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
 
     const trimmedEmail = String(candidateForm.email || '').trim();
     const trimmedMobile = String(candidateForm.mobile || '').trim();
+    const trimmedLink = String(candidateForm.interviewLink || '').trim();
+    const isVI = (candidateForm.interviewType || 'PI') === 'VI';
 
     if (!trimmedEmail && !trimmedMobile) {
       setToast({ visible: true, message: 'Please enter candidate email or mobile number.', type: 'error' });
@@ -1376,14 +1463,32 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
       return;
     }
 
-    if (!candidateForm.interviewDate || !candidateForm.interviewTime || !candidateForm.contactPerson || !candidateForm.location) {
-      setToast({ visible: true, message: 'Please fill interview date, time, contact person and location.', type: 'error' });
+    if (!candidateForm.interviewDate || !candidateForm.interviewTime) {
+      setToast({ visible: true, message: 'Please fill interview date and time.', type: 'error' });
       setTimeout(() => setToast({ visible: false, message: '', type: 'error' }), 2500);
       return;
     }
 
+    if (isVI) {
+      if (!trimmedLink) {
+        setToast({ visible: true, message: 'Please enter video interview link.', type: 'error' });
+        setTimeout(() => setToast({ visible: false, message: '', type: 'error' }), 2500);
+        return;
+      }
+    } else {
+      if (!candidateForm.contactPerson || !candidateForm.location) {
+        setToast({ visible: true, message: 'Please fill interview date, time, contact person and location.', type: 'error' });
+        setTimeout(() => setToast({ visible: false, message: '', type: 'error' }), 2500);
+        return;
+      }
+    }
+
     try {
       setSendingFinalLineupCandidate(true);
+      const payloadLocation = isVI ? 'Virtual Interview' : candidateForm.location;
+      const payloadAddress = isVI ? (trimmedLink || 'N/A') : candidateForm.address;
+      const payloadContactPerson = isVI ? 'N/A' : candidateForm.contactPerson;
+      const payloadContactNumber = candidateForm.contactNumber;
       const { data } = await axios.post(
         `${BASE_URL}/api/admin/recruitment/job/${jobId}/notify-final-lineup-candidate`,
         {
@@ -1391,10 +1496,13 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
           mobile: trimmedMobile || undefined,
           interviewDate: candidateForm.interviewDate,
           interviewTime: candidateForm.interviewTime,
-          contactPerson: candidateForm.contactPerson,
-          contactNumber: candidateForm.contactNumber,
-          location: candidateForm.location,
-          address: candidateForm.address,
+          contactPerson: payloadContactPerson,
+          contactNumber: payloadContactNumber,
+          location: payloadLocation,
+          address: payloadAddress,
+          interviewType: isVI ? 'VI' : 'PI',
+          interviewLink: trimmedLink || undefined,
+          profileId: candidateModal.profile?._id,
         },
         {
           headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
@@ -1402,6 +1510,7 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
       );
 
       const msg = data?.message || 'Final lineup interview notification sent to candidate.';
+      await refresh();
       setCandidateModal({ open: false, profile: null });
       setToast({ visible: true, message: msg, type: 'success' });
       setTimeout(() => setToast({ visible: false, message: '', type: 'success' }), 2500);
@@ -1500,15 +1609,15 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
           <button type="button" onClick={bulkMoveSelected} disabled={bulkSaving || selectedIds.length===0} className={`px-3 py-1.5 text-xs rounded ${bulkSaving || selectedIds.length===0 ? 'bg-indigo-600/60 text-white cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 text-white'}`}>{bulkSaving? 'Moving…' : `Move Selected to ${getStageDisplayName(nextStage(stageKey))}`}</button>
         </div>
       </div>
-      <div className="border rounded overflow-hidden">
-        <table className="w-full table-auto text-xs">
+      <div className="overflow-x-auto border border-gray-200 rounded">
+        <table className="w-full text-xs">
             <thead className="bg-gray-50 sticky top-0 z-10">
               <tr>
-                <th className="px-2 py-2 text-left font-medium text-gray-600 border-b">
+                <th className="px-2 py-1 text-left font-medium text-gray-600 border-b border-gray-200">
                   <input type="checkbox" className="accent-indigo-600" checked={allShownSelected} onChange={(e)=> selectAllShown(e.target.checked)} />
                 </th>
-                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">#</th>
-                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">
+                <th className="px-2 py-1 text-left font-medium text-gray-600 border-b border-gray-200">#</th>
+                <th className="px-2 py-1 text-left font-medium text-gray-600 border-b border-gray-200">
                   <ColumnFilterHeader
                     label="Name"
                     columnKey="name"
@@ -1521,7 +1630,7 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
                     setActiveFilterSelection={setActiveFilterSelection}
                   />
                 </th>
-                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">
+                <th className="px-2 py-1 text-left font-medium text-gray-600 border-b border-gray-200">
                   <ColumnFilterHeader
                     label="Experience"
                     columnKey="experience"
@@ -1534,7 +1643,7 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
                     setActiveFilterSelection={setActiveFilterSelection}
                   />
                 </th>
-                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">
+                <th className="px-2 py-1 text-left font-medium text-gray-600 border-b border-gray-200">
                   <ColumnFilterHeader
                     label="CTC"
                     columnKey="ctc"
@@ -1547,7 +1656,7 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
                     setActiveFilterSelection={setActiveFilterSelection}
                   />
                 </th>
-                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">
+                <th className="px-2 py-1 text-left font-medium text-gray-600 border-b border-gray-200">
                   <ColumnFilterHeader
                     label="Location"
                     columnKey="location"
@@ -1560,7 +1669,7 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
                     setActiveFilterSelection={setActiveFilterSelection}
                   />
                 </th>
-                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">
+                <th className="px-2 py-1 text-left font-medium text-gray-600 border-b border-gray-200">
                   <ColumnFilterHeader
                     label="Preferred Locations"
                     columnKey="preferred_locations"
@@ -1573,7 +1682,7 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
                     setActiveFilterSelection={setActiveFilterSelection}
                   />
                 </th>
-                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">
+                <th className="px-2 py-1 text-left font-medium text-gray-600 border-b border-gray-200">
                   <ColumnFilterHeader
                     label="Designation"
                     columnKey="current_designation"
@@ -1586,7 +1695,7 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
                     setActiveFilterSelection={setActiveFilterSelection}
                   />
                 </th>
-                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">
+                <th className="px-2 py-1 text-left font-medium text-gray-600 border-b border-gray-200">
                   <ColumnFilterHeader
                     label="Current Company"
                     columnKey="current_company"
@@ -1599,8 +1708,8 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
                     setActiveFilterSelection={setActiveFilterSelection}
                   />
                 </th>
-                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Previous Roles</th>
-                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">
+                <th className="px-2 py-1 text-left font-medium text-gray-600 border-b border-gray-200">Previous Roles</th>
+                <th className="px-2 py-1 text-left font-medium text-gray-600 border-b border-gray-200">
                   <ColumnFilterHeader
                     label="Education"
                     columnKey="education"
@@ -1613,7 +1722,7 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
                     setActiveFilterSelection={setActiveFilterSelection}
                   />
                 </th>
-                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">
+                <th className="px-2 py-1 text-left font-medium text-gray-600 border-b border-gray-200">
                   <ColumnFilterHeader
                     label="Skills"
                     columnKey="skills"
@@ -1626,7 +1735,7 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
                     setActiveFilterSelection={setActiveFilterSelection}
                   />
                 </th>
-                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">
+                <th className="px-2 py-1 text-left font-medium text-gray-600 border-b border-gray-200">
                   <ColumnFilterHeader
                     label="Mobile"
                     columnKey="mobile"
@@ -1639,17 +1748,30 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
                     setActiveFilterSelection={setActiveFilterSelection}
                   />
                 </th>
-                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">
+                <th className="px-2 py-1 text-left font-medium text-gray-600 border-b border-gray-200">
+                  <ColumnFilterHeader
+                    label="Email"
+                    columnKey="email"
+                    profiles={displayedProfiles}
+                    columnFilters={columnFilters}
+                    setColumnFilters={setColumnFilters}
+                    activeFilter={activeFilter}
+                    setActiveFilter={setActiveFilter}
+                    activeFilterSelection={activeFilterSelection}
+                    setActiveFilterSelection={setActiveFilterSelection}
+                  />
+                </th>
+                <th className="px-2 py-1 text-left font-medium text-gray-600 border-b border-gray-200">
                   Resume
                 </th>
-                <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Actions</th>
+                <th className="px-2 py-1 text-left font-medium text-gray-600 border-b border-gray-200">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <tr key={`sk-${i}`} className="animate-pulse">
-                    {Array.from({ length: 15 }).map((__, j) => (
+                    {Array.from({ length: 16 }).map((__, j) => (
                       <td key={`skc-${i}-${j}`} className="px-3 py-2 border-b">
                         <div className="h-3 bg-gray-200 rounded w-3/4" />
                       </td>
@@ -1658,7 +1780,7 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
                 ))
               ) : displayedProfiles.length === 0 ? (
                 <tr>
-                  <td colSpan={15} className="px-3 py-10">
+                  <td colSpan={16} className="px-3 py-10">
                     <div className="flex flex-col items-center justify-center text-center">
                       <div className="w-10 h-10 rounded-full bg-gray-100 border flex items-center justify-center mb-2">
                         <svg viewBox="0 0 24 24" className="w-5 h-5 text-gray-500"><path fill="currentColor" d="M12 12c2.21 0 4-1.79 4-4S14.21 4 12 4 8 5.79 8 8s1.79 4 4 4m0 2c-3.33 0-10 1.67-10 5v1h20v-1c0-3.33-6.67-5-10-5Z"/></svg>
@@ -1693,20 +1815,122 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
                           const total = getLinkedInTotalExperienceFromRaw(rawExp);
                           return total || '-';
                         }
-                        return renderExperience(p?.experience);
+
+                        const v = p?.experience;
+                        if (!v) return '-';
+
+                        let items = [];
+                        if (Array.isArray(v)) {
+                          items = v.map((it) => {
+                            if (it && typeof it === 'object') {
+                              const d = it.designation || '';
+                              const c = it.company ? ` at ${it.company}` : '';
+                              const s = `${d}${c}`.trim();
+                              return s || JSON.stringify(it);
+                            }
+                            return String(it || '').trim();
+                          }).filter(Boolean);
+                        } else {
+                          const s = String(v || '').trim();
+                          if (!s) return '-';
+                          const parts = s.split('|').map(part => part.trim()).filter(Boolean);
+                          if (parts.length <= 1) return s;
+                          items = parts;
+                        }
+
+                        if (!items.length) return '-';
+
+                        const expanded = !!expandExperience[p._id];
+                        const shown = expanded ? items : items.slice(0, 3);
+                        const more = items.length - shown.length;
+
+                        return (
+                          <div className="flex flex-col gap-1 max-w-[260px]">
+                            <div className="flex flex-wrap gap-1 text-[10px] leading-tight">
+                              {shown.map((s, si) => (
+                                <span
+                                  key={si}
+                                  className="px-1.5 py-0.5 rounded border bg-gray-50 text-gray-700 border-gray-200"
+                                  title={s}
+                                >
+                                  {s}
+                                </span>
+                              ))}
+                            </div>
+                            {more > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => toggleExperience(p._id)}
+                                className="self-start px-2 py-0.5 text-[10px] rounded border bg-white hover:bg-gray-50 text-sky-700"
+                              >
+                                {expanded ? 'Show less' : `+${more} more`}
+                              </button>
+                            )}
+                          </div>
+                        );
                       })()}
                     </td>
                     <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}>{displayValue(p?.ctc)}</td>
-                    <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}>{displayValue(p?.location)}</td>
+                    <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top break-words whitespace-normal w-40`}>
+                      {(() => {
+                        const text = displayValue(p?.location, '-');
+                        if (!text || text === '-') return '-';
+
+                        const expanded = !!expandLocation[p._id];
+                        if (!expanded && text.length <= 60) {
+                          return text;
+                        }
+
+                        const shortText = text.length > 60 && !expanded ? text.slice(0, 60) + '…' : text;
+                        return (
+                          <div className="flex items-start gap-1 max-w-[160px]">
+                            <span className="flex-1 break-words" title={text}>{shortText}</span>
+                            {text.length > 60 && (
+                              <button
+                                type="button"
+                                onClick={() => toggleLocation(p._id)}
+                                className="ml-1 text-[9px] px-1 py-0.5 rounded border bg-white hover:bg-gray-50 text-sky-700 whitespace-nowrap"
+                              >
+                                {expanded ? 'Show less' : 'Show more'}
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </td>
                     <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top break-words whitespace-normal`}>
                       {(() => {
                         const v = p?.preferred_locations;
                         if (!v) return '-';
+                        let text;
                         if (Array.isArray(v)) {
                           const clean = v.map(sanitizeValue).filter(Boolean).join(', ');
-                          return clean || '-';
+                          text = clean || '';
+                        } else {
+                          text = displayValue(v, '');
                         }
-                        return displayValue(v);
+                        if (!text) return '-';
+
+                        const expanded = !!expandPreferredLocations[p._id];
+                        if (!expanded && text.length <= 80) {
+                          return text;
+                        }
+
+                        const shortText = text.length > 80 && !expanded ? text.slice(0, 80) + '…' : text;
+                        return (
+                          <div className="flex items-start gap-1 max-w-[260px]">
+                            <span className="flex-1 break-words" title={text}>{shortText}</span>
+                            {text.length > 80 && (
+                              <button
+                                type="button"
+                                onClick={() => togglePreferredLocations(p._id)}
+                                className="ml-1 text-[10px] px-1.5 py-0.5 rounded border bg-white hover:bg-gray-50 text-sky-700 whitespace-nowrap"
+                              >
+                                {expanded ? 'Show less' : 'Show more'}
+                              </button>
+                            )}
+                          </div>
+                        );
                       })()}
                     </td>
                     <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}><span className="px-1.5 py-0.5 rounded text-[10px] border bg-indigo-50 text-indigo-700 border-indigo-200">{displayValue(p?.current_designation)}</span></td>
@@ -1734,25 +1958,27 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
                           if (!labels.length) return renderMixed(p?.previous_roles) || '-';
                           const expanded = !!expandPreviousRoles[p._id];
                           const shown = expanded ? labels : labels.slice(0, 3);
+                          const hasMore = labels.length > shown.length;
                           return (
-                            <div className="flex flex-wrap items-center gap-1 max-w-[480px]">
-                              {renderChips(shown)}
-                              {labels.length > shown.length && (
+                            <div className="flex flex-col gap-1">
+                              <div
+                                className="relative"
+                                style={!expanded && hasMore ? { maxHeight: 64, overflow: 'hidden' } : undefined}
+                              >
+                                <div className="flex flex-wrap items-center gap-1 max-w-[340px]">
+                                  {renderChips(shown)}
+                                </div>
+                                {!expanded && hasMore && (
+                                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-white via-white/80 to-transparent" />
+                                )}
+                              </div>
+                              {hasMore && (
                                 <button
                                   type="button"
                                   onClick={() => togglePreviousRoles(p._id)}
-                                  className="px-2 py-0.5 text-[11px] rounded border bg-white hover:bg-gray-50"
+                                  className="self-start px-2 py-0.5 text-[10px] rounded border bg-white hover:bg-gray-50 text-sky-700"
                                 >
-                                  +{labels.length - shown.length} more
-                                </button>
-                              )}
-                              {expanded && labels.length > 3 && (
-                                <button
-                                  type="button"
-                                  onClick={() => togglePreviousRoles(p._id)}
-                                  className="px-2 py-0.5 text-[11px] rounded border bg-white hover:bg-gray-50"
-                                >
-                                  Show less
+                                  {expanded ? 'Show less' : `+${labels.length - shown.length} more`}
                                 </button>
                               )}
                             </div>
@@ -1768,67 +1994,130 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
                         if (!all.length) return '-';
                         const expandedEdu = !!expandEducation[p._id];
                         const shownEdu = expandedEdu ? all : all.slice(0, 3);
+                        const hasMore = all.length > shownEdu.length;
                         return (
-                          <div className="flex flex-wrap items-center gap-1 max-w-[480px]">
-                            {renderChips(shownEdu)}
-                            {all.length > shownEdu.length && (
+                          <div className="flex flex-col gap-1">
+                            <div
+                              className="relative"
+                              style={!expandedEdu && hasMore ? { maxHeight: 64, overflow: 'hidden' } : undefined}
+                            >
+                              <div className="flex flex-wrap items-center gap-1 max-w-[340px]">
+                                {renderChips(shownEdu)}
+                              </div>
+                              {!expandedEdu && hasMore && (
+                                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-white via-white/80 to-transparent" />
+                              )}
+                            </div>
+                            {hasMore && (
                               <button
                                 type="button"
                                 onClick={() => toggleEducation(p._id)}
-                                className="px-2 py-0.5 text-[11px] rounded border bg-white hover:bg-gray-50"
+                                className="self-start px-2 py-0.5 text-[10px] rounded border bg-white hover:bg-gray-50 text-sky-700"
                               >
-                                +{all.length - shownEdu.length} more
-                              </button>
-                            )}
-                            {expandedEdu && all.length > 3 && (
-                              <button
-                                type="button"
-                                onClick={() => toggleEducation(p._id)}
-                                className="px-2 py-0.5 text-[11px] rounded border bg-white hover:bg-gray-50"
-                              >
-                                Show less
+                                {expandedEdu ? 'Show less' : `+${all.length - shownEdu.length} more`}
                               </button>
                             )}
                           </div>
                         );
                       })() : (renderMixed(p?.education) || '-')}
                     </td>
-                    <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top break-words whitespace-normal`}>
-                      {Array.isArray(p?.skills) ? (
+                    <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top break-words whitespace-normal min-w-[320px]`}>
+                      {(() => {
+                        const rawSkills = p?.skills;
+                        if (!rawSkills) return '-';
+
+                        let items;
+                        if (Array.isArray(rawSkills)) {
+                          items = rawSkills.map((s) => String(s || '').trim()).filter(Boolean);
+                        } else {
+                          items = String(rawSkills || '')
+                            .split(/,\s*/)
+                            .map((s) => s.trim())
+                            .filter(Boolean);
+                        }
+
+                        if (!items.length) return '-';
+
+                        const isExpanded = !!expandSkills[p._id];
+                        const shown = isExpanded ? items : items.slice(0, 6);
+                        const more = items.length - shown.length;
+
+                        return (
+                          <div className="flex flex-wrap gap-1">
+                            {shown.map((s, si) => (
+                              <span
+                                key={si}
+                                title={s}
+                                className="px-1.5 py-0.5 bg-gray-50 text-gray-700 border border-gray-200 rounded"
+                              >
+                                {s}
+                              </span>
+                            ))}
+                            {more > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => toggleSkills(p._id)}
+                                className="px-1.5 py-0.5 bg-gray-100 text-gray-700 border border-gray-200 rounded cursor-pointer hover:bg-gray-200"
+                              >
+                                {isExpanded ? 'Show less' : `+${more} more`}
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </td>
+                    <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}>
+                      {recruiterView ? (
                         (() => {
-                          const expanded = !!expandSkills[p._id];
-                          const all = p.skills;
-                          const shown = expanded ? all : all.slice(0, 8);
+                          const draft = getContactDraft(p);
                           return (
-                            <div className="flex flex-wrap gap-1 max-w-[480px] items-center">
-                              {shown.map((s, si) => (
-                                <span key={si} className="px-2 py-0.5 rounded text-[11px] border bg-slate-50 text-slate-700 border-slate-200" title={String(s)}>{String(s)}</span>
-                              ))}
-                              {all.length > shown.length && (
-                                <button
-                                  type="button"
-                                  onClick={() => toggleSkills(p._id)}
-                                  className="px-2 py-0.5 text-[11px] rounded border bg-white hover:bg-gray-50 text-sky-700"
-                                >
-                                  Show more{all.length - shown.length > 0 ? ` (+${all.length - shown.length})` : ''}
-                                </button>
-                              )}
-                              {expanded && all.length > 8 && (
-                                <button
-                                  type="button"
-                                  onClick={() => toggleSkills(p._id)}
-                                  className="px-2 py-0.5 text-[11px] rounded border bg-white hover:bg-gray-50 text-sky-700"
-                                >
-                                  Show less
-                                </button>
-                              )}
+                            <input
+                              type="text"
+                              value={draft.mobile}
+                              onChange={(e) => updateContactDraft(p._id, 'mobile', e.target.value)}
+                              className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                              placeholder="Mobile"
+                            />
+                          );
+                        })()
+                      ) : (
+                        p?.mobile || '-'
+                      )}
+                    </td>
+
+                    <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}>
+                      {recruiterView ? (
+                        (() => {
+                          const draft = getContactDraft(p);
+                          const hasDraft = !!contactEdits[p._id];
+                          const saving = contactSavingId === String(p._id);
+                          return (
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="email"
+                                value={draft.email}
+                                onChange={(e) => updateContactDraft(p._id, 'email', e.target.value)}
+                                className="flex-1 px-2 py-1 border border-gray-300 rounded text-xs"
+                                placeholder="Email"
+                              />
+                              <button
+                                type="button"
+                                disabled={!hasDraft || saving}
+                                onClick={() => saveContact(p)}
+                                className={`px-2 py-1 text-[10px] rounded border text-white ${
+                                  !hasDraft || saving
+                                    ? 'bg-emerald-500/60 cursor-not-allowed'
+                                    : 'bg-emerald-600 hover:bg-emerald-700'
+                                }`}
+                              >
+                                {saving ? 'Saving…' : 'Save'}
+                              </button>
                             </div>
                           );
                         })()
-                      ) : (p?.skills || '-')}
-                    </td>
-                    <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}>
-                      {p?.mobile || '-'}
+                      ) : (
+                        p?.email || '-'
+                      )}
                     </td>
 
                     <td className={`${density==='compact'?'px-2 py-1':'px-3 py-2'} border-b align-top`}>
@@ -1861,6 +2150,7 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
                         const lastDec = String(last?.decision || '').toUpperCase();
                         const isNo = lastDec === 'NO';
                         const lastRemark = last?.remark || '';
+                        const letterSent = !!p.finalLineupInterviewLetterSent;
 
                         if (isNo) {
                           return (
@@ -1885,6 +2175,12 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
                                   >
                                     Create Interview Letter 
                                   </button>
+                                )}
+                                {letterSent && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700">
+                                    <svg viewBox="0 0 24 24" className="w-3 h-3"><path fill="currentColor" d="M9 16.17 4.83 12 3.41 13.41 9 19l12-12-1.41-1.41Z"/></svg>
+                                    Sent
+                                  </span>
                                 )}
                               </div>
                               {lastRemark && (
@@ -1981,6 +2277,12 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
                                   Create Interview Letter
                                 </button>
                               )}
+                              {letterSent && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700">
+                                  <svg viewBox="0 0 24 24" className="w-3 h-3"><path fill="currentColor" d="M9 16.17 4.83 12 3.41 13.41 9 19l12-12-1.41-1.41Z"/></svg>
+                                  Sent
+                                </span>
+                              )}
                             </div>
                             {lastRemark && (
                               <div className="text-[11px] text-gray-500 max-w-xs truncate" title={lastRemark}>
@@ -2036,13 +2338,42 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
                   Send interview schedule to {candidateModal.profile?.name || 'candidate'} for {job?.position || 'this position'}.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setCandidateModal({ open: false, profile: null })}
-                className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
-              >
-                Close
-              </button>
+              <div className="flex items-center gap-3">
+                <div className="hidden sm:flex items-center gap-2 text-[11px] font-medium text-slate-600 border border-slate-200 rounded-full px-2 py-1 bg-slate-50">
+                  <span className="uppercase tracking-[0.2em] text-slate-500">Type</span>
+                  <div className="flex items-center gap-1 rounded-full bg-white px-1 py-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setCandidateForm(prev => ({ ...prev, interviewType: 'PI' }))}
+                      className={`px-2 py-0.5 rounded-full text-[11px] ${
+                        interviewType === 'PI'
+                          ? 'bg-sky-600 text-white'
+                          : 'text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      PI
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCandidateForm(prev => ({ ...prev, interviewType: 'VI' }))}
+                      className={`px-2 py-0.5 rounded-full text-[11px] ${
+                        interviewType === 'VI'
+                          ? 'bg-sky-600 text-white'
+                          : 'text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      VI
+                    </button>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCandidateModal({ open: false, profile: null })}
+                  className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                >
+                  Close
+                </button>
+              </div>
             </div>
             <div className="p-6 space-y-6">
               <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4 sm:p-5">
@@ -2155,72 +2486,95 @@ const StageSheet = ({ job, stageKey, title, recruiterFQC = false, recruiterView 
                     </div>
                   </div>
 
+                  {!isVirtualInterview && (
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-slate-700">Contact Person *</label>
+                        <input
+                          type="text"
+                          value={candidateForm.contactPerson}
+                          onChange={(e) => setCandidateForm(prev => ({ ...prev, contactPerson: e.target.value }))}
+                          className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm shadow-inner shadow-transparent focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                          placeholder="Name of interviewer / HR"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-slate-700">Contact Number</label>
+                        <input
+                          type="text"
+                          value={candidateForm.contactNumber}
+                          onChange={(e) => setCandidateForm(prev => ({ ...prev, contactNumber: e.target.value }))}
+                          className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm shadow-inner shadow-transparent focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                          placeholder="Phone number for coordination"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {!isVirtualInterview ? (
+                <div className="space-y-5 rounded-2xl border border-slate-100 p-5">
+                  <p className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                    <span className="h-6 w-6 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center text-xs font-bold">3</span>
+                    Venue details
+                  </p>
+
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-slate-700">Contact Person *</label>
+                      <div className="flex items-center justify-between text-xs">
+                        <label className="font-medium text-slate-700">Location *</label>
+                        {candidateSuggestions.location && (
+                          <button
+                            type="button"
+                            onClick={() => applyCandidateSuggestion('location')}
+                            className="text-sky-600 hover:text-sky-800 font-semibold"
+                          >
+                            Use {candidateSuggestions.location}
+                          </button>
+                        )}
+                      </div>
                       <input
                         type="text"
-                        value={candidateForm.contactPerson}
-                        onChange={(e) => setCandidateForm(prev => ({ ...prev, contactPerson: e.target.value }))}
+                        value={candidateForm.location}
+                        onChange={(e) => setCandidateForm(prev => ({ ...prev, location: e.target.value }))}
                         className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm shadow-inner shadow-transparent focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
-                        placeholder="Name of interviewer / HR"
+                        placeholder="City / Office location"
                       />
+                      <p className="text-[11px] text-slate-500">If not applicable, you can type N/A.</p>
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-slate-700">Contact Number</label>
-                      <input
-                        type="text"
-                        value={candidateForm.contactNumber}
-                        onChange={(e) => setCandidateForm(prev => ({ ...prev, contactNumber: e.target.value }))}
+                      <label className="text-xs font-medium text-slate-700">Address / Landmark</label>
+                      <textarea
+                        rows={3}
+                        value={candidateForm.address}
+                        onChange={(e) => setCandidateForm(prev => ({ ...prev, address: e.target.value }))}
                         className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm shadow-inner shadow-transparent focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
-                        placeholder="Phone number for coordination"
+                        placeholder="Full office address, floor, landmark, meeting room, etc."
                       />
                     </div>
                   </div>
+                  <p className="text-[11px] text-slate-500">Make sure all mandatory fields marked * are filled before sending the update.</p>
                 </div>
-              </div>
-
-              <div className="space-y-5 rounded-2xl border border-slate-100 p-5">
-                <p className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                  <span className="h-6 w-6 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center text-xs font-bold">3</span>
-                  Venue details
-                </p>
-
-                <div className="grid gap-4 sm:grid-cols-2">
+              ) : (
+                <div className="space-y-5 rounded-2xl border border-slate-100 p-5">
+                  <p className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                    <span className="h-6 w-6 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center text-xs font-bold">3</span>
+                    Video interview details
+                  </p>
                   <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-xs">
-                      <label className="font-medium text-slate-700">Location *</label>
-                      {candidateSuggestions.location && (
-                        <button
-                          type="button"
-                          onClick={() => applyCandidateSuggestion('location')}
-                          className="text-sky-600 hover:text-sky-800 font-semibold"
-                        >
-                          Use {candidateSuggestions.location}
-                        </button>
-                      )}
-                    </div>
+                    <label className="text-xs font-medium text-slate-700">Interview link *</label>
                     <input
-                      type="text"
-                      value={candidateForm.location}
-                      onChange={(e) => setCandidateForm(prev => ({ ...prev, location: e.target.value }))}
+                      type="url"
+                      value={candidateForm.interviewLink}
+                      onChange={(e) => setCandidateForm(prev => ({ ...prev, interviewLink: e.target.value }))}
                       className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm shadow-inner shadow-transparent focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
-                      placeholder="City / Office location"
+                      placeholder="Paste meeting link (Zoom/Google Meet/Teams/etc.)"
                     />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-slate-700">Address / Landmark</label>
-                    <textarea
-                      rows={3}
-                      value={candidateForm.address}
-                      onChange={(e) => setCandidateForm(prev => ({ ...prev, address: e.target.value }))}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm shadow-inner shadow-transparent focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
-                      placeholder="Full office address, floor, landmark, meeting room, etc."
-                    />
+                    <p className="text-[11px] text-slate-500">For virtual interviews, candidates will receive this link instead of a physical venue.</p>
                   </div>
                 </div>
-                <p className="text-[11px] text-slate-500">Make sure all mandatory fields marked * are filled before sending the update.</p>
-              </div>
+              )}
             </div>
             <div className="p-6 border-t bg-slate-50 rounded-b-2xl flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
               <button

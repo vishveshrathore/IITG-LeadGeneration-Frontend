@@ -29,7 +29,7 @@ import { mailer2Template } from "../../emails/mailer2";
 import { convert } from "html-to-text";
 
 // Constants for new schema fields and options
-const STATUS_OPTIONS = ['Pending', 'Positive', 'Negative', 'Closure Prospects', 'Wrong Number', 'RNR'];
+const STATUS_OPTIONS = ['Positive', 'Negative', 'Closure Prospects', 'Wrong Number', 'RNR'];
 
 const LeadAssignmentDashboard = () => {
   const { authToken, user } = useAuth();
@@ -157,11 +157,12 @@ const LeadAssignmentDashboard = () => {
       });
       setLead(res.data);
       localStorage.setItem("currentLead", JSON.stringify(res.data));
-      
       // Initialize local states from fetched lead data
       const fetchedLead = res.data;
       if (fetchedLead) {
-        setNewStatus(fetchedLead.currentStatus || 'Pending');
+        // Default to blank if no currentStatus or if it is 'Pending' so user must explicitly choose
+        const initialStatus = fetchedLead.currentStatus;
+        setNewStatus(initialStatus && initialStatus !== 'Pending' ? initialStatus : '');
         if (fetchedLead.reportingManagers && Array.isArray(fetchedLead.reportingManagers)) {
           setSelectedReportingManagers(fetchedLead.reportingManagers.map(m => typeof m === 'object' ? m._id : m).filter(Boolean));
         } else {
@@ -262,7 +263,9 @@ const LeadAssignmentDashboard = () => {
       if (!parsedLead.completed && hasValidMobile && isApproved) {
         setLead(parsedLead);
         // Rehydrate local UI state and clear loading immediately
-        setNewStatus(parsedLead.currentStatus || 'Pending');
+        // Default to blank if no currentStatus or if it is 'Pending' so user must explicitly choose
+        const storedStatus = parsedLead.currentStatus;
+        setNewStatus(storedStatus && storedStatus !== 'Pending' ? storedStatus : '');
         if (parsedLead.reportingManagers && Array.isArray(parsedLead.reportingManagers)) {
           setSelectedReportingManagers(parsedLead.reportingManagers.map(m => typeof m === 'object' ? m._id : m).filter(Boolean));
         } else {
@@ -603,19 +606,21 @@ https://iitgjobs.co.in/attrition-demo`;
                 <h3 className="text-2xl font-bold mb-6 text-gray-800 border-b pb-3">
                   Update Assignment Details
                 </h3>
+                <p className="text-sm text-red-500 mb-4">Fields marked <span className="font-bold">*</span> are mandatory.</p>
 
                 {/* Status and Manager Row */}
                 <div className="grid sm:grid-cols-2 gap-6 mb-6">
                     {/* Current Status */}
                     <div className="relative">
                         <label className="block text-sm font-medium text-gray-700 capitalize mb-1">
-                            Current Status
+                            Current Status <span className="text-red-500">*</span>
                         </label>
                         <select
                             value={newStatus}
                             onChange={(e) => setNewStatus(e.target.value)}
                             className="w-full border border-gray-300 px-4 py-3 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition-all bg-white"
                         >
+                            <option value="">Select status</option>
                             {STATUS_OPTIONS.map((status) => (
                                 <option key={status} value={status}>
                                     {status}
@@ -737,7 +742,7 @@ https://iitgjobs.co.in/attrition-demo`;
                 <h4 className="text-xl font-semibold text-gray-700 mb-3 border-b pb-2 mt-4">Remarks</h4>
                 <div className="mb-6">
                   <label className="block text-sm font-medium text-gray-700 capitalize mb-1 flex items-center">
-                    <FaRegStickyNote className="mr-2"/> Remarks (General)
+                    <FaRegStickyNote className="mr-2"/> Remarks (General) <span className="text-red-500">*</span>
                   </label>
                   <textarea
                     rows={3}
@@ -848,12 +853,18 @@ https://iitgjobs.co.in/attrition-demo`;
                   <motion.button
                     onClick={saveRemarks}
                     disabled={
-                      saving || !(typeof remarks === 'string' ? remarks.trim() : String(remarks ?? '').trim())
+                      saving ||
+                      !newStatus ||
+                      !(typeof remarks === 'string' ? remarks.trim() : String(remarks ?? '').trim())
                     }
                     title={
-                      (typeof remarks === 'string' ? remarks.trim() : String(remarks ?? '').trim())
-                        ? ''
-                        : 'Please add Remarks to proceed to next lead'
+                      !newStatus
+                        ? 'Please select Current Status to proceed to next lead'
+                        : (
+                            (typeof remarks === 'string' ? remarks.trim() : String(remarks ?? '').trim())
+                              ? ''
+                              : 'Please add Remarks to proceed to next lead'
+                          )
                     }
                     className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold py-3 px-6 rounded-full shadow-lg hover:from-indigo-600 hover:to-purple-700 transition-all disabled:bg-gray-400 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed"
                     whileHover={{ scale: 1.02 }}

@@ -92,6 +92,7 @@ const PositionDashboard = () => {
   const [teamLoading, setTeamLoading] = useState(false);
   const [teamSaving, setTeamSaving] = useState(false);
   const [teamError, setTeamError] = useState('');
+  const [resetting, setResetting] = useState(false);
 
   const rawRole = role || localStorage.getItem('role') || sessionStorage.getItem('role') || '';
   const roleNorm = rawRole.toLowerCase().replace(/[^a-z]/g, '');
@@ -283,6 +284,32 @@ const PositionDashboard = () => {
     }
   };
 
+  const handleResetToBoolean = async () => {
+    if (!authToken || !job?._id) return;
+    const ok = window.confirm('Reset all candidates for this position back to Boolean Data Sheet?');
+    if (!ok) return;
+    try {
+      setResetting(true);
+      const { data } = await axios.post(
+        `${BASE_URL}/api/admin/recruitment/job/${job._id}/reset-to-boolean`,
+        {},
+        {
+          withCredentials: true,
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+        }
+      );
+      const deltas = data?.data?.deltas || {};
+      if (deltas && typeof deltas === 'object' && Object.keys(deltas).length) {
+        window.dispatchEvent(new CustomEvent('recruitment:countsDelta', { detail: { deltas } }));
+      }
+      setActiveTab('boolean');
+    } catch (e) {
+      setError(e?.response?.data?.message || e?.message || 'Failed to reset profiles');
+    } finally {
+      setResetting(false);
+    }
+  };
+
   const getCountForTab = (key) => {
     switch (key) {
       case 'boolean':
@@ -413,6 +440,14 @@ const PositionDashboard = () => {
                 className="px-3 py-1.5 rounded-md text-xs font-medium border border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 hover:border-emerald-700 transition"
               >
                 Create Team
+              </button>
+              <button
+                type="button"
+                onClick={handleResetToBoolean}
+                disabled={resetting}
+                className="px-3 py-1.5 rounded-md text-xs font-medium border border-red-600 bg-red-600 text-white hover:bg-red-700 hover:border-red-700 disabled:opacity-60 transition"
+              >
+                {resetting ? 'Resetting…' : 'Reset Data'}
               </button>
             </div>
           )}
