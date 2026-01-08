@@ -350,6 +350,7 @@ export default function CorporateAccountApproval() {
                   <th className="px-4 py-3 text-center">Admin Data</th>
                   <th className="px-4 py-3 text-center">Demo Data</th>
                   <th className="px-4 py-3 text-center">Delete All Data</th>
+                  <th className="px-4 py-3 text-center">Delete Account</th>
                 </tr>
               </thead>
               <tbody>
@@ -486,6 +487,32 @@ export default function CorporateAccountApproval() {
                         title="Delete all parsed profiles for this company"
                       >
                         Delete All
+                      </button>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <button
+                        onClick={async () => {
+                          if (!acc._id) return;
+                          const ok = window.confirm(`Delete corporate account for "${acc.companyName || "this company"}"? This cannot be undone.`);
+                          if (!ok) return;
+                          try {
+                            await toast.promise(
+                              axios.delete(`${API_BASE}/delete/corporate/${acc._id}`),
+                              {
+                                loading: "Deleting corporate account...",
+                                success: "Corporate account deleted",
+                                error: "Failed to delete corporate account",
+                              }
+                            );
+                            fetchAccounts();
+                          } catch (e) {
+                            console.error("Delete corporate account error", e);
+                          }
+                        }}
+                        className="px-3 py-1 rounded-lg bg-red-700 text-white hover:bg-red-800 transition"
+                        title="Delete this corporate account record"
+                      >
+                        Delete Account
                       </button>
                     </td>
                   </tr>
