@@ -128,6 +128,114 @@ export default function CorporateAccountApproval() {
     fetchAccounts();
   }, [page, companyFilter, hrFilter]);
 
+  const approveAccount = async (accountId) => {
+    try {
+      await toast.promise(
+        axios.post(`${API_BASE}/approve/corporate`, { accountId }),
+        {
+          loading: "Approving account...",
+          success: "Account approved",
+          error: "Failed to approve account",
+        }
+      );
+      fetchAccounts();
+    } catch (err) {
+      console.error("approveAccount error", err);
+    }
+  };
+
+  const disapproveAccount = async (accountId) => {
+    try {
+      await toast.promise(
+        axios.post(`${API_BASE}/disapprove/corporate`, { accountId }),
+        {
+          loading: "Disapproving account...",
+          success: "Account disapproved",
+          error: "Failed to disapprove account",
+        }
+      );
+      fetchAccounts();
+    } catch (err) {
+      console.error("disapproveAccount error", err);
+    }
+  };
+
+  const fetchDemoProfilesForCompany = async (companyName) => {
+    if (!companyName) {
+      toast.error("Company name not available for this row");
+      return;
+    }
+    try {
+      const response = await toast.promise(
+        axios.get(`${ADMIN_API_BASE}/gettopctcprofiles`, {
+          params: { companyName },
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+        }),
+        {
+          loading: `Fetching demo profiles for ${companyName}...`,
+          success: `Demo profiles fetched for ${companyName}`,
+          error: "Failed to fetch demo profiles",
+        }
+      );
+      const list = Array.isArray(response?.data?.data)
+        ? response.data.data
+        : Array.isArray(response?.data)
+        ? response.data
+        : [];
+      setProfilesModalTitle(`Top CTC Profiles (Demo) - ${companyName}`);
+      setProfilesModalType("demo");
+      setProfilesModalData(list);
+      setProfilesModalOpen(true);
+    } catch (err) {
+      console.error("Error fetching demo profiles for company", companyName, err);
+    }
+  };
+
+  const fetchServiceProfilesForCompany = async (companyName) => {
+    if (!companyName) {
+      toast.error("Company name not available for this row");
+      return;
+    }
+    try {
+      const response = await toast.promise(
+        axios.get(`${ADMIN_API_BASE}/getallprofilesforadmin`, {
+          params: { companyName },
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+        }),
+        {
+          loading: `Fetching service profiles for ${companyName}...`,
+          success: `Service profiles fetched for ${companyName}`,
+          error: "Failed to fetch service profiles",
+        }
+      );
+      const list = Array.isArray(response?.data?.data)
+        ? response.data.data
+        : Array.isArray(response?.data)
+        ? response.data
+        : [];
+      setProfilesModalTitle(`All Profiles (Service) - ${companyName}`);
+      setProfilesModalType("service");
+      setProfilesModalData(list);
+      setProfilesModalOpen(true);
+    } catch (err) {
+      console.error("Error fetching service profiles for company", companyName, err);
+    }
+  };
+
+  const viewAccount = (account) => {
+    if (!account?.companyName) return;
+    window.location.href = `/naukri-parser?company=${encodeURIComponent(
+      account.companyName
+    )}&fromCorporate=true`;
+  };
+
+  const viewAccountLinkedIn = (account) => {
+    if (!account?.companyName) return;
+    window.location.href = `/linkedin-parser?company=${encodeURIComponent(
+      account.companyName
+    )}&fromCorporate=true`;
+  };
+
   const filteredAccounts = accounts;
 
   return (
