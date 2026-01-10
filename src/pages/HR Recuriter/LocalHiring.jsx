@@ -15,7 +15,7 @@ const navItems = [
 
 const STATUS_OPTIONS = ['RNR', 'Wrong Number', 'Positive', 'Negative', 'Line up', 'Blacklist'];
 
-const PRESET_POSITIONS = ['CRE', 'CRM', 'HR Intern',];
+const PRESET_POSITIONS = ['CRE', 'CRM', 'Mgr HRBP',];
 
 const PROFILE_SUMMARY_LABELS = [
     'Name',
@@ -110,7 +110,6 @@ const HRRecruiterLocalHiring = () => {
     const [lineUpDateTime, setLineUpDateTime] = useState('');
     const [interviewType, setInterviewType] = useState('');
     const [selectedPositions, setSelectedPositions] = useState([]);
-    const [customPosition, setCustomPosition] = useState('');
 
     const [emailInput, setEmailInput] = useState('');
     const [emailSaving, setEmailSaving] = useState(false);
@@ -223,6 +222,12 @@ const HRRecruiterLocalHiring = () => {
             return toast.error('Type of Interview is required when status is "Line up"');
         }
 
+        if (goNext && (status === 'Positive' || status === 'Line up')) {
+            if (!lead?.profile?.resumeUrl) {
+                return toast.error('Upload resume before moving to next lead');
+            }
+        }
+
         setLoading(true);
         try {
             const requestData = { currentStatus: status, remarks };
@@ -328,7 +333,6 @@ const HRRecruiterLocalHiring = () => {
             setEmailInput('');
         }
         setSelectedPositions([]);
-        setCustomPosition('');
     }, [lead]);
 
     const leadName = lead?.name || lead?.profile?.name || '—';
@@ -347,9 +351,19 @@ const HRRecruiterLocalHiring = () => {
         );
     };
 
-    const openEmailModalForCurrentLead = () => {
+    const openEmailModalForCurrentLead = async () => {
+        if (!token) {
+            toast.error('Not authenticated');
+            return;
+        }
+
         if (!lead?._id) {
             toast.error('No lead selected');
+            return;
+        }
+
+        if (emailModalSending) {
+            // Prevent multiple parallel sends if a request is already in progress
             return;
         }
 
@@ -361,26 +375,63 @@ const HRRecruiterLocalHiring = () => {
             return;
         }
 
-        const assignmentForLead = worksheet.find((item) => item?.lead?._id === lead._id);
+        const opportunityText = selectedPositions.length ? selectedPositions.join(', ') : '';
 
-        const positionParts = [];
-        if (selectedPositions.length) {
-            positionParts.push(selectedPositions.join(', '));
+        let jdKey = '';
+        if (selectedPositions.includes('CRE')) {
+            jdKey = 'cre';
+        } else if (selectedPositions.includes('CRM')) {
+            jdKey = 'crm';
+        } else if (selectedPositions.includes('Mgr HRBP')) {
+            jdKey = 'mgr_hrbp';
         }
-        const custom = String(customPosition || '').trim();
-        if (custom) {
-            positionParts.push(custom);
-        }
-        const opportunityText = positionParts.join(' | ');
 
-        setEmailModalLead(lead);
-        setEmailModalAssignmentId(assignmentForLead?._id || null);
-        setEmailModalTo(candidate);
-        setEmailOpportunity(opportunityText);
-        setEmailModalSubject(DEFAULT_EMAIL_SUBJECT);
-        setEmailModalBody(buildDefaultEmailBody(recruiterInfo, opportunityText || ''));
-        setEmailModalFile(null);
-        setEmailModalOpen(true);
+        try {
+            setEmailModalSending(true);
+
+            const formData = new FormData();
+            formData.append('subject', DEFAULT_EMAIL_SUBJECT);
+            formData.append('text', buildDefaultEmailBody(recruiterInfo, opportunityText || ''));
+            formData.append('to', candidate);
+            if (jdKey) {
+                formData.append('jdKey', jdKey);
+            }
+
+            const { data } = await axios.post(
+                `${BASE_URL}/api/local-hiring/lead/${lead._id}/email`,
+                formData,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'multipart/form-data',
+                    },
+                }
+            );
+
+            if (!data?.success) {
+                toast.error(data?.message || 'Failed to send email');
+                return;
+            }
+
+            toast.success('Email sent');
+
+            const assignmentForLead = worksheet.find((item) => item?.lead?._id === lead._id);
+
+            if (assignmentForLead?._id) {
+                setWorksheet((prev) =>
+                    prev.map((item) =>
+                        item._id === assignmentForLead._id ? { ...item, emailSent: true } : item
+                    )
+                );
+                setViewItem((prev) =>
+                    prev && prev._id === assignmentForLead._id ? { ...prev, emailSent: true } : prev
+                );
+            }
+        } catch (e) {
+            toast.error(e?.response?.data?.message || 'Failed to send email');
+        } finally {
+            setEmailModalSending(false);
+        }
     };
 
     const closeEmailModal = () => {
@@ -926,7 +977,8 @@ const HRRecruiterLocalHiring = () => {
                                                                         className="w-full bg-white border border-slate-200/70 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-300 focus:shadow-sm transition-all duration-200"
                                                                         placeholder="name@example.com"
                                                                     />
-                                                                    {status === 'Line up' && (
+
+                                                                    {(status === 'Line up' || status === 'Positive') && (
                                                                         <div className="space-y-1">
                                                                             <p className="text-[11px] uppercase tracking-wide text-slate-500">Quick Positions</p>
                                                                             <div className="flex flex-wrap gap-2">
@@ -945,17 +997,9 @@ const HRRecruiterLocalHiring = () => {
                                                                                     </label>
                                                                                 ))}
                                                                             </div>
-                                                                            <div className="mt-1">
-                                                                                <input
-                                                                                    type="text"
-                                                                                    value={customPosition}
-                                                                                    onChange={(e) => setCustomPosition(e.target.value)}
-                                                                                    className="w-full bg-white border border-slate-200/70 rounded-2xl px-3 py-1.5 text-xs focus:outline-none focus:border-indigo-300 focus:shadow-sm transition-all duration-200"
-                                                                                    placeholder="Create custom position (optional)"
-                                                                                />
-                                                                            </div>
                                                                         </div>
                                                                     )}
+
                                                                     <div className="flex flex-wrap gap-2">
                                                                         <button
                                                                             type="button"
@@ -968,9 +1012,10 @@ const HRRecruiterLocalHiring = () => {
                                                                         <button
                                                                             type="button"
                                                                             onClick={openEmailModalForCurrentLead}
-                                                                            className="px-4 py-2 rounded-2xl border border-indigo-100 bg-white text-indigo-700 text-xs font-semibold shadow-sm transition-all duration-200 hover:shadow-md hover:scale-[1.01] active:scale-[0.99]"
+                                                                            disabled={emailModalSending}
+                                                                            className="px-4 py-2 rounded-2xl border border-indigo-100 bg-white text-indigo-700 text-xs font-semibold shadow-sm transition-all duration-200 hover:shadow-md hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60"
                                                                         >
-                                                                            Send Email
+                                                                            {emailModalSending ? 'Sending…' : 'Send Email'}
                                                                         </button>
                                                                     </div>
                                                                 </div>

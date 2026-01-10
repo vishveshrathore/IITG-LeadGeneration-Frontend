@@ -15,6 +15,8 @@ const navItems = [
 
 const STATUS_OPTIONS = ['RNR', 'Wrong Number', 'Positive', 'Negative', 'Line up' ,'Blacklist'];
 
+const PRESET_POSITIONS = ['CRE', 'CRM', 'Mgr HRBP'];
+
 const PROFILE_SUMMARY_LABELS = [
   'Name',
   'Experience',
@@ -79,6 +81,7 @@ const HROperationsLocalHiring = () => {
   const [remarks, setRemarks] = useState('');
   const [lineUpDateTime, setLineUpDateTime] = useState('');
   const [interviewType, setInterviewType] = useState('');
+  const [selectedPositions, setSelectedPositions] = useState([]);
   const [emailInput, setEmailInput] = useState('');
   const [emailSaving, setEmailSaving] = useState(false);
   const [editingEmailId, setEditingEmailId] = useState(null);
@@ -170,9 +173,19 @@ const HROperationsLocalHiring = () => {
     }
   };
 
-  const openEmailModalForCurrentLead = () => {
+  const openEmailModalForCurrentLead = async () => {
+    if (!token) {
+      toast.error('Not authenticated');
+      return;
+    }
+
     if (!lead?._id) {
       toast.error('No lead selected');
+      return;
+    }
+
+    if (emailModalSending) {
+      // Prevent multiple parallel sends if a request is already in progress
       return;
     }
 
@@ -184,17 +197,65 @@ const HROperationsLocalHiring = () => {
       return;
     }
 
-    const assignmentForLead = worksheet.find((item) => item?.lead?._id === lead._id);
-    const defaultOpportunity = lead?.profile?.current_designation || '';
+    const opportunityText = selectedPositions.length
+      ? selectedPositions.join(', ')
+      : (lead?.profile?.current_designation || '');
 
-    setEmailModalLead(lead);
-    setEmailModalAssignmentId(assignmentForLead?._id || null);
-    setEmailModalTo(candidate);
-    setEmailOpportunity(defaultOpportunity);
-    setEmailModalSubject(DEFAULT_EMAIL_SUBJECT);
-    setEmailModalBody(buildDefaultEmailBody(recruiterInfo, defaultOpportunity));
-    setEmailModalFile(null);
-    setEmailModalOpen(true);
+    let jdKey = '';
+    if (selectedPositions.includes('CRE')) {
+      jdKey = 'cre';
+    } else if (selectedPositions.includes('CRM')) {
+      jdKey = 'crm';
+    } else if (selectedPositions.includes('Mgr HRBP')) {
+      jdKey = 'mgr_hrbp';
+    }
+
+    try {
+      setEmailModalSending(true);
+
+      const formData = new FormData();
+      formData.append('subject', DEFAULT_EMAIL_SUBJECT);
+      formData.append('text', buildDefaultEmailBody(recruiterInfo, opportunityText || ''));
+      formData.append('to', candidate);
+      if (jdKey) {
+        formData.append('jdKey', jdKey);
+      }
+
+      const { data } = await axios.post(
+        `${BASE_URL}/api/local-hiring/lead/${lead._id}/email`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+
+      if (!data?.success) {
+        toast.error(data?.message || 'Failed to send email');
+        return;
+      }
+
+      toast.success('Email sent');
+
+      const assignmentForLead = worksheet.find((item) => item?.lead?._id === lead._id);
+
+      if (assignmentForLead?._id) {
+        setWorksheet((prev) =>
+          prev.map((item) =>
+            item._id === assignmentForLead._id ? { ...item, emailSent: true } : item
+          )
+        );
+        setViewItem((prev) =>
+          prev && prev._id === assignmentForLead._id ? { ...prev, emailSent: true } : prev
+        );
+      }
+    } catch (e) {
+      toast.error(e?.response?.data?.message || 'Failed to send email');
+    } finally {
+      setEmailModalSending(false);
+    }
   };
 
   const closeEmailModal = () => {
@@ -284,6 +345,12 @@ const HROperationsLocalHiring = () => {
       return toast.error('Type of Interview is required when status is "Line up"');
     }
 
+    if (goNext && (status === 'Positive' || status === 'Line up')) {
+      if (!lead?.profile?.resumeUrl) {
+        return toast.error('Upload resume before moving to next lead');
+      }
+    }
+
     setLoading(true);
     try {
       const requestData = { currentStatus: status, remarks };
@@ -369,6 +436,7 @@ const HROperationsLocalHiring = () => {
     } else {
       setEmailInput('');
     }
+    setSelectedPositions([]);
   }, [lead]);
 
   const leadName = lead?.name || lead?.profile?.name || '—';
@@ -379,6 +447,13 @@ const HROperationsLocalHiring = () => {
   const normalizedLeadEmail = lead ? String(lead?.email || lead?.profile?.email || '').trim().toLowerCase() : '';
   const normalizedInputEmail = String(emailInput || '').trim().toLowerCase();
   const emailUpdateDisabled = !lead || emailSaving || !normalizedInputEmail || normalizedInputEmail === normalizedLeadEmail;
+  const showContactResume = status === 'Positive' || status === 'Line up';
+
+  const handleTogglePositionTag = (tag) => {
+    setSelectedPositions((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
+  };
 
   const getProfileFields = (l) => {
     const p = l?.profile || {};
@@ -548,6 +623,20 @@ const HROperationsLocalHiring = () => {
     { label: 'Assignment', value: assignmentId ? 'Active' : 'Waiting', muted: !assignmentId },
     { label: 'Worksheet Items', value: worksheet.length, muted: worksheet.length === 0 },
   ];
+
+  const STATUS_BADGE_VARIANTS = {
+    Positive: 'bg-sky-50 text-sky-700 border-sky-200',
+    'Line up': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    Negative: 'bg-rose-50 text-rose-700 border-rose-200',
+    RNR: 'bg-amber-50 text-amber-700 border-amber-200',
+    Blacklist: 'bg-slate-200 text-slate-700 border-slate-300',
+    'Wrong Number': 'bg-orange-50 text-orange-700 border-orange-200',
+  };
+
+  const statusBadgeClass =
+    status
+      ? STATUS_BADGE_VARIANTS[status] || 'bg-slate-100 text-slate-600 border-slate-200'
+      : 'bg-slate-100 text-slate-500 border-slate-200';
 
   const handleEmailUpdate = async () => {
     if (!token) return toast.error('Not authenticated');
@@ -724,21 +813,22 @@ const HROperationsLocalHiring = () => {
   ];
 
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-[#f6f8ff] via-[#f0f4ff] to-white">
+    <div className="min-h-screen bg-gradient-to-br from-[#fef7ff] via-[#f4edff] to-[#f8fbff]">
       <AnimatedHRNavbar title="Manager Operation" navItems={navItems} />
       <Toaster position="top-right" />
 
-      <main className="flex-1 pt-20 pb-4 px-4 sm:px-6 lg:px-10 w-full overflow-y-auto">
-        <div className="flex flex-col gap-4 h-full">
-          <section className="flex-1 bg-white rounded-4xl border border-slate-200/60 shadow-lg backdrop-blur-sm p-4 md:p-5 space-y-3 transition-all duration-300 flex flex-col">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-slate-100 pb-4">
+      <main className="pt-16 pb-10 px-4 sm:px-6 lg:px-10 w-full">
+        <div className="space-y-6">
+          <section className="bg-white rounded-3xl border border-slate-200/60 shadow-md backdrop-blur-sm px-5 py-5 md:px-8 space-y-6 transition-all duration-300">
+
+            <div className="flex flex-col gap-3 border-b border-slate-100 pb-3 md:flex-row md:items-center md:justify-between">
               <div className="flex gap-2 bg-slate-50 rounded-2xl p-1">
                 {['next', 'worksheet'].map((key) => (
                   <button
                     key={key}
                     type="button"
                     onClick={() => setTab(key)}
-                    className={`px-4 py-2 text-sm font-semibold rounded-2xl transition ${
+                    className={`px-4 py-2.5 rounded-2xl text-sm font-semibold transition ${
                       tab === key ? 'bg-indigo-600 text-white shadow' : 'text-slate-600'
                     }`}
                   >
@@ -746,187 +836,104 @@ const HROperationsLocalHiring = () => {
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-slate-500">Leads lock to you until you disposition them.</p>
+              <p className="text-xs text-slate-500">Leads stay locked to you until saved.</p>
             </div>
 
             {tab === 'next' && (
-              <div className="space-y-4 flex-1">
-                <div className="w-full max-w-6xl mx-auto">
-                  <div className="text-center mb-3">
-                    <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900">Local Hiring Lead</h2>
-                    <p className="mt-2 text-sm text-slate-500">
-                      Manage and process your assigned Local Hiring leads efficiently.
-                    </p>
-                  </div>
-
-                  <div className="bg-white rounded-3xl border border-slate-100/80 shadow-[0_20px_50px_rgba(15,23,42,0.12)] backdrop-blur-sm px-5 md:px-6 py-4 space-y-4 transition-all duration-300">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-2xl bg-gradient-to-br from-indigo-50 to-indigo-100 text-indigo-600 flex items-center justify-center text-lg shadow-sm">
-                          📋
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-slate-900">Current Lead</p>
-                          <p className="text-xs text-slate-500">Local Hiring</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-slate-500">
-                        <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <span>{assignmentId ? 'Assignment in progress' : 'Waiting for next assignment'}</span>
-                      </div>
+              <div className="w-full">
+                <div className={`grid gap-7 ${lead ? 'lg:grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)]' : ''}`}>
+                  {/* Left: lead overview */}
+                  <div className="space-y-4">
+                    <div className="text-center">
+                      <p className="text-[13px] uppercase tracking-[0.3em] text-indigo-400">Local hiring</p>
+                      <h2 className="text-2xl font-black text-slate-900">Current Lead Overview</h2>
+                      <p className="mt-1 text-sm text-slate-500">
+                        Process, disposition, and move on quickly—without leaving this page.
+                      </p>
                     </div>
 
-                    {leadLoading ? (
-                      <div className="text-sm text-slate-500 py-4">Loading next lead…</div>
-                    ) : !lead ? (
-                      <div className="mt-3 flex flex-col sm:flex-row items-start sm:items-center gap-3 text-sm text-slate-600 bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-4">
-                        <span>No lead available at the moment.</span>
-                        <button
-                          type="button"
-                          onClick={fetchNext}
-                          className="text-indigo-600 font-semibold underline"
-                        >
-                          Refresh
-                        </button>
+                    <div className="bg-white rounded-2xl border border-slate-100 shadow-md px-4 md:px-6 py-4 space-y-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-indigo-50 to-indigo-100 text-indigo-600 flex items-center justify-center text-lg shadow-sm">
+                            📋
+                          </div>
+                          <div className="text-left">
+                            <p className="text-xs uppercase tracking-wide text-slate-500">Assignment</p>
+                            <p className="text-base font-semibold text-slate-900">{leadName}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[11px] uppercase tracking-wide text-slate-500">Status</p>
+                          <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${statusBadgeClass}`}>
+                            {status || 'Pending'}
+                          </span>
+                        </div>
                       </div>
-                    ) : (
-                      <>
-                        <div className="mt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+
+                      {leadLoading ? (
+                        <div className="text-sm text-slate-500 py-3">Loading next lead…</div>
+                      ) : !lead ? (
+                        <div className="flex flex-col gap-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+                          <span>No lead available at the moment.</span>
+                          <button type="button" onClick={fetchNext} className="text-indigo-600 font-semibold underline">
+                            Refresh
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
                           {getProfileFields(lead)
                             .filter((f) => PROFILE_SUMMARY_LABELS.includes(f.label))
                             .map((f) => {
-                            const iconByLabel = {
-                              Name: FiUser,
-                              Experience: FiBriefcase,
-                              CTC: FiBriefcase,
-                              Location: FiMapPin,
-                              'Current Designation': FiBriefcase,
-                              'Current Company': FiBriefcase,
-                              'Preferred Locations': FiMapPin,
-                              Mobile: FiPhone,
-                              Email: FiMail,
-                              Skills: FiStar,
-                              'May Also Know': FiStar,
-                              Education: FiBookOpen,
-                              Summary: FiBookOpen,
-                              'Previous Roles': FiBriefcase,
-                            };
-                            const Icon = iconByLabel[f.label] || FiStar;
-
-                            return (
-                              <div
-                                key={f.label}
-                                className="flex items-start gap-3 bg-gradient-to-br from-slate-50/80 to-white rounded-2xl px-3 py-2.5 border border-slate-100/60 shadow-sm transition-all duration-200 hover:shadow-md hover:border-slate-200/80"
-                              >
-                                <div className="mt-1 h-8 w-8 rounded-2xl bg-gradient-to-br from-white to-slate-50 flex items-center justify-center text-indigo-600 flex-shrink-0 shadow-sm transition-transform duration-200 hover:scale-105">
-                                  <Icon className="h-4 w-4" />
+                              const iconByLabel = {
+                                Name: FiUser,
+                                Experience: FiBriefcase,
+                                CTC: FiBriefcase,
+                                Location: FiMapPin,
+                                'Current Designation': FiBriefcase,
+                                'Current Company': FiBriefcase,
+                                'Preferred Locations': FiMapPin,
+                                Mobile: FiPhone,
+                                Email: FiMail,
+                                Skills: FiStar,
+                                Education: FiBookOpen,
+                                'Previous Roles': FiBriefcase,
+                              };
+                              const Icon = iconByLabel[f.label] || FiStar;
+                              return (
+                                <div key={f.label} className="flex items-start gap-3 rounded-2xl border border-slate-100 bg-gradient-to-br from-slate-50/90 to-white px-3 py-2 shadow-sm">
+                                  <div className="mt-1 h-8 w-8 flex-shrink-0 rounded-2xl bg-white text-indigo-600 shadow-sm ring-1 ring-slate-100 flex items-center justify-center">
+                                    <Icon className="h-4 w-4" />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-[11px] uppercase tracking-wide text-slate-500">{f.label}</p>
+                                    <p className="mt-1 text-sm font-semibold text-slate-900 break-words whitespace-pre-wrap">
+                                      <TruncatedText label={f.label} text={f.value} />
+                                    </p>
+                                  </div>
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-[11px] uppercase tracking-wide text-slate-500">{f.label}</p>
-                                  <p className="mt-1 text-sm font-semibold text-slate-900 break-words whitespace-pre-wrap">
-                                    <TruncatedText label={f.label} text={f.value} />
-                                  </p>
-                                </div>
-                              </div>
-                            );
-                          })}
+                              );
+                            })}
                         </div>
-
-                        <div className="mt-5 rounded-2xl border border-slate-100/70 bg-gradient-to-br from-slate-50/60 to-white p-4 shadow-sm">
-                          <div className="flex items-start justify-between flex-wrap gap-3">
-                            <div>
-                              <p className="text-xs uppercase tracking-wide text-slate-500">Contact & Resume</p>
-                              <p className="text-sm text-slate-400">Maintain a clean primary email and latest resume before saving status.</p>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              {normalizedLeadEmail && (
-                                <span className="text-xs font-semibold text-slate-500 bg-white border border-slate-100 rounded-full px-3 py-1">
-                                  Email: {normalizedLeadEmail}
-                                </span>
-                              )}
-                              {leadResumeUrl && (
-                                <a
-                                  href={leadResumeUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="text-xs font-semibold text-indigo-700 bg-white border border-indigo-100 rounded-full px-3 py-1"
-                                >
-                                  View Resume
-                                </a>
-                              )}
-                            </div>
-                          </div>
-                          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Primary Email</p>
-                              <div className="flex flex-col sm:flex-row gap-3">
-                                <input
-                                  type="email"
-                                  value={emailInput}
-                                  onChange={(e) => setEmailInput(e.target.value)}
-                                  className="flex-1 bg-white border border-slate-200/70 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-300 focus:shadow-sm transition-all duration-200"
-                                  placeholder="name@example.com"
-                                />
-                                <div className="flex gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={handleEmailUpdate}
-                                    disabled={emailUpdateDisabled}
-                                    className="px-4 py-2.5 rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-700 text-white text-sm font-semibold disabled:opacity-60 shadow-sm transition-all duration-200 hover:shadow-md hover:scale-[1.01] active:scale-[0.99]"
-                                  >
-                                    {emailSaving ? 'Updating…' : 'Update Email'}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={openEmailModalForCurrentLead}
-                                    className="px-4 py-2.5 rounded-2xl border border-indigo-100 bg-white text-indigo-700 text-sm font-semibold shadow-sm transition-all duration-200 hover:shadow-md hover:scale-[1.01] active:scale-[0.99]"
-                                  >
-                                    Send Email
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                            <div>
-                              <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Resume</p>
-                              <p className="text-xs text-slate-400 mb-2">Upload and access the candidate's latest resume.</p>
-                              {!leadResumeUrl ? (
-                                <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-                                  <input
-                                    type="file"
-                                    accept=".pdf,.doc,.docx"
-                                    onChange={handleResumeFileChange}
-                                    disabled={resumeUploading}
-                                    className="text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
-                                  />
-                                  {resumeUploading && (
-                                    <span className="text-[11px] text-slate-400">Uploading…</span>
-                                  )}
-                                </div>
-                              ) : (
-                                <p className="text-xs text-slate-400">Resume already uploaded.</p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </>
-                    )}
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                {lead && (
-                  <div className="w-full max-w-6xl mx-auto">
-                    <div className="rounded-2xl border border-slate-100/70 bg-gradient-to-br from-slate-50/60 to-white p-4 md:p-5 shadow-sm space-y-4">
-                      <div className="flex items-center justify-between flex-wrap gap-2">
+                  {/* Right: Disposition & dynamic fields */}
+                  {lead && (
+                    <div className="rounded-2xl border border-slate-100/70 bg-gradient-to-br from-slate-50/60 to-white p-4 shadow-sm space-y-4">
+                      <div className="flex items-center justify-between">
                         <div>
                           <p className="text-xs uppercase tracking-wide text-slate-500">Disposition</p>
-                          <p className="text-xs text-slate-400">Capture final status and crisp remarks before moving to the next lead.</p>
+                          <p className="text-xs text-slate-400">Capture status, remarks, and key follow-ups.</p>
                         </div>
+                        <span className="text-[11px] font-semibold text-slate-500">Lead #{assignmentId?.slice(-6) || '—'}</span>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-3">
                         <div>
                           <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Status</label>
-                          <div className="mt-2 bg-gradient-to-br from-slate-50/80 to-white border border-slate-200/60 rounded-2xl px-3 shadow-sm transition-all duration-200 focus-within:shadow-md focus-within:border-indigo-200">
+                          <div className="mt-2 rounded-2xl border border-slate-200/60 bg-gradient-to-br from-slate-50/80 to-white px-3 shadow-sm">
                             <select
                               value={status}
                               onChange={(e) => setStatus(e.target.value)}
@@ -934,11 +941,14 @@ const HROperationsLocalHiring = () => {
                             >
                               <option value="">Select…</option>
                               {STATUS_OPTIONS.map((s) => (
-                                <option key={s} value={s}>{s}</option>
+                                <option key={s} value={s}>
+                                  {s}
+                                </option>
                               ))}
                             </select>
                           </div>
                         </div>
+
                         <div>
                           <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Remarks</label>
                           <div className="mt-2">
@@ -951,60 +961,164 @@ const HROperationsLocalHiring = () => {
                             />
                           </div>
                         </div>
-                      </div>
 
-                      {status === 'Line up' && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Line-up Date & Time</label>
-                            <div className="mt-2">
-                              <input
-                                type="datetime-local"
-                                value={lineUpDateTime}
-                                onChange={(e) => setLineUpDateTime(e.target.value)}
-                                className="w-full bg-gradient-to-br from-slate-50/80 to-white border border-slate-200/60 rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-300 focus:shadow-sm transition-all duration-200"
-                                required
-                              />
+                        {status === 'Line up' && (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Line-up Date & Time</label>
+                              <div className="mt-2">
+                                <input
+                                  type="datetime-local"
+                                  value={lineUpDateTime}
+                                  onChange={(e) => setLineUpDateTime(e.target.value)}
+                                  className="w-full bg-gradient-to-br from-slate-50/80 to-white border border-slate-200/60 rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-300 focus:shadow-sm transition-all duration-200"
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Type of Interview</label>
+                              <div className="mt-2">
+                                <select
+                                  value={interviewType}
+                                  onChange={(e) => setInterviewType(e.target.value)}
+                                  className="w-full bg-gradient-to-br from-slate-50/80 to-white border border-slate-200/60 rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-300 focus:shadow-sm transition-all duration-200"
+                                >
+                                  <option value="">Select type…</option>
+                                  <option value="Virtual Interview">Virtual Interview</option>
+                                  <option value="Personal Interview">Personal Interview</option>
+                                </select>
+                              </div>
                             </div>
                           </div>
-                          <div>
-                            <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Type of Interview</label>
-                            <div className="mt-2">
-                              <select
-                                value={interviewType}
-                                onChange={(e) => setInterviewType(e.target.value)}
-                                className="w-full bg-gradient-to-br from-slate-50/80 to-white border border-slate-200/60 rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-300 focus:shadow-sm transition-all duration-200"
-                              >
-                                <option value="">Select type…</option>
-                                <option value="Virtual Interview">Virtual Interview</option>
-                                <option value="Personal Interview">Personal Interview</option>
-                              </select>
+                        )}
+
+                        {showContactResume && (
+                          <div className="mt-3 rounded-2xl border border-slate-100/70 bg-gradient-to-br from-slate-50/60 to-white p-3 space-y-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <p className="text-xs uppercase tracking-wide text-slate-500">Contact & Resume</p>
+                                <p className="text-[11px] text-slate-400">Maintain a clean primary email and latest resume before saving status.</p>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                {normalizedLeadEmail && (
+                                  <span className="text-[11px] font-semibold text-slate-500 bg-white border border-slate-100 rounded-full px-3 py-1">
+                                    Email: {normalizedLeadEmail}
+                                  </span>
+                                )}
+                                {leadResumeUrl && (
+                                  <a
+                                    href={leadResumeUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-[11px] font-semibold text-indigo-700 bg-white border border-indigo-100 rounded-full px-3 py-1"
+                                  >
+                                    View Resume
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              <div>
+                                <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-1">Primary Email</p>
+                                <div className="space-y-2">
+                                  <input
+                                    type="email"
+                                    value={emailInput}
+                                    onChange={(e) => setEmailInput(e.target.value)}
+                                    className="w-full bg-white border border-slate-200/70 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-300 focus:shadow-sm transition-all duration-200"
+                                    placeholder="name@example.com"
+                                  />
+
+                                  {(status === 'Line up' || status === 'Positive') && (
+                                    <div className="space-y-1">
+                                      <p className="text-[11px] uppercase tracking-wide text-slate-500">Quick Positions</p>
+                                      <div className="flex flex-wrap gap-2">
+                                        {PRESET_POSITIONS.map((tag) => (
+                                          <label
+                                            key={tag}
+                                            className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] text-slate-700 cursor-pointer"
+                                          >
+                                            <input
+                                              type="checkbox"
+                                              checked={selectedPositions.includes(tag)}
+                                              onChange={() => handleTogglePositionTag(tag)}
+                                              className="h-3 w-3 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                            />
+                                            <span>{tag}</span>
+                                          </label>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  <div className="flex flex-wrap gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={handleEmailUpdate}
+                                      disabled={emailUpdateDisabled}
+                                      className="px-4 py-2 rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-700 text-white text-xs font-semibold disabled:opacity-60 shadow-sm transition-all duration-200 hover:shadow-md hover:scale-[1.01] active:scale-[0.99]"
+                                    >
+                                      {emailSaving ? 'Updating…' : 'Update Email'}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={openEmailModalForCurrentLead}
+                                      disabled={emailModalSending}
+                                      className="px-4 py-2 rounded-2xl border border-indigo-100 bg-white text-indigo-700 text-xs font-semibold shadow-sm transition-all duration-200 hover:shadow-md hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60"
+                                    >
+                                      {emailModalSending ? 'Sending…' : 'Send Email'}
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div>
+                                <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-1">Resume</p>
+                                <p className="text-[11px] text-slate-400 mb-2">Upload and access the candidate's latest resume.</p>
+                                {!leadResumeUrl ? (
+                                  <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
+                                    <input
+                                      type="file"
+                                      accept=".pdf,.doc,.docx"
+                                      onChange={handleResumeFileChange}
+                                      disabled={resumeUploading}
+                                      className="text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                                    />
+                                    {resumeUploading && (
+                                      <span className="text-[11px] text-slate-400">Uploading…</span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <p className="text-[11px] text-slate-400">Resume already uploaded.</p>
+                                )}
+                              </div>
                             </div>
                           </div>
+                        )}
+
+                        <div className="flex flex-wrap items-center justify-end gap-3 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => updateLead(false)}
+                            disabled={loading}
+                            className="px-5 py-2.5 rounded-2xl bg-gradient-to-br from-slate-600 to-slate-700 text-white text-xs font-semibold disabled:opacity-60 shadow-sm transition-all duration-200 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
+                          >
+                            {loading ? 'Saving…' : 'Update'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateLead(true)}
+                            disabled={loading}
+                            className="px-5 py-2.5 rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-700 text-white text-xs font-semibold disabled:opacity-60 shadow-sm transition-all duration-200 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
+                          >
+                            {loading ? 'Saving…' : 'Save & Next'}
+                          </button>
                         </div>
-                      )}
-
-                      <div className="flex flex-wrap items-center justify-end gap-3 pt-1">
-                        <button
-                          type="button"
-                          onClick={() => updateLead(false)}
-                          disabled={loading}
-                          className="px-5 py-2.5 rounded-2xl bg-gradient-to-br from-slate-600 to-slate-700 text-white text-sm font-semibold disabled:opacity-60 shadow-sm transition-all duration-200 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
-                        >
-                          {loading ? 'Saving…' : 'Update'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => updateLead(true)}
-                          disabled={loading}
-                          className="px-5 py-2.5 rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-700 text-white text-sm font-semibold disabled:opacity-60 shadow-sm transition-all duration-200 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
-                        >
-                          {loading ? 'Saving…' : 'Save & Next'}
-                        </button>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             )}
 
