@@ -50,6 +50,14 @@ const AdminLocalHiring = () => {
   const [positionStatusLoadingId, setPositionStatusLoadingId] = useState('');
   const [positionsFilter, setPositionsFilter] = useState('all');
 
+  const [allLineupsOpen, setAllLineupsOpen] = useState(false);
+  const [allLineups, setAllLineups] = useState([]);
+  const [allLineupsLoading, setAllLineupsLoading] = useState(false);
+  const [allLineupsError, setAllLineupsError] = useState('');
+  const [allLineupsSearch, setAllLineupsSearch] = useState('');
+  const [allLineupsFrom, setAllLineupsFrom] = useState('');
+  const [allLineupsTo, setAllLineupsTo] = useState('');
+
   const fetchSummary = async () => {
     if (!token) return;
     setSummaryLoading(true);
@@ -73,6 +81,85 @@ const AdminLocalHiring = () => {
     } finally {
       setSummaryLoading(false);
     }
+  };
+
+  const fetchAllLineups = async (options = {}) => {
+    if (!token) {
+      toast.error('Not authenticated');
+      return;
+    }
+
+    const searchFilter = Object.prototype.hasOwnProperty.call(options, 'search')
+      ? options.search
+      : allLineupsSearch;
+    const fromFilter = Object.prototype.hasOwnProperty.call(options, 'from')
+      ? options.from
+      : allLineupsFrom;
+    const toFilter = Object.prototype.hasOwnProperty.call(options, 'to')
+      ? options.to
+      : allLineupsTo;
+
+    if (Object.prototype.hasOwnProperty.call(options, 'search')) {
+      setAllLineupsSearch(options.search);
+    }
+    if (Object.prototype.hasOwnProperty.call(options, 'from')) {
+      setAllLineupsFrom(options.from);
+    }
+    if (Object.prototype.hasOwnProperty.call(options, 'to')) {
+      setAllLineupsTo(options.to);
+    }
+
+    setAllLineupsLoading(true);
+    setAllLineupsError('');
+
+    try {
+      const params = new URLSearchParams();
+      params.append('status', 'Line up');
+      if (fromFilter) params.append('lineUpFrom', fromFilter);
+      if (toFilter) params.append('lineUpTo', toFilter);
+      if (searchFilter) params.append('q', searchFilter);
+      params.append('limit', '200');
+
+      const url = `${BASE_URL}/api/local-hiring/admin/worksheet${
+        params.toString() ? `?${params.toString()}` : ''
+      }`;
+
+      const { data } = await axios.get(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const list = Array.isArray(data?.data) ? data.data : [];
+
+      const sorted = [...list].sort((a, b) => {
+        const aTime = a.lineUpDateTime ? new Date(a.lineUpDateTime).getTime() : 0;
+        const bTime = b.lineUpDateTime ? new Date(b.lineUpDateTime).getTime() : 0;
+        return bTime - aTime;
+      });
+
+      setAllLineups(sorted);
+    } catch (e) {
+      const message = e?.response?.data?.message || 'Failed to load line-ups';
+      setAllLineups([]);
+      setAllLineupsError(message);
+      toast.error(message);
+    } finally {
+      setAllLineupsLoading(false);
+    }
+  };
+
+  const handleOpenAllLineups = () => {
+    if (!token) {
+      toast.error('Not authenticated');
+      return;
+    }
+
+    const today = new Date();
+    const todayStr = today.toISOString().slice(0, 10);
+    const fromValue = allLineupsFrom || todayStr;
+
+    setAllLineupsFrom(fromValue);
+    setAllLineupsOpen(true);
+    fetchAllLineups({ from: fromValue });
   };
 
   const fetchPositions = async () => {
@@ -397,7 +484,7 @@ const AdminLocalHiring = () => {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 20l9-16H3z" />
               </svg>
-              Line Up Sheet
+              Worksheet
             </button>
             <button
               type="button"
@@ -418,6 +505,20 @@ const AdminLocalHiring = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 12H9m6 4H9m12 4H3m18-8H3m18-8H3m18 16V4m-18 0v16" />
               </svg>
               Data
+            </button>
+            <button
+              type="button"
+              onClick={handleOpenAllLineups}
+              className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-semibold shadow-sm transition border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 5h6m-6 7h9m-9 7h12M9 5l2-2m-2 2l2 2M6 12l2-2m-2 2l2 2m0 5l2-2m-2 2l2 2"
+                />
+              </svg>
+              All Lineups
             </button>
           </div>
         </section>
@@ -655,6 +756,196 @@ const AdminLocalHiring = () => {
                               <td className="px-4 py-2 align-middle text-right tabular-nums text-slate-900">{row.total}</td>
                               <td className="px-4 py-2 align-middle text-right tabular-nums text-amber-700">{row.unassigned}</td>
                               <td className="px-4 py-2 align-middle text-right tabular-nums text-emerald-700">{row.assigned}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {allLineupsOpen && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 py-8">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-indigo-600 font-semibold">Line-ups</p>
+                <h2 className="text-lg font-semibold text-slate-900 mt-1">All Line-ups (Date-wise)</h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  Upcoming and recent line-ups sorted by line-up date and time, with quick filters.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAllLineupsOpen(false)}
+                className="text-slate-400 hover:text-slate-600 transition"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5 overflow-y-auto text-sm">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-1">
+                  <label className="block text-xs font-semibold text-slate-700 mb-2">Search (Name / Email / Mobile)</label>
+                  <input
+                    type="text"
+                    value={allLineupsSearch}
+                    onChange={(e) => setAllLineupsSearch(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        fetchAllLineups({});
+                      }
+                    }}
+                    placeholder="Type to search…"
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-2">Line-up Date (From)</label>
+                  <input
+                    type="date"
+                    value={allLineupsFrom}
+                    onChange={(e) => setAllLineupsFrom(e.target.value)}
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-2">Line-up Date (To)</label>
+                  <input
+                    type="date"
+                    value={allLineupsTo}
+                    onChange={(e) => setAllLineupsTo(e.target.value)}
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition bg-white"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => fetchAllLineups({})}
+                    className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 shadow-sm hover:bg-indigo-700 transition"
+                  >
+                    Apply Filters
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const today = new Date();
+                      const todayStr = today.toISOString().slice(0, 10);
+                      setAllLineupsSearch('');
+                      setAllLineupsFrom(todayStr);
+                      setAllLineupsTo('');
+                      fetchAllLineups({ search: '', from: todayStr, to: '' });
+                    }}
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs sm:text-sm font-semibold px-4 py-2.5 shadow-sm hover:bg-slate-50 transition"
+                  >
+                    Clear Filters
+                  </button>
+                </div>
+                <div className="text-xs text-slate-500">
+                  {allLineupsLoading
+                    ? 'Loading line-ups…'
+                    : allLineups.length > 0
+                      ? `Showing ${allLineups.length.toLocaleString('en-IN')} line-ups`
+                      : 'No line-ups found for selected filters'}
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                {allLineupsError && (
+                  <div className="px-6 py-3 text-xs sm:text-sm text-red-600 border-b border-red-100 bg-red-50">{allLineupsError}</div>
+                )}
+
+                {allLineupsLoading ? (
+                  <div className="p-10 flex items-center justify-center text-slate-500 text-sm">Loading line-ups…</div>
+                ) : allLineups.length === 0 ? (
+                  <div className="p-10 text-center text-slate-500 text-sm">No line-ups to display.</div>
+                ) : (
+                  <div className="overflow-auto">
+                    <table className="min-w-full text-xs sm:text-sm">
+                      <thead className="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                          {['Candidate', 'Mobile', 'Email', 'Status', 'Line-up', 'Interview Type', 'Assigned To', 'Updated At', 'Remarks'].map((h) => (
+                            <th
+                              key={h}
+                              className="px-3 py-2 text-left font-semibold text-slate-600 whitespace-nowrap"
+                            >
+                              {h}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {allLineups.map((item) => {
+                          const l = item.lead || {};
+                          const user = item.assignedTo || {};
+                          const mobile = Array.isArray(l.mobile)
+                            ? l.mobile.join(', ')
+                            : l.mobile || '—';
+                          const email = l.email || (l.profile && l.profile.email) || '—';
+                          const statusLabel = item.currentStatus || '—';
+                          const lineUpLabel = item.lineUpDateTime
+                            ? new Date(item.lineUpDateTime).toLocaleString('en-IN', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: true,
+                              })
+                            : '—';
+                          const assignedName = user.name || user.fullName || '—';
+                          const updatedAtLabel = item.updatedAt
+                            ? new Date(item.updatedAt).toLocaleString('en-IN', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: true,
+                              })
+                            : '—';
+
+                          return (
+                            <tr
+                              key={item._id}
+                              className="border-b border-slate-100 hover:bg-slate-50/60"
+                            >
+                              <td className="px-3 py-2 whitespace-nowrap">
+                                <div className="font-semibold text-slate-900 text-xs sm:text-sm">
+                                  {l.name || (l.profile && l.profile.name) || '—'}
+                                </div>
+                                <div className="text-[11px] text-slate-500">
+                                  {l.location || (l.profile && l.profile.location) || '—'}
+                                </div>
+                              </td>
+                              <td className="px-3 py-2 whitespace-nowrap">{mobile}</td>
+                              <td className="px-3 py-2 whitespace-nowrap">{email}</td>
+                              <td className="px-3 py-2 whitespace-nowrap">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-700">
+                                  {statusLabel}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2 whitespace-nowrap">{lineUpLabel}</td>
+                              <td className="px-3 py-2 whitespace-nowrap">{item.interviewType || '—'}</td>
+                              <td className="px-3 py-2 whitespace-nowrap">{assignedName}</td>
+                              <td className="px-3 py-2 whitespace-nowrap">{updatedAtLabel}</td>
+                              <td className="px-3 py-2 max-w-xs">
+                                <span className="block truncate" title={item.remarks || '—'}>
+                                  {item.remarks || '—'}
+                                </span>
+                              </td>
                             </tr>
                           );
                         })}
