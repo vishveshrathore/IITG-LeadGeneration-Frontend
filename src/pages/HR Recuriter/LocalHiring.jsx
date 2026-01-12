@@ -15,7 +15,7 @@ const navItems = [
 
 const STATUS_OPTIONS = ['RNR', 'Wrong Number', 'Positive', 'Negative', 'Line up', 'Blacklist'];
 
-const PRESET_POSITIONS = ['CRE', 'CRM', 'Mgr HRBP',];
+const PRESET_POSITIONS = ['CRE', 'CRM', 'Mgr HRBP', 'Team Lead CRM', 'Training & Productivity'];
 
 const PROFILE_SUMMARY_LABELS = [
     'Name',
@@ -377,14 +377,23 @@ const HRRecruiterLocalHiring = () => {
 
         const opportunityText = selectedPositions.length ? selectedPositions.join(', ') : '';
 
-        let jdKey = '';
+        const jdKeys = [];
         if (selectedPositions.includes('CRE')) {
-            jdKey = 'cre';
-        } else if (selectedPositions.includes('CRM')) {
-            jdKey = 'crm';
-        } else if (selectedPositions.includes('Mgr HRBP')) {
-            jdKey = 'mgr_hrbp';
+            jdKeys.push('cre');
         }
+        if (selectedPositions.includes('CRM')) {
+            jdKeys.push('crm');
+        }
+        if (selectedPositions.includes('Mgr HRBP')) {
+            jdKeys.push('mgr_hrbp');
+        }
+        if (selectedPositions.includes('Team Lead CRM')) {
+            jdKeys.push('team_lead_crm');
+        }
+        if (selectedPositions.includes('Training & Productivity')) {
+            jdKeys.push('training_productivity');
+        }
+        const primaryJdKey = jdKeys[0] || '';
 
         try {
             setEmailModalSending(true);
@@ -393,8 +402,11 @@ const HRRecruiterLocalHiring = () => {
             formData.append('subject', DEFAULT_EMAIL_SUBJECT);
             formData.append('text', buildDefaultEmailBody(recruiterInfo, opportunityText || ''));
             formData.append('to', candidate);
-            if (jdKey) {
-                formData.append('jdKey', jdKey);
+            if (primaryJdKey) {
+                formData.append('jdKey', primaryJdKey);
+            }
+            if (jdKeys.length) {
+                formData.append('jdKeys', JSON.stringify(jdKeys));
             }
 
             const { data } = await axios.post(
@@ -432,18 +444,6 @@ const HRRecruiterLocalHiring = () => {
         } finally {
             setEmailModalSending(false);
         }
-    };
-
-    const closeEmailModal = () => {
-        setEmailModalOpen(false);
-        setEmailModalLead(null);
-        setEmailModalAssignmentId(null);
-        setEmailModalTo('');
-        setEmailModalSubject('');
-        setEmailModalBody('');
-        setEmailModalFile(null);
-        setEmailModalSending(false);
-        setEmailOpportunity('');
     };
 
     const handleSendEmail = async () => {

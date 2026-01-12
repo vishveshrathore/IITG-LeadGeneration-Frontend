@@ -190,6 +190,7 @@ const TeamStats = () => {
     const result = {};
     const inMonth = (dateStr) => dateStr && dateStr.startsWith(month);
 
+    // Initialise all days in the selected month
     for (const d of monthDays) {
       result[d] = {
         total: 0,
@@ -209,11 +210,30 @@ const TeamStats = () => {
       const uid = String(a.Calledbycre?._id || a.Calledbycre || '');
       if (!uid || uid !== idStr) continue;
 
+      // 1) Partition leads by assignment date and latest status (one bucket per lead)
       const assigned = ymd(a.assignedAt);
       if (assigned && inMonth(assigned) && result[assigned]) {
-        result[assigned].total += 1;
+        const dayEntry = result[assigned];
+        dayEntry.total += 1;
+
+        // Latest known status (prefer currentStatus, fallback to last statusHistory)
+        let statusStr = (a.currentStatus || '').toLowerCase();
+        if (!statusStr) {
+          const hist = Array.isArray(a.statusHistory) ? a.statusHistory : [];
+          if (hist.length > 0) {
+            statusStr = (hist[hist.length - 1].status || '').toLowerCase();
+          }
+        }
+
+        if (statusStr === 'positive') dayEntry.positive += 1;
+        else if (statusStr === 'negative') dayEntry.negative += 1;
+        else if (statusStr === 'wrong number') dayEntry.wrongNumber += 1;
+        else if (statusStr === 'rnr') dayEntry.rnr += 1;
+        else if (statusStr === 'closure prospects' || statusStr === 'closure prospect') dayEntry.closureProspects += 1;
+        else dayEntry.pending += 1; // includes initial Pending or missing status
       }
 
+      // 2) Activity metrics on their own dates
       const cd = ymd(a.conductionDoneAt);
       if (cd && inMonth(cd) && result[cd]) {
         result[cd].conduction += 1;
@@ -222,19 +242,6 @@ const TeamStats = () => {
       const closedAt = ymd(a.closureStatusAt);
       if (closedAt && inMonth(closedAt) && result[closedAt]) {
         result[closedAt].closed += 1;
-      }
-
-      const hist = Array.isArray(a.statusHistory) ? a.statusHistory : [];
-      for (const h of hist) {
-        const st = (h?.status || '').toLowerCase();
-        const hd = ymd(h?.date || h?.updatedAt || h?.createdAt);
-        if (!hd || !inMonth(hd) || !result[hd]) continue;
-        if (st === 'positive') result[hd].positive += 1;
-        else if (st === 'negative') result[hd].negative += 1;
-        else if (st === 'rnr') result[hd].rnr += 1;
-        else if (st === 'pending') result[hd].pending += 1;
-        else if (st === 'wrong number') result[hd].wrongNumber += 1;
-        else if (st === 'closure prospects' || st === 'closure prospect') result[hd].closureProspects += 1;
       }
 
       const fuList = Array.isArray(a.followUps) ? a.followUps : [];

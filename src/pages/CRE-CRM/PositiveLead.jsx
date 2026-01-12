@@ -14,7 +14,7 @@ const PositiveLead = () => {
   const [selectedLead, setSelectedLead] = useState(null);
   const [remarks, setRemarks] = useState("");
   const [status, setStatus] = useState("");
-  const statusOptions = ["Pending", "Positive", "Negative", "Closure Prospects"];
+  const statusOptions = ["Positive", "Negative", "Closure Prospects"];
   // hierarchy selector
   const [scope, setScope] = useState('self'); // self | team | user
   const [teamMembers, setTeamMembers] = useState([]);
@@ -72,7 +72,8 @@ const PositiveLead = () => {
   const handleSelectLead = (lead) => {
     setSelectedLead(lead);
     setRemarks(lead.remarks || "");
-    setStatus(lead.currentStatus || "Pending");
+    // Show blank by default unless a non-empty status is already set
+    setStatus(lead.currentStatus || "");
   };
 
   const handleSave = async () => {

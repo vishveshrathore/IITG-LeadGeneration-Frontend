@@ -39,6 +39,12 @@ const LeadAssignmentDashboard = () => {
   // Cache CRM phone once to avoid intermittent empty values due to races
   const [crmPhoneResolved, setCrmPhoneResolved] = useState("");
 
+  // Per-user storage key so multiple CREs on the same browser don't clash
+  const storageKey = useMemo(() => {
+    const uid = user?._id || user?.id || user?.email || "anonymous";
+    return `creCurrentLead:${uid}`;
+  }, [user?._id, user?.id, user?.email]);
+
   const [lead, setLead] = useState(null);
   const [loading, setLoading] = useState(true);
   const [remarksOpen, setRemarksOpen] = useState(false);
@@ -82,7 +88,11 @@ const LeadAssignmentDashboard = () => {
     const fieldsTotal = 4; // status, manager, meeting(any), followUps(any)
     if (!lead) return { progress: 0 };
     let completed = 0;
-    if (lead?.currentStatus && lead.currentStatus !== 'Pending') completed++;
+
+    // Status considered completed only after at least one explicit update beyond the initial default
+    const hist = Array.isArray(lead?.statusHistory) ? lead.statusHistory : [];
+    const hasNonDefaultStatus = hist.length > 1;
+    if (hasNonDefaultStatus) completed++;
     if (lead?.reportingManagers && lead.reportingManagers.length > 0) completed++;
     else if (lead?.reportingManager) completed++;
     if (lead?.meeting && (lead.meeting.link || lead.meeting.date || lead.meeting.time || lead.meeting.notes)) completed++;
@@ -156,13 +166,14 @@ const LeadAssignmentDashboard = () => {
         timeout: 15000, // 15s safety timeout to avoid indefinite spinner
       });
       setLead(res.data);
-      localStorage.setItem("currentLead", JSON.stringify(res.data));
+      localStorage.setItem(storageKey, JSON.stringify(res.data));
       // Initialize local states from fetched lead data
       const fetchedLead = res.data;
       if (fetchedLead) {
-        // Default to blank if no currentStatus or if it is 'Pending' so user must explicitly choose
-        const initialStatus = fetchedLead.currentStatus;
-        setNewStatus(initialStatus && initialStatus !== 'Pending' ? initialStatus : '');
+        // Default to blank for a freshly assigned lead until user explicitly chooses a status
+        const hist = Array.isArray(fetchedLead.statusHistory) ? fetchedLead.statusHistory : [];
+        const hasNonDefaultStatus = hist.length > 1;
+        setNewStatus(hasNonDefaultStatus ? (fetchedLead.currentStatus || '') : '');
         if (fetchedLead.reportingManagers && Array.isArray(fetchedLead.reportingManagers)) {
           setSelectedReportingManagers(fetchedLead.reportingManagers.map(m => typeof m === 'object' ? m._id : m).filter(Boolean));
         } else {
@@ -189,17 +200,17 @@ const LeadAssignmentDashboard = () => {
       if (status === 404) {
         // No unassigned leads available → show completed state quietly
         setLead(null);
-        localStorage.removeItem("currentLead");
+        localStorage.removeItem(storageKey);
       } else {
         toast.error("Failed to fetch lead.");
         setLead(null);
-        localStorage.removeItem("currentLead");
+        localStorage.removeItem(storageKey);
       }
     } finally {
       isFetchingRef.current = false;
       setLoading(false);
     }
-  }, [token]);
+  }, [token, storageKey]);
 
   // Resolve CRM phone once and cache it
   useEffect(() => {
@@ -252,45 +263,47 @@ const LeadAssignmentDashboard = () => {
     if (hasFetchedRef.current) return;
     hasFetchedRef.current = true;
 
-    const storedLead = localStorage.getItem("currentLead");
+    const storedLead = localStorage.getItem(storageKey);
 
     if (storedLead) {
-      const parsedLead = JSON.parse(storedLead);
-      // Validate stored lead to avoid showing stale/invalid ones
-      const hasValidMobile = Array.isArray(parsedLead?.mobile) && parsedLead.mobile.some((n) => /^\d{10}$/.test(n));
-      const isApproved = parsedLead?.status === 'approved for calling';
-      // Only restore if not completed AND it matches current fetching rules
-      if (!parsedLead.completed && hasValidMobile && isApproved) {
-        setLead(parsedLead);
-        // Rehydrate local UI state and clear loading immediately
-        // Default to blank if no currentStatus or if it is 'Pending' so user must explicitly choose
-        const storedStatus = parsedLead.currentStatus;
-        setNewStatus(storedStatus && storedStatus !== 'Pending' ? storedStatus : '');
-        if (parsedLead.reportingManagers && Array.isArray(parsedLead.reportingManagers)) {
-          setSelectedReportingManagers(parsedLead.reportingManagers.map(m => typeof m === 'object' ? m._id : m).filter(Boolean));
-        } else {
-          setSelectedReportingManagers(parsedLead.reportingManager?._id ? [parsedLead.reportingManager._id] : []);
+      try {
+        const parsedLead = JSON.parse(storedLead);
+        // Reuse any non-completed assignment as-is so the same lead is shown after reload/login
+        if (parsedLead && !parsedLead.completed) {
+          setLead(parsedLead);
+          // Rehydrate local UI state and clear loading immediately
+          // Default to blank unless there is at least one explicit status update beyond the initial default
+          const hist = Array.isArray(parsedLead.statusHistory) ? parsedLead.statusHistory : [];
+          const hasNonDefaultStatus = hist.length > 1;
+          const storedStatus = parsedLead.currentStatus;
+          setNewStatus(hasNonDefaultStatus ? (storedStatus || '') : '');
+          if (parsedLead.reportingManagers && Array.isArray(parsedLead.reportingManagers)) {
+            setSelectedReportingManagers(parsedLead.reportingManagers.map(m => typeof m === 'object' ? m._id : m).filter(Boolean));
+          } else {
+            setSelectedReportingManagers(parsedLead.reportingManager?._id ? [parsedLead.reportingManager._id] : []);
+          }
+          setMeetingLink(parsedLead.meeting?.link || '');
+          setMeetingDate(parsedLead.meeting?.date ? new Date(parsedLead.meeting.date).toISOString().split('T')[0] : '');
+          setMeetingTime(parsedLead.meeting?.time || '');
+          setMeetingNotes(parsedLead.meeting?.notes || '');
+          setRemarks(parsedLead.remarks || '');
+          setWhatsappSent(!!parsedLead?.whatsapp?.sent);
+          const m1 = parsedLead?.mailers?.find?.(m => m.type === 'mailer1');
+          const m2 = parsedLead?.mailers?.find?.(m => m.type === 'mailer2');
+          setMailer1Sent(!!m1?.sent);
+          setMailer2Sent(!!m2?.sent);
+          setLoading(false);
+          return;
         }
-        setMeetingLink(parsedLead.meeting?.link || '');
-        setMeetingDate(parsedLead.meeting?.date ? new Date(parsedLead.meeting.date).toISOString().split('T')[0] : '');
-        setMeetingTime(parsedLead.meeting?.time || '');
-        setMeetingNotes(parsedLead.meeting?.notes || '');
-        setRemarks(parsedLead.remarks || '');
-        setWhatsappSent(!!parsedLead?.whatsapp?.sent);
-        const m1 = parsedLead?.mailers?.find?.(m => m.type === 'mailer1');
-        const m2 = parsedLead?.mailers?.find?.(m => m.type === 'mailer2');
-        setMailer1Sent(!!m1?.sent);
-        setMailer2Sent(!!m2?.sent);
-        setLoading(false);
-        return;
+        // If stored lead is completed or clearly invalid, clear it
+        localStorage.removeItem(storageKey);
+      } catch {
+        // Corrupt JSON → drop and fetch a fresh lead
+        localStorage.removeItem(storageKey);
       }
-      // If lead was already completed, clear it
-      localStorage.removeItem("currentLead");
     }
-
-    // Always try to fetch new lead if no valid stored one
     fetchLead();
-  }, [fetchLead]);
+  }, [fetchLead, storageKey]);
 
   
   useEffect(() => {
@@ -360,7 +373,7 @@ const LeadAssignmentDashboard = () => {
       setFollowUpDate('');
       setFollowUpRemarks('');
       // Clear local current lead and fetch new one
-      localStorage.removeItem("currentLead");
+      localStorage.removeItem(storageKey);
       setLead(null);
       await fetchLead();
     } catch (err) {

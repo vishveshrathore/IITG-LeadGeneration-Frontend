@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import axios from 'axios';
@@ -32,6 +32,27 @@ const MyTeam = () => {
   const [confirmToggle, setConfirmToggle] = useState({ open: false, id: null, next: false });
   const [statusUpdate, setStatusUpdate] = useState({ open: false, id: null, status: '' });
   const [viewDetails, setViewDetails] = useState({ open: false, assignment: null });
+
+  const currentAssignment = viewDetails.assignment;
+  const currentLead = currentAssignment?.lead || {};
+  const currentCompany = currentLead.company || {};
+  const currentIndustry = currentCompany.industry || {};
+  const currentLatestFU = Array.isArray(currentAssignment?.followUps) && currentAssignment.followUps.length > 0
+    ? currentAssignment.followUps[currentAssignment.followUps.length - 1]
+    : null;
+  const currentFuDate = currentLatestFU?.followUpDate ? new Date(currentLatestFU.followUpDate) : null;
+  const currentStatusRaw = currentAssignment?.currentStatus || (
+    Array.isArray(currentAssignment?.statusHistory) && currentAssignment.statusHistory.length > 0
+      ? currentAssignment.statusHistory[currentAssignment.statusHistory.length - 1]?.status
+      : ''
+  );
+  const currentStatusLabel = currentStatusRaw && currentStatusRaw.toLowerCase() !== 'pending' ? currentStatusRaw : '';
+  const currentManagersLabel = Array.isArray(currentAssignment?.reportingManagers) && currentAssignment.reportingManagers.length > 0
+    ? currentAssignment.reportingManagers
+        .map(rm => `${rm?.name || ''}${rm?.email ? ` (${rm.email})` : ''}`)
+        .filter(Boolean)
+        .join(', ')
+    : (currentAssignment?.reportingManager?.name || '—');
 
   useEffect(() => {
     if (!token || !isLeader) return;
@@ -88,22 +109,23 @@ const MyTeam = () => {
     }
   };
 
-  useEffect(() => {
+  const fetchTeamLeads = useCallback(async () => {
     if (!token || !isLeader) return;
     const headers = { Authorization: `Bearer ${token}` };
-    const run = async () => {
-      try {
-        setLoadingLeads(true);
-        const res = await axios.get(`${BASE_URL}/api/cre/team/leads`, { headers });
-        setTeamLeadsData(res?.data?.data || []);
-      } catch (_) {
-        setTeamLeadsData([]);
-      } finally {
-        setLoadingLeads(false);
-      }
-    };
-    run();
+    try {
+      setLoadingLeads(true);
+      const res = await axios.get(`${BASE_URL}/api/cre/team/leads`, { headers });
+      setTeamLeadsData(res?.data?.data || []);
+    } catch (_) {
+      setTeamLeadsData([]);
+    } finally {
+      setLoadingLeads(false);
+    }
   }, [token, isLeader]);
+
+  useEffect(() => {
+    fetchTeamLeads();
+  }, [fetchTeamLeads]);
 
   // Derive per-member closures (closureStatus === 'Closed') from teamLeadsData
   const memberClosedCounts = useMemo(() => {
@@ -169,9 +191,10 @@ const MyTeam = () => {
       if (!map[uid]) {
         map[uid] = {
           total: 0,
-          pending: 0,
+          nostatus: 0,
           positive: 0,
           negative: 0,
+          wrongNumber: 0,
           closureProspects: 0,
           todaysFollowups: 0,
           conduction: 0,
@@ -182,11 +205,29 @@ const MyTeam = () => {
 
       const entry = map[uid];
 
+      // 1) Partition today's new pitches by latest status (one bucket per lead)
       const assigned = ymd(a.assignedAt || a.createdAt);
       if (assigned && assigned === target) {
         entry.total += 1;
+
+        // Resolve latest known status for this assignment
+        let statusStr = (a.currentStatus || '').toLowerCase();
+        if (!statusStr) {
+          const hist = Array.isArray(a.statusHistory) ? a.statusHistory : [];
+          if (hist.length > 0) {
+            statusStr = (hist[hist.length - 1].status || '').toLowerCase();
+          }
+        }
+
+        if (statusStr === 'positive') entry.positive += 1;
+        else if (statusStr === 'negative') entry.negative += 1;
+        else if (statusStr === 'wrong number') entry.wrongNumber += 1;
+        else if (statusStr === 'rnr') entry.rnr += 1;
+        else if (statusStr === 'closure prospects' || statusStr === 'closure prospect') entry.closureProspects += 1;
+        else entry.nostatus += 1; // includes initial Pending or missing status
       }
 
+      // 2) Activity metrics on this date (independent of assignment date)
       const cd = ymd(a.conductionDoneAt);
       if (cd && cd === target && a?.conductionDone === true) {
         entry.conduction += 1;
@@ -195,18 +236,6 @@ const MyTeam = () => {
       const closedAt = ymd(a.closureStatusAt);
       if (closedAt && closedAt === target && a?.closureStatus === 'Closed') {
         entry.closed += 1;
-      }
-
-      const hist = Array.isArray(a.statusHistory) ? a.statusHistory : [];
-      for (const h of hist) {
-        const st = (h?.status || '').toLowerCase();
-        const hd = ymd(h?.date || h?.updatedAt || h?.createdAt);
-        if (!hd || hd !== target) continue;
-        if (st === 'pending') entry.pending += 1;
-        else if (st === 'positive') entry.positive += 1;
-        else if (st === 'negative') entry.negative += 1;
-        else if (st === 'closure prospects' || st === 'closure prospect') entry.closureProspects += 1;
-        else if (st === 'rnr') entry.rnr += 1;
       }
 
       const fuList = Array.isArray(a.followUps) ? a.followUps : [];
@@ -227,8 +256,9 @@ const MyTeam = () => {
       closureProspects: 0,
       conduction: 0,
       positive: 0,
-      pending: 0,
+      nostatus: 0,
       negative: 0,
+      wrongNumber: 0,
       rnr: 0,
       total: 0,
       todaysFollowups: 0,
@@ -242,9 +272,10 @@ const MyTeam = () => {
       sum.closureProspects += Number(daily.closureProspects || 0);
       sum.conduction += Number(daily.conduction || 0);
       sum.positive += Number(daily.positive || 0);
+      sum.nostatus += Number(daily.nostatus || 0);
       sum.negative += Number(daily.negative || 0);
+      sum.wrongNumber += Number(daily.wrongNumber || 0);
       sum.rnr += Number(daily.rnr || 0);
-      sum.pending += Number(daily.pending || 0);
       sum.total += Number(daily.total || 0);
       sum.todaysFollowups += Number(daily.todaysFollowups || 0);
     }
@@ -402,7 +433,22 @@ const MyTeam = () => {
               />
             </div>
           </div>
-          <button onClick={() => navigate('/cre/team-stats')} className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-3 py-1.5 text-white text-xs hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500">My Team Report</button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={fetchTeamLeads}
+              className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+              disabled={loadingLeads}
+            >
+              {loadingLeads ? 'Refreshing…' : 'Refresh'}
+            </button>
+            <button
+              onClick={() => navigate('/cre/team-stats')}
+              className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-3 py-1.5 text-white text-xs hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              My Team Report
+            </button>
+          </div>
         </div>
 
         {/* Team members */}
@@ -418,8 +464,9 @@ const MyTeam = () => {
                     <th className="px-4 py-3 text-right font-semibold text-slate-700 whitespace-nowrap">New Pitches</th>
                     <th className="px-4 py-3 text-right font-semibold text-slate-700 whitespace-nowrap">Positive</th>
                     <th className="px-4 py-3 text-right font-semibold text-slate-700 whitespace-nowrap">Negative</th>
+                    <th className="px-4 py-3 text-right font-semibold text-slate-700 whitespace-nowrap">Wrong No.</th>
                     <th className="px-4 py-3 text-right font-semibold text-slate-700 whitespace-nowrap">RNR</th>
-                    <th className="px-4 py-3 text-right font-semibold text-slate-700 whitespace-nowrap">Pending</th>
+                    <th className="px-4 py-3 text-right font-semibold text-slate-700 whitespace-nowrap">No status</th>
                     <th className="px-4 py-3 text-right font-semibold text-slate-700 whitespace-nowrap">FU Today</th>
                     <th className="px-4 py-3 text-right font-semibold text-slate-700 whitespace-nowrap">Conduction</th>
                     <th className="px-4 py-3 text-right font-semibold text-slate-700 whitespace-nowrap">Closure Prospects</th>
@@ -454,10 +501,13 @@ const MyTeam = () => {
                           <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-700 border border-rose-100">{teamTotals.negative}</span>
                         </td>
                         <td className="px-4 py-3 text-right">
+                          <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-700 border border-rose-100">{teamTotals.wrongNumber}</span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
                           <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 border border-amber-100">{teamTotals.rnr}</span>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-700 border border-slate-100">{teamTotals.pending}</span>
+                          <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-700 border border-slate-100">{teamTotals.nostatus}</span>
                         </td>
                         <td className="px-4 py-3 text-right">
                           <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700 border border-sky-100">{teamTotals.todaysFollowups}</span>
@@ -519,10 +569,13 @@ const MyTeam = () => {
                                 <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-700 border border-rose-100">{daily.negative ?? 0}</span>
                               </td>
                               <td className="px-4 py-3 text-right">
+                                <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-700 border border-rose-100">{daily.wrongNumber ?? 0}</span>
+                              </td>
+                              <td className="px-4 py-3 text-right">
                                 <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 border border-amber-100">{daily.rnr ?? 0}</span>
                               </td>
                               <td className="px-4 py-3 text-right">
-                                <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-700 border border-slate-100">{daily.pending ?? 0}</span>
+                                <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-700 border border-slate-100">{daily.nostatus ?? 0}</span>
                               </td>
                               <td className="px-4 py-3 text-right">
                                 <span className="inline-flex min-w-[2.5rem] justify-end rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700 border border-sky-100">{daily.todaysFollowups ?? 0}</span>
@@ -563,9 +616,10 @@ const MyTeam = () => {
             <label className="text-xs text-slate-600">Status</label>
             <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} className="border rounded-md px-2 py-1 text-sm">
               <option value="">All</option>
-              <option value="Pending">Pending</option>
               <option value="Positive">Positive</option>
               <option value="Negative">Negative</option>
+              <option value="Wrong Number">Wrong Number</option>
+              <option value="RNR">RNR</option>
               <option value="Closure Prospects">Closure Prospects</option>
               <option value="Closed">Closed</option>
             </select>
@@ -611,7 +665,9 @@ const MyTeam = () => {
                   pageData.map(a => {
                     const latestFU = (a.followUps && a.followUps.length > 0) ? a.followUps[a.followUps.length - 1] : null;
                     const fuDate = latestFU?.followUpDate ? new Date(latestFU.followUpDate) : null;
-                    const status = a.currentStatus || (a.statusHistory && a.statusHistory.length > 0 ? a.statusHistory[a.statusHistory.length - 1]?.status : '—');
+                    // Display-friendly status: hide internal 'Pending' as blank
+                    const rawStatus = a.currentStatus || (a.statusHistory && a.statusHistory.length > 0 ? a.statusHistory[a.statusHistory.length - 1]?.status : '');
+                    const status = rawStatus && rawStatus.toLowerCase() !== 'pending' ? rawStatus : '';
                     const lead = a.lead || {};
                     const company = lead.company || {};
                     return (
@@ -651,9 +707,10 @@ const MyTeam = () => {
                               className="border rounded-md px-2 py-1 text-xs bg-white text-slate-700 border-slate-300 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             >
                               <option value="">Change Status</option>
-                              <option value="Pending">Pending</option>
                               <option value="Positive">Positive</option>
                               <option value="Negative">Negative</option>
+                              <option value="Wrong Number">Wrong Number</option>
+                              <option value="RNR">RNR</option>
                               <option value="Closure Prospects">Closure Prospects</option>
                               <option value="Closed">Closed</option>
                             </select>
@@ -701,14 +758,22 @@ const MyTeam = () => {
             animate={{ opacity: 1, y: 0 }}
             className="relative z-10 w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl"
           >
-            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 bg-slate-50/80">
               <div>
-                <div className="text-base font-semibold">Lead Details</div>
-                <div className="text-xs text-slate-500">
-                  {viewDetails.assignment?.lead?.name || 'Lead'}
-                  {viewDetails.assignment?.lead?.company?.CompanyName
-                    ? ` · ${viewDetails.assignment.lead.company.CompanyName}`
-                    : ''}
+                <div className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                  <span>{currentLead.name || 'Lead Details'}</span>
+                  {currentCompany.CompanyName && (
+                    <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-700 border border-slate-200">
+                      {currentCompany.CompanyName}
+                    </span>
+                  )}
+                </div>
+                <div className="mt-0.5 text-[11px] text-slate-500">
+                  Assigned to {currentAssignment?.Calledbycre?.name || '—'}
+                  {currentFuDate && (
+                    <span className="ml-2">· Next follow-up: {currentFuDate.toLocaleDateString()}</span>
+                  )}
                 </div>
               </div>
               <button
@@ -718,21 +783,58 @@ const MyTeam = () => {
                 Close
               </button>
             </div>
-            <div className="p-5 space-y-4 text-sm">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                <div><span className="font-semibold text-slate-700">Lead Name:</span> {viewDetails.assignment?.lead?.name || '—'}</div>
-                <div><span className="font-semibold text-slate-700">Company:</span> {viewDetails.assignment?.lead?.company?.CompanyName || '—'}</div>
-                <div><span className="font-semibold text-slate-700">Designation:</span> {viewDetails.assignment?.lead?.designation || '—'}</div>
-                <div><span className="font-semibold text-slate-700">Location:</span> {viewDetails.assignment?.lead?.location || '—'}</div>
-                <div><span className="font-semibold text-slate-700">Email:</span> {viewDetails.assignment?.lead?.email || '—'}</div>
-                <div><span className="font-semibold text-slate-700">Mobile:</span> {Array.isArray(viewDetails.assignment?.lead?.mobile) ? viewDetails.assignment.lead.mobile.join(', ') : (viewDetails.assignment?.lead?.mobile || '—')}</div>
-                <div><span className="font-semibold text-slate-700">Current Status:</span> {viewDetails.assignment?.currentStatus || '—'}</div>
-                <div><span className="font-semibold text-slate-700">Closure Status:</span> {viewDetails.assignment?.closureStatus || '—'}</div>
-              </div>
-              <div className="mt-4 border-t border-slate-200 pt-4">
-                <div className="text-sm font-semibold text-slate-800 mb-2">All Assignment Fields</div>
+
+            {/* Body */}
+            <div className="p-5 space-y-6 text-sm">
+              {/* Lead & Company */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1 text-xs">
-                  {renderEntries(viewDetails.assignment, ['assignment'])}
+                  <div className="text-[11px] font-semibold text-slate-500 uppercase">Lead</div>
+                  <div><span className="font-medium text-slate-700">Name:</span> {currentLead.name || '—'}</div>
+                  <div><span className="font-medium text-slate-700">Designation:</span> {currentLead.designation || '—'}</div>
+                  <div><span className="font-medium text-slate-700">Location:</span> {currentLead.location || '—'}</div>
+                  <div><span className="font-medium text-slate-700">Industry:</span> {currentIndustry.name || '—'}</div>
+                </div>
+                <div className="space-y-1 text-xs">
+                  <div className="text-[11px] font-semibold text-slate-500 uppercase">Company & Contact</div>
+                  <div><span className="font-medium text-slate-700">Company:</span> {currentCompany.CompanyName || '—'}</div>
+                  <div><span className="font-medium text-slate-700">Email:</span> {currentLead.email || '—'}</div>
+                  <div>
+                    <span className="font-medium text-slate-700">Mobile:</span>{' '}
+                    {Array.isArray(currentLead.mobile)
+                      ? currentLead.mobile.join(', ')
+                      : (currentLead.mobile || '—')}
+                  </div>
+                  <div><span className="font-medium text-slate-700">Product Line:</span> {currentLead.productLine || '—'}</div>
+                </div>
+              </div>
+
+              {/* Status & Assignment */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <div className="space-y-1">
+                  <div className="text-[11px] font-semibold text-slate-500 uppercase">Status</div>
+                  <div><span className="font-medium text-slate-700">Current Status:</span> {currentStatusLabel || '—'}</div>
+                  <div><span className="font-medium text-slate-700">Closure Status:</span> {currentAssignment?.closureStatus || '—'}</div>
+                  <div><span className="font-medium text-slate-700">Completed:</span> {currentAssignment?.completed ? 'Yes' : 'No'}</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-[11px] font-semibold text-slate-500 uppercase">Assignment</div>
+                  <div><span className="font-medium text-slate-700">CRE:</span> {currentAssignment?.Calledbycre?.name || '—'}</div>
+                  <div><span className="font-medium text-slate-700">Reporting Manager(s):</span> {currentManagersLabel}</div>
+                  <div>
+                    <span className="font-medium text-slate-700">Latest Follow-up:</span>{' '}
+                    {currentFuDate
+                      ? `${currentFuDate.toLocaleDateString()}${currentLatestFU?.remarks ? ` · ${currentLatestFU.remarks}` : ''}`
+                      : '—'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Raw assignment data for deep inspection */}
+              <div className="mt-2 border-t border-slate-200 pt-4">
+                <div className="text-sm font-semibold text-slate-800 mb-2">All Assignment Fields</div>
+                <div className="space-y-1 text-xs max-h-64 overflow-y-auto pr-1">
+                  {renderEntries(currentAssignment, ['assignment'])}
                 </div>
               </div>
             </div>

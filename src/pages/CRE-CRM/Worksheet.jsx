@@ -72,15 +72,25 @@ const MyWorksheet = () => {
   // Cache CRM phone once to avoid intermittent empty values due to races
   const [crmPhoneResolved, setCrmPhoneResolved] = useState("");
 
-  const statusOptions = ["Pending", "Positive", "Negative", "Wrong Number", "Closure Prospects"];
-  const closureStatusOptions = ["Closed", "In Progress", "Pending"];
+  // User-selectable status options (Pending is internal-only; not exposed here)
+  const statusOptions = ["Positive", "Negative", "RNR", "Wrong Number", "Closure Prospects"];
+  const closureStatusOptions = ["Closed", "In Progress"];
 
-  // Consistent status resolver: prefer currentStatus; fallback to last statusHistory
+  // Consistent status resolver for UI: treat internal 'Pending' as "no status" (blank)
   const getCurrentStatus = (assignment) => {
-    if (!assignment) return "Pending";
-    if (assignment.currentStatus) return assignment.currentStatus;
+    if (!assignment) return "";
+
+    const rawCurrent = assignment.currentStatus;
+    if (rawCurrent && rawCurrent !== "Pending") return rawCurrent;
+
     const hist = Array.isArray(assignment.statusHistory) ? assignment.statusHistory : [];
-    return hist.length > 0 ? hist[hist.length - 1].status || "Pending" : "Pending";
+    if (hist.length > 0) {
+      const last = hist[hist.length - 1]?.status;
+      if (last && last !== "Pending") return last;
+    }
+
+    // Only the internal default 'Pending' is present → show blank in UI
+    return "";
   };
 
   const saveEmail = async (assignmentId, value) => {
@@ -218,7 +228,8 @@ const MyWorksheet = () => {
   const handleSelectLead = (lead) => {
     setSelectedLead(lead);
     setRemarks(lead.remarks || "");
-    setStatus(getCurrentStatus(lead));
+    // Do not prefill status; force explicit selection in the dropdown each time
+    setStatus("");
     const m1 = (lead?.mailers || []).find(m => m.type === 'mailer1')?.sent || false;
     const m2 = (lead?.mailers || []).find(m => m.type === 'mailer2')?.sent || false;
     setEditMailers({ mailer1: m1, mailer2: m2 });
@@ -265,6 +276,7 @@ const MyWorksheet = () => {
       );
       toast.success("Lead updated successfully");
       setSelectedLead(null);
+      setStatus("");
       fetchLeads();
     } catch (err) {
       console.error(err);
@@ -825,6 +837,7 @@ const handleSendEmail = async () => {
                       onChange={(e) => setStatus(e.target.value)}
                       className="border p-2 rounded"
                     >
+                      <option value="">Select status</option>
                       {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                     <div className="md:col-span-2">
@@ -842,7 +855,12 @@ const handleSendEmail = async () => {
 
               {/* Modal Footer */}
               <div className="flex items-center justify-end gap-2 p-6 border-t bg-gray-50 rounded-b-2xl">
-                <button className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300" onClick={() => setSelectedLead(null)}>Close</button>
+                <button
+                  className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
+                  onClick={() => { setSelectedLead(null); setStatus(""); }}
+                >
+                  Close
+                </button>
                 <button className="px-4 py-2 rounded bg-green-600 hover:bg-green-700 text-white" onClick={handleSave}>Save</button>
               </div>
             </div>
