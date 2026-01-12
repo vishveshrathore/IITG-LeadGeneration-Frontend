@@ -31,6 +31,7 @@ const MyTeam = () => {
   const navigate = useNavigate();
   const [confirmToggle, setConfirmToggle] = useState({ open: false, id: null, next: false });
   const [statusUpdate, setStatusUpdate] = useState({ open: false, id: null, status: '' });
+  const [viewDetails, setViewDetails] = useState({ open: false, assignment: null });
 
   useEffect(() => {
     if (!token || !isLeader) return;
@@ -144,52 +145,26 @@ const MyTeam = () => {
     return map;
   }, [teamLeadsData]);
 
+  const ymd = (d) => {
+    if (!d) return null;
+    const dt = typeof d === 'string' ? new Date(d) : d;
+    if (!dt || Number.isNaN(dt.getTime())) return null;
+    const y = dt.getFullYear();
+    const m = String(dt.getMonth() + 1).padStart(2, '0');
+    const day = String(dt.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
   // Per-member metrics for the selected reportDate (today by default)
   const perMemberDailyMetrics = useMemo(() => {
     const map = {};
     if (!reportDate) return map;
 
-    const start = new Date(reportDate);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(start);
-    end.setDate(end.getDate() + 1);
+    const target = reportDate;
 
     for (const a of teamLeadsData) {
       const uid = String(a.Calledbycre?._id || a.Calledbycre || '');
       if (!uid) continue;
-
-      // 1) If there are follow-ups, use the latest follow-up date
-      let latestFU = null;
-      let fuDate = null;
-      if (Array.isArray(a.followUps) && a.followUps.length > 0) {
-        // Match backend logic: pick latest follow-up by updatedAt/createdAt
-        latestFU = a.followUps.reduce((latest, curr) => {
-          const latestDate = latest.updatedAt || latest.createdAt || latest.followUpDate;
-          const currDate = curr.updatedAt || curr.createdAt || curr.followUpDate;
-          if (!latestDate) return curr;
-          if (!currDate) return latest;
-          return new Date(currDate) > new Date(latestDate) ? curr : latest;
-        }, a.followUps[0]);
-
-        fuDate = latestFU?.followUpDate ? new Date(latestFU.followUpDate) : null;
-      }
-
-      // 2) Derive the activity date for this assignment for daily metrics
-      let activityDate = fuDate;
-      let isFromFollowUp = !!fuDate;
-
-      // If no follow-up for this assignment, fall back to assignedAt / createdAt
-      if (!activityDate) {
-        if (a.assignedAt) {
-          activityDate = new Date(a.assignedAt);
-          isFromFollowUp = false;
-        } else if (a.createdAt) {
-          activityDate = new Date(a.createdAt);
-          isFromFollowUp = false;
-        }
-      }
-
-      if (!activityDate || activityDate < start || activityDate >= end) continue;
 
       if (!map[uid]) {
         map[uid] = {
@@ -206,22 +181,41 @@ const MyTeam = () => {
       }
 
       const entry = map[uid];
-      entry.total += 1;
 
-      // Only count as today's follow-up if the activity came from a follow-up
-      if (isFromFollowUp) {
-        entry.todaysFollowups += 1;
+      const assigned = ymd(a.assignedAt || a.createdAt);
+      if (assigned && assigned === target) {
+        entry.total += 1;
       }
 
-      const st = (a.currentStatus || '').toLowerCase();
-      if (st === 'pending') entry.pending += 1;
-      else if (st === 'positive') entry.positive += 1;
-      else if (st === 'negative') entry.negative += 1;
-      else if (st === 'closure prospects') entry.closureProspects += 1;
-      else if (st === 'rnr') entry.rnr += 1;
+      const cd = ymd(a.conductionDoneAt);
+      if (cd && cd === target && a?.conductionDone === true) {
+        entry.conduction += 1;
+      }
 
-      if (a?.conductionDone === true) entry.conduction += 1;
-      if (a?.closureStatus === 'Closed') entry.closed += 1;
+      const closedAt = ymd(a.closureStatusAt);
+      if (closedAt && closedAt === target && a?.closureStatus === 'Closed') {
+        entry.closed += 1;
+      }
+
+      const hist = Array.isArray(a.statusHistory) ? a.statusHistory : [];
+      for (const h of hist) {
+        const st = (h?.status || '').toLowerCase();
+        const hd = ymd(h?.date || h?.updatedAt || h?.createdAt);
+        if (!hd || hd !== target) continue;
+        if (st === 'pending') entry.pending += 1;
+        else if (st === 'positive') entry.positive += 1;
+        else if (st === 'negative') entry.negative += 1;
+        else if (st === 'closure prospects' || st === 'closure prospect') entry.closureProspects += 1;
+        else if (st === 'rnr') entry.rnr += 1;
+      }
+
+      const fuList = Array.isArray(a.followUps) ? a.followUps : [];
+      for (const fu of fuList) {
+        const fd = ymd(fu.followUpDate);
+        if (fd && fd === target) {
+          entry.todaysFollowups += 1;
+        }
+      }
     }
 
     return map;
@@ -641,7 +635,7 @@ const MyTeam = () => {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             <button
-                              onClick={() => navigate(`/cre/lead/${a._id}`, { state: { assignment: a } })}
+                              onClick={() => setViewDetails({ open: true, assignment: a })}
                               className="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-3 py-1.5 text-white text-xs hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             >
                               View
@@ -696,6 +690,55 @@ const MyTeam = () => {
           </div>
         </div>
       </div>
+      {viewDetails.open && viewDetails.assignment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-slate-900/50"
+            onClick={() => setViewDetails({ open: false, assignment: null })}
+          />
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="relative z-10 w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl"
+          >
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+              <div>
+                <div className="text-base font-semibold">Lead Details</div>
+                <div className="text-xs text-slate-500">
+                  {viewDetails.assignment?.lead?.name || 'Lead'}
+                  {viewDetails.assignment?.lead?.company?.CompanyName
+                    ? ` · ${viewDetails.assignment.lead.company.CompanyName}`
+                    : ''}
+                </div>
+              </div>
+              <button
+                onClick={() => setViewDetails({ open: false, assignment: null })}
+                className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50"
+              >
+                Close
+              </button>
+            </div>
+            <div className="p-5 space-y-4 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div><span className="font-semibold text-slate-700">Lead Name:</span> {viewDetails.assignment?.lead?.name || '—'}</div>
+                <div><span className="font-semibold text-slate-700">Company:</span> {viewDetails.assignment?.lead?.company?.CompanyName || '—'}</div>
+                <div><span className="font-semibold text-slate-700">Designation:</span> {viewDetails.assignment?.lead?.designation || '—'}</div>
+                <div><span className="font-semibold text-slate-700">Location:</span> {viewDetails.assignment?.lead?.location || '—'}</div>
+                <div><span className="font-semibold text-slate-700">Email:</span> {viewDetails.assignment?.lead?.email || '—'}</div>
+                <div><span className="font-semibold text-slate-700">Mobile:</span> {Array.isArray(viewDetails.assignment?.lead?.mobile) ? viewDetails.assignment.lead.mobile.join(', ') : (viewDetails.assignment?.lead?.mobile || '—')}</div>
+                <div><span className="font-semibold text-slate-700">Current Status:</span> {viewDetails.assignment?.currentStatus || '—'}</div>
+                <div><span className="font-semibold text-slate-700">Closure Status:</span> {viewDetails.assignment?.closureStatus || '—'}</div>
+              </div>
+              <div className="mt-4 border-t border-slate-200 pt-4">
+                <div className="text-sm font-semibold text-slate-800 mb-2">All Assignment Fields</div>
+                <div className="space-y-1 text-xs">
+                  {renderEntries(viewDetails.assignment, ['assignment'])}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
       {confirmToggle.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-slate-900/50" onClick={() => setConfirmToggle({ open: false, id: null, next: false })} />
