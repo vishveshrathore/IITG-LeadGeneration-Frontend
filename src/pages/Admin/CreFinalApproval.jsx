@@ -63,6 +63,7 @@ export default function CRELeadsApprovalDashboard() {
   const [industryLoading, setIndustryLoading] = useState(false);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [exporting, setExporting] = useState(false);
 
   // Reject UI state
   const [rejectForId, setRejectForId] = useState(null);
@@ -419,6 +420,40 @@ export default function CRELeadsApprovalDashboard() {
     fetchCounts();
   }, [page, debouncedSearch, limit, activeTab, fromDate, toDate]);
 
+  const handleExportAll = async () => {
+    try {
+      setExporting(true);
+      const params = new URLSearchParams();
+      if (debouncedSearch) params.set('search', debouncedSearch);
+      if (fromDate) params.set('from', fromDate);
+      if (toDate) params.set('to', toDate);
+
+      const url = `${BASE_URL}/api/admin/getallleads/CRE/export?${params.toString()}`;
+      const { data } = await axios.get(url, {
+        responseType: 'blob',
+      });
+
+      const blob = new Blob([data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const link = document.createElement('a');
+      const href = window.URL.createObjectURL(blob);
+      link.href = href;
+      const safeTab = activeTab || 'All';
+      const safeDate = new Date().toISOString().split('T')[0];
+      link.download = `CRE_Leads_${safeTab}_${safeDate}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(href);
+    } catch (e) {
+      console.error(e);
+      toast.error(e?.response?.data?.message || 'Failed to export data');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   // Debounce search input
   useEffect(() => {
     const id = setTimeout(() => setDebouncedSearch(search.trim()), 400);
@@ -552,6 +587,20 @@ export default function CRELeadsApprovalDashboard() {
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-800">
           CRE Dashboard for Lead Approval
         </h1>
+        <button
+          type="button"
+          onClick={handleExportAll}
+          disabled={exporting}
+          className={`${buttonBase} bg-blue-600 text-white hover:bg-blue-700`}
+        >
+          {exporting ? (
+            <>
+              <FiRefreshCw className="animate-spin" /> Exporting...
+            </>
+          ) : (
+            'Export All Data'
+          )}
+        </button>
       </div>
 
       {/* Tabs: Unassigned, Rejected, Approved, Non-Approved, CRE Generated */}
