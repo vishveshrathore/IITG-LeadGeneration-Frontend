@@ -237,7 +237,7 @@ const LinkedInPParser = () => {
       const set = new Set();
       (profiles || []).forEach((p) => {
         const v = String(getColumnTextForFilter(p, columnKey) || "").trim();
-        if (v) set.add(v);
+        set.add(v);
       });
       return Array.from(set).sort((a, b) => a.localeCompare(b));
     }, [profiles, columnKey]);
@@ -404,6 +404,7 @@ const LinkedInPParser = () => {
               ) : (
                 filteredValues.map((v) => {
                   const checked = activeFilterSelection.includes(v);
+                  const displayLabel = v === "" ? "(Blanks)" : v;
                   return (
                     <label key={v} className="flex cursor-pointer items-center gap-2 px-1 py-0.5 hover:bg-gray-50">
                       <input
@@ -412,8 +413,8 @@ const LinkedInPParser = () => {
                         checked={checked}
                         onChange={() => toggleValue(v)}
                       />
-                      <span className="truncate" title={v}>
-                        {v}
+                      <span className="truncate" title={displayLabel}>
+                        {displayLabel}
                       </span>
                     </label>
                   );
