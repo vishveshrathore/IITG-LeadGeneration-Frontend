@@ -65,6 +65,24 @@ export default function CorporateAccountApproval() {
     );
   };
 
+  const dedupeProfiles = (profiles) => {
+    if (!Array.isArray(profiles)) return [];
+    const seen = new Set();
+    const result = [];
+    for (const p of profiles) {
+      if (!p) continue;
+      const name = (p.name || "").trim().toLowerCase();
+      const designation = (p.current_designation || p.designation || "").trim().toLowerCase();
+      const company = (p.current_company || p.company || "").trim().toLowerCase();
+      const location = (p.location || "").trim().toLowerCase();
+      const key = [name, designation, company, location].join("||");
+      if (seen.has(key)) continue;
+      seen.add(key);
+      result.push(p);
+    }
+    return result;
+  };
+
   const fetchAccounts = async () => {
     setLoading(true);
     try {
@@ -182,9 +200,10 @@ export default function CorporateAccountApproval() {
         : Array.isArray(response?.data)
         ? response.data
         : [];
+      const dedupedList = dedupeProfiles(list);
       setProfilesModalTitle(`Top CTC Profiles (Demo) - ${companyName}`);
       setProfilesModalType("demo");
-      setProfilesModalData(list);
+      setProfilesModalData(dedupedList);
       setProfilesModalOpen(true);
     } catch (err) {
       console.error("Error fetching demo profiles for company", companyName, err);
@@ -213,9 +232,10 @@ export default function CorporateAccountApproval() {
         : Array.isArray(response?.data)
         ? response.data
         : [];
+      const dedupedList = dedupeProfiles(list);
       setProfilesModalTitle(`All Profiles (Service) - ${companyName}`);
       setProfilesModalType("service");
-      setProfilesModalData(list);
+      setProfilesModalData(dedupedList);
       setProfilesModalOpen(true);
     } catch (err) {
       console.error("Error fetching service profiles for company", companyName, err);
@@ -603,7 +623,6 @@ export default function CorporateAccountApproval() {
                       <th className="px-3 py-2 text-left">Current Designation</th>
                       <th className="px-3 py-2 text-left">Company</th>
                       <th className="px-3 py-2 text-left">Location</th>
-                      <th className="px-3 py-2 text-left">CTC</th>
                       <th className="px-3 py-2 text-left">{dateHeaders[0]}</th>
                       <th className="px-3 py-2 text-left">{dateHeaders[1]}</th>
                       <th className="px-3 py-2 text-left">{dateHeaders[2]}</th>
@@ -618,7 +637,6 @@ export default function CorporateAccountApproval() {
                         <td className="px-3 py-2 align-top">{p.current_designation || p.designation || "-"}</td>
                         <td className="px-3 py-2 align-top">{p.current_company || p.company || "-"}</td>
                         <td className="px-3 py-2 align-top">{p.location || "-"}</td>
-                        <td className="px-3 py-2 align-top">{p.ctc || "-"}</td>
                         <td className="px-3 py-2 align-top text-xs">{renderDateTick(p.date1)}</td>
                         <td className="px-3 py-2 align-top text-xs">{renderDateTick(p.date2)}</td>
                         <td className="px-3 py-2 align-top text-xs">{renderDateTick(p.date3)}</td>
