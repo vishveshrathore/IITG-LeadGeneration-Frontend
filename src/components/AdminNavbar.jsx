@@ -4,6 +4,7 @@ import { FiHome, FiLogOut, FiMenu, FiTool } from 'react-icons/fi';
 import { BsBuildings, BsFillPersonPlusFill } from 'react-icons/bs';
 import { MdBusinessCenter } from 'react-icons/md';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useAuth } from '../context/AuthContext';
 
 const adminNavItems = [
   { name: 'Dashboard', icon: <FiHome />, path: '/adminDashboard' },
@@ -13,9 +14,13 @@ const adminNavItems = [
 ];
 
 const AdminNavbar = () => {
+  const { role } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
+
+  const normalizedRole = (role || '').toLowerCase().replace(/[^a-z]/g, '');
+  const isLeadManager = normalizedRole === 'leadmanager';
 
   const toggleMenu = () => {
     setIsOpen(!isOpen);
@@ -43,34 +48,35 @@ const AdminNavbar = () => {
 
       {/* Desktop nav */}
       <div className="hidden md:flex gap-6 items-center relative">
-        {adminNavItems.map((item) => {
-          const isActive = location.pathname === item.path;
-          return (
-            <motion.div
-              key={item.name}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="relative"
-            >
-              <Link
-                to={item.path}
-                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-                  isActive ? 'text-blue-600' : 'text-gray-600 hover:text-blue-500'
-                }`}
+        {!isLeadManager &&
+          adminNavItems.map((item) => {
+            const isActive = location.pathname === item.path;
+            return (
+              <motion.div
+                key={item.name}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="relative"
               >
-                {item.icon}
-                {item.name}
-              </Link>
-              {isActive && (
-                <motion.div
-                  layoutId="active-pill"
-                  className="absolute inset-0 bg-blue-100 rounded-md -z-10"
-                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                />
-              )}
-            </motion.div>
-          );
-        })}
+                <Link
+                  to={item.path}
+                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                    isActive ? 'text-blue-600' : 'text-gray-600 hover:text-blue-500'
+                  }`}
+                >
+                  {item.icon}
+                  {item.name}
+                </Link>
+                {isActive && (
+                  <motion.div
+                    layoutId="active-pill"
+                    className="absolute inset-0 bg-blue-100 rounded-md -z-10"
+                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                  />
+                )}
+              </motion.div>
+            );
+          })}
 
         {/* Logout */}
         <button
@@ -90,20 +96,21 @@ const AdminNavbar = () => {
             exit={{ height: 0, opacity: 0 }}
             className="absolute top-full left-0 right-0 bg-white border-b shadow-md flex flex-col md:hidden"
           >
-            {adminNavItems.map((item) => (
-              <Link
-                key={item.name}
-                to={item.path}
-                onClick={() => setIsOpen(false)}
-                className={`flex items-center gap-3 px-6 py-3 border-t text-sm font-medium ${
-                  location.pathname === item.path
-                    ? 'text-blue-600 bg-blue-50'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                {item.icon} {item.name}
-              </Link>
-            ))}
+            {!isLeadManager &&
+              adminNavItems.map((item) => (
+                <Link
+                  key={item.name}
+                  to={item.path}
+                  onClick={() => setIsOpen(false)}
+                  className={`flex items-center gap-3 px-6 py-3 border-t text-sm font-medium ${
+                    location.pathname === item.path
+                      ? 'text-blue-600 bg-blue-50'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  {item.icon} {item.name}
+                </Link>
+              ))}
 
             {/* Mobile logout */}
             <button

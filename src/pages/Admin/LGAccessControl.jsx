@@ -26,6 +26,7 @@ export default function LGAccessControl() {
     { value: 'NationalHead', label: 'NationalHead' },
     { value: 'DeputyNationalHead', label: 'DeputyNationalHead' },
     { value: 'DataAnalyst', label: 'DataAnalyst' },
+    { value: 'Lead Manager', label: 'Lead Manager' },
     // HR roles: keep stored values, update display labels
     { value: 'HR Operations', label: 'Manager Operation' },
     { value: 'HR Recruiter', label: 'Recruiter' },

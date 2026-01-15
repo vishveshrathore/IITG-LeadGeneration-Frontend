@@ -45,13 +45,15 @@ const RawLeads = () => {
     "companyName",
     "location",
     "email",
-    "mobile",
-    "industry",
-    "remarks",
     "division",
-    "productLine",
+    "mobile",
     "turnOver",
+    "industry",
+    "productLine",
     "employeeStrength",
+    "remarks",
+    
+    
   ];
 
   // Flatten nested data (company, industry)

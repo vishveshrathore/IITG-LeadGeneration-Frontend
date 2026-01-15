@@ -74,6 +74,7 @@ import HROperationsPositionMIS from "./pages/HR Operations/PositionMIS.jsx";
 import HROperationsStageSheet from "./pages/HR Operations/StageSheet.jsx";
 import HROperationsLocalHiring from "./pages/HR Operations/LocalHiring.jsx";
 import HROperationsLocalHiringWorksheet from "./pages/HR Operations/LocalHiringWorksheet.jsx";
+import LeadManagerDashboard from "./pages/LeadManager/LeadManagerDashboard.jsx";
 
 function App() {
   const location = useLocation();
@@ -90,6 +91,14 @@ function App() {
           element={
             <ProtectedRoute role="admin">
               <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/leadmanager/dashboard"
+          element={
+            <ProtectedRoute role="Lead Manager">
+              <LeadManagerDashboard />
             </ProtectedRoute>
           }
         />
@@ -205,7 +214,7 @@ function App() {
         <Route
           path="/admin/cre-called-data"
           element={
-            <ProtectedRoute role="admin">
+            <ProtectedRoute roles={["admin", "Lead Manager"]}>
               <CRECalledData />
             </ProtectedRoute>
           }
@@ -279,7 +288,7 @@ function App() {
         <Route
           path="/admin/CreDashboard"
           element={
-            <ProtectedRoute roles={["admin", "adminteam", "dataanalyst"]}>
+            <ProtectedRoute roles={["admin", "adminteam", "Lead Manager"]}>
               <CRELeadsApprovalDashboard />
             </ProtectedRoute>
           }
