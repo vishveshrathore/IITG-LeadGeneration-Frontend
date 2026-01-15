@@ -277,13 +277,13 @@ function App() {
           }
         />
         <Route
-  path="/admin/CreDashboard"
-  element={
-    <ProtectedRoute roles={["admin", "adminteam"]}>
-      <CRELeadsApprovalDashboard />
-    </ProtectedRoute>
-  }
-/>
+          path="/admin/CreDashboard"
+          element={
+            <ProtectedRoute roles={["admin", "adminteam", "dataanalyst"]}>
+              <CRELeadsApprovalDashboard />
+            </ProtectedRoute>
+          }
+        />
 
         <Route
           path="/creDashboard"

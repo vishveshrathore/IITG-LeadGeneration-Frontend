@@ -538,7 +538,11 @@ const RawLeadManager = () => {
                   </td>
                   <td className="p-2">{lead.location}</td>
                   <td className="p-2">{lead.industry?.name || "N/A"}</td>
-                  <td className="p-2">{lead.mobile?.join(", ")}</td>
+                  <td className="p-2">
+                    {Array.isArray(lead.mobile)
+                      ? lead.mobile.join(", ")
+                      : lead.mobile || "-"}
+                  </td>
                   <td className="p-2">{lead.email}</td>
                   <td className="p-2">{lead.remarks}</td>
                   <td className="p-2">{lead.division}</td>
