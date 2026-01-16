@@ -7,8 +7,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 
 const navItems = [
   { name: 'Position MIS', icon: <BsBriefcaseFill />, path: '/admin/recruitment/position-mis' },
-  { name: 'Create Team', icon: <BsBuildingCheck />, path: '/admin/recruitment/position-assignment' },
-  { name: 'Tools', icon: <BsTools />, path: '/tools/dashboard' },
+  { name: 'Local Hiring', icon: <BsBuildingCheck />, path: '/recruitment-qc/local-hiring' },
 ];
 
 const RecruitmentQCNavbar = () => {

@@ -66,6 +66,7 @@ const RawLeads = () => {
     if (data.industry && typeof data.industry === "object") {
       flattened.industry = data.industry._id || "";
     }
+    flattened.verified = Boolean(data.verified);
     return flattened;
   };
 
@@ -326,7 +327,7 @@ const RawLeads = () => {
               className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-8"
             >
               {fields.map((field) => {
-  const isRequired = field !== "email" && field !== "division" && field !== "remarks";
+  const isRequired = field !== "email" && field !== "division" && field !== "remarks" && field !== "turnOver" && field !== "productLine" && field !== "employeeStrength";
 
 
   return (
@@ -421,15 +422,38 @@ const RawLeads = () => {
           )}
         </div>
       ) : (
-        <input
-          type="text"
-          name={field}
-          value={formData[field] || ""}
-          onChange={handleInputChange}
-          disabled={field === "companyName"}
-          className="w-full border border-gray-300 px-4 py-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
-          placeholder={`Enter ${field}`}
-        />
+        field === "mobile" ? (
+          <div className="flex items-center gap-3">
+            <input
+              type="text"
+              name={field}
+              value={formData[field] || ""}
+              onChange={handleInputChange}
+              className="flex-1 border border-gray-300 px-4 py-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+              placeholder={`Enter ${field}`}
+            />
+            <label className="flex items-center gap-1 text-sm text-gray-700 whitespace-nowrap">
+              <input
+                type="checkbox"
+                checked={Boolean(formData.verified)}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, verified: e.target.checked }))
+                }
+              />
+              <span>Verified</span>
+            </label>
+          </div>
+        ) : (
+          <input
+            type="text"
+            name={field}
+            value={formData[field] || ""}
+            onChange={handleInputChange}
+            disabled={field === "companyName"}
+            className="w-full border border-gray-300 px-4 py-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+            placeholder={`Enter ${field}`}
+          />
+        )
       )}
     </motion.div>
   );

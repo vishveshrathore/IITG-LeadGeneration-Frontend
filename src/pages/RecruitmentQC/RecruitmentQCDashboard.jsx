@@ -40,17 +40,10 @@ const RecruitmentQCDashboard = () => {
       color: 'bg-pink-100',
     },
     {
-      title: 'Create Team',
-      description: 'Create teams of Recruiters and Manager Operation for each position.',
+      title: 'Local Hiring',
+      description: 'Review local hiring leads and their assignment outcomes.',
       icon: <BsBuildingCheck size={20} />,
-      route: '/admin/recruitment/position-assignment',
-      color: 'bg-blue-100',
-    },
-    {
-      title: 'Recruitment Tools (Table 14 & 12)',
-      description: 'Open tools for parsing Naukri and LinkedIn data.',
-      icon: <BsTools size={20} />,
-      route: '/tools/dashboard',
+      route: '/recruitment-qc/local-hiring',
       color: 'bg-emerald-100',
     },
   ];

@@ -71,6 +71,22 @@ export default function CRELeadsApprovalDashboard() {
   const [rejectNote, setRejectNote] = useState(''); // only used when "Other" is selected
   const [bulkRejectOpen, setBulkRejectOpen] = useState(false);
 
+  const [editOpen, setEditOpen] = useState(false);
+  const [editLead, setEditLead] = useState(null);
+  const [editType, setEditType] = useState(null);
+  const [editMobiles, setEditMobiles] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editLocation, setEditLocation] = useState("");
+  const [editRemarks, setEditRemarks] = useState("");
+  const [editName, setEditName] = useState("");
+  const [editDesignation, setEditDesignation] = useState("");
+  const [editDivision, setEditDivision] = useState("");
+  const [editProductLine, setEditProductLine] = useState("");
+  const [editTurnOver, setEditTurnOver] = useState("");
+  const [editEmployeeStrength, setEditEmployeeStrength] = useState("");
+  const [editIndustryId, setEditIndustryId] = useState("");
+  const [editCompanyId, setEditCompanyId] = useState("");
+
   const REJECT_OPTIONS = [
     'HR level is Below Senior Manager',
     'Industry type is not right',
@@ -352,6 +368,123 @@ export default function CRELeadsApprovalDashboard() {
     const note = hasOther ? (rejectNote || '') : '';
     await rejectLead(lead, reasonsString, note);
     cancelReject();
+  };
+
+  const openEdit = (lead) => {
+    setEditLead(lead);
+    const type = lead.type || (lead.createdBy ? 'HR' : 'RawLead');
+    setEditType(type);
+    setEditName(lead.name || "");
+    setEditDesignation(lead.designation || "");
+    setEditEmail(lead.email || "");
+    setEditLocation(lead.location || "");
+    setEditRemarks(lead.remarks || "");
+    setEditDivision(lead.division || "");
+    setEditProductLine(lead.productLine || "");
+    setEditTurnOver(lead.turnOver || "");
+    setEditEmployeeStrength(lead.employeeStrength || "");
+    setEditMobiles(Array.isArray(lead.mobile) ? lead.mobile.join(",") : "");
+    setEditIndustryId(lead.industry?._id || lead.industry || "");
+    setEditCompanyId(lead.company?._id || lead.company || "");
+    setEditOpen(true);
+  };
+
+  const saveEdit = async () => {
+    if (!editLead) return;
+    try {
+      const mobileArr = editMobiles
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      if (editType === "RawLead") {
+        const payload = {
+          name: editName,
+          designation: editDesignation,
+          company: editCompanyId,
+          location: editLocation,
+          mobile: mobileArr,
+          industry: editIndustryId,
+          productLine: editProductLine,
+          turnOver: editTurnOver,
+          employeeStrength: editEmployeeStrength,
+          email: editEmail,
+          remarks: editRemarks,
+        };
+
+        const resp = await axios.put(
+          `${BASE_URL}/api/lg/rawlead/${editLead._id}`,
+          payload,
+          {
+            headers: authToken
+              ? { Authorization: `Bearer ${authToken}` }
+              : {},
+          }
+        );
+
+        const serverDoc = resp.data.lead || resp.data.data || {};
+        setLeads((prev) =>
+          prev.map((x) => {
+            if (x._id !== editLead._id) return x;
+            const merged = { ...x, ...payload, ...serverDoc };
+            merged.company = serverDoc.company || x.company;
+            merged.companyName = serverDoc.companyName || x.companyName;
+            merged.industry = serverDoc.industry || x.industry;
+            merged.industryName = serverDoc.industryName || x.industryName;
+            return merged;
+          })
+        );
+      } else {
+        const payload = {
+          name: editName,
+          designation: editDesignation,
+          mobile: mobileArr,
+          email: editEmail,
+          location: editLocation,
+          remarks: editRemarks,
+          division: editDivision,
+          productLine: editProductLine,
+          turnOver: editTurnOver,
+          employeeStrength: editEmployeeStrength,
+          industry: editIndustryId,
+        };
+
+        const resp = await axios.put(
+          `${BASE_URL}/api/admin/hr/update/${editLead._id}`,
+          payload,
+          {
+            headers: authToken
+              ? { Authorization: `Bearer ${authToken}` }
+              : {},
+          }
+        );
+
+        const serverDoc = resp.data.data || resp.data.lead || {};
+        setLeads((prev) =>
+          prev.map((x) => {
+            if (x._id !== editLead._id) return x;
+            const merged = { ...x, ...payload, ...serverDoc };
+            merged.company = x.company;
+            merged.companyName = x.companyName;
+            merged.industry = serverDoc.industry || x.industry;
+            // derive industryName from local industries list if possible
+            const updatedIndustryId = merged.industry || editIndustryId || x.industry;
+            const found = industries.find((ind) => ind._id === String(updatedIndustryId));
+            merged.industryName = found?.name || x.industryName;
+            return merged;
+          })
+        );
+      }
+
+      await fetchLeads(page, debouncedSearch);
+      fetchCounts();
+      setEditOpen(false);
+      toast.success("Lead updated");
+    } catch (e) {
+      toast.error(
+        e?.response?.data?.message || e.message || "Failed to update"
+      );
+    }
   };
 
   // Debounced industry async search (trending UX)
@@ -865,7 +998,14 @@ export default function CRELeadsApprovalDashboard() {
                       />
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-900">
-                      {lead.name}
+                      <div className="flex items-center gap-2">
+                        <span>{lead.name}</span>
+                        {lead.verified && (
+                          <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-700 border border-green-300">
+                            Verified
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600">
                       {lead.companyName || "—"}
@@ -1025,93 +1165,103 @@ export default function CRELeadsApprovalDashboard() {
                             )}
                           </div>
                         )}
-                        <div className="flex gap-2 justify-center items-center">
-                        {lead.status === "approved for calling" ? (
-                          <Badge className="bg-green-100 text-green-700">
-                            Approved for calling
-                          </Badge>
-                        ) : (
-                          <>
-                            <button
-                              onClick={() => approveLead(lead)}
-                              disabled={isBusy}
-                              className={`${buttonBase} bg-green-600 text-white hover:bg-green-700`}
-                              title="Approve for calling"
-                            >
-                              <FiCheckCircle /> Approve
-                            </button>
-                            <button
-                              onClick={() => markPending(lead)}
-                              disabled={isBusy}
-                              className={`${buttonBase} bg-gray-400 text-white hover:bg-gray-500`}
-                              title="Move to bottom of pending"
-                            >
-                              <FiRefreshCw /> Pending
-                            </button>
-                            <button
-                              onClick={() => nonApproveLead(lead)}
-                              disabled={isBusy}
-                              className={`${buttonBase} bg-yellow-500 text-white hover:bg-yellow-600`}
-                              title="Move to Non-Approved bucket"
-                            >
-                              Non-Approved
-                            </button>
-                            <button
-                              onClick={() => openReject(lead)}
-                              disabled={isBusy}
-                              className={`${buttonBase} bg-red-600 text-white hover:bg-red-700`}
-                              title="Reject and send back to LG"
-                            >
-                              <FiXCircle /> Reject
-                            </button>
-                            {rejectForId === id && (
-                              <div className="mt-2 p-3 border rounded-lg bg-white shadow-sm w-80">
-                                <label className="block text-xs text-gray-600 mb-1">Select reasons</label>
-                                <div className="space-y-1 mb-2">
-                                  {REJECT_OPTIONS.map((opt) => (
-                                    <label key={opt} className="flex items-center gap-2 text-sm">
+                        <div className="flex flex-wrap md:flex-nowrap gap-2 items-center">
+                          {lead.status === "approved for calling" ? (
+                            <>
+                              <button
+                                onClick={() => openEdit(lead)}
+                                disabled={isBusy}
+                                className={`${buttonBase} bg-indigo-600 text-white hover:bg-indigo-700`}
+                                title="Edit lead details"
+                              >
+                                Edit
+                              </button>
+                              <Badge className="bg-green-100 text-green-700">
+                                Approved for calling
+                              </Badge>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => approveLead(lead)}
+                                disabled={isBusy}
+                                className={`${buttonBase} bg-green-600 text-white hover:bg-green-700`}
+                                title="Approve for calling"
+                              >
+                                <FiCheckCircle /> Approve
+                              </button>
+                              <button
+                                onClick={() => openEdit(lead)}
+                                disabled={isBusy}
+                                className={`${buttonBase} bg-indigo-600 text-white hover:bg-indigo-700`}
+                                title="Edit lead details"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => nonApproveLead(lead)}
+                                disabled={isBusy}
+                                className={`${buttonBase} bg-yellow-500 text-white hover:bg-yellow-600`}
+                                title="Move to Non-Approved bucket"
+                              >
+                                Non-Approved
+                              </button>
+                              <button
+                                onClick={() => openReject(lead)}
+                                disabled={isBusy}
+                                className={`${buttonBase} bg-red-600 text-white hover:bg-red-700`}
+                                title="Reject and send back to LG"
+                              >
+                                <FiXCircle /> Reject
+                              </button>
+                              {rejectForId === id && (
+                                <div className="mt-2 p-3 border rounded-lg bg-white shadow-sm w-80">
+                                  <label className="block text-xs text-gray-600 mb-1">Select reasons</label>
+                                  <div className="space-y-1 mb-2">
+                                    {REJECT_OPTIONS.map((opt) => (
+                                      <label key={opt} className="flex items-center gap-2 text-sm">
+                                        <input
+                                          type="checkbox"
+                                          checked={rejectReasons.includes(opt)}
+                                          onChange={(e) => {
+                                            setRejectReasons((prev) => {
+                                              const set = new Set(prev);
+                                              if (e.target.checked) set.add(opt); else set.delete(opt);
+                                              return Array.from(set);
+                                            });
+                                          }}
+                                        />
+                                        <span>{opt}</span>
+                                      </label>
+                                    ))}
+                                  </div>
+                                  {rejectReasons.includes('Other') && (
+                                    <>
+                                      <label className="block text-xs text-gray-600 mb-1">Details for "Other"</label>
                                       <input
-                                        type="checkbox"
-                                        checked={rejectReasons.includes(opt)}
-                                        onChange={(e) => {
-                                          setRejectReasons((prev) => {
-                                            const set = new Set(prev);
-                                            if (e.target.checked) set.add(opt); else set.delete(opt);
-                                            return Array.from(set);
-                                          });
-                                        }}
+                                        type="text"
+                                        value={rejectNote}
+                                        onChange={(e) => setRejectNote(e.target.value)}
+                                        placeholder="Enter details"
+                                        className="w-full border rounded px-2 py-1 text-sm mb-2"
                                       />
-                                      <span>{opt}</span>
-                                    </label>
-                                  ))}
+                                    </>
+                                  )}
+                                  <div className="flex justify-end gap-2">
+                                    <button
+                                      onClick={cancelReject}
+                                      className="px-3 py-1 text-sm rounded border bg-white hover:bg-slate-50"
+                                    >Cancel</button>
+                                    <button
+                                      onClick={() => submitReject(lead)}
+                                      disabled={rejectReasons.length === 0 || (rejectReasons.includes('Other') && !rejectNote.trim())}
+                                      className="px-3 py-1 text-sm rounded bg-red-600 text-white disabled:opacity-50"
+                                    >Submit</button>
+                                  </div>
                                 </div>
-                                {rejectReasons.includes('Other') && (
-                                  <>
-                                    <label className="block text-xs text-gray-600 mb-1">Details for "Other"</label>
-                                    <input
-                                      type="text"
-                                      value={rejectNote}
-                                      onChange={(e) => setRejectNote(e.target.value)}
-                                      placeholder="Enter details"
-                                      className="w-full border rounded px-2 py-1 text-sm mb-2"
-                                    />
-                                  </>
-                                )}
-                                <div className="flex justify-end gap-2">
-                                  <button
-                                    onClick={cancelReject}
-                                    className="px-3 py-1 text-sm rounded border bg-white hover:bg-slate-50"
-                                  >Cancel</button>
-                                  <button
-                                    onClick={() => submitReject(lead)}
-                                    disabled={rejectReasons.length === 0 || (rejectReasons.includes('Other') && !rejectNote.trim())}
-                                    className="px-3 py-1 text-sm rounded bg-red-600 text-white disabled:opacity-50"
-                                  >Submit</button>
-                                </div>
-                              </div>
-                            )}
-                          </>
-                        )}
+                              )}
+                            </>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -1226,6 +1376,171 @@ export default function CRELeadsApprovalDashboard() {
                 className="px-3 py-1 text-sm rounded bg-red-600 text-white disabled:opacity-50"
               >
                 Submit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center px-4">
+          <div className="w-full max-w-3xl rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 shadow-2xl p-6 md:p-7">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div>
+                <h4 className="text-lg md:text-xl font-semibold text-slate-900">
+                  Edit Lead {editType ? `(${editType})` : ""}
+                </h4>
+                <p className="text-xs md:text-sm text-slate-500 mt-1">
+                  Update core details before final approval. Mobile should be 10-digit numbers, separated by commas if multiple.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditOpen(false)}
+                className="text-xs md:text-sm px-3 py-1 rounded-full border border-slate-300 bg-white hover:bg-slate-50"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Name</label>
+                <input
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring focus:ring-blue-100 focus:outline-none"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Designation</label>
+                <input
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring focus:ring-blue-100 focus:outline-none"
+                  value={editDesignation}
+                  onChange={(e) => setEditDesignation(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Industry</label>
+                <select
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring focus:ring-blue-100 focus:outline-none"
+                  value={editIndustryId || ""}
+                  onChange={(e) => setEditIndustryId(e.target.value)}
+                >
+                  <option value="">Select Industry</option>
+                  {industries.map((ind) => (
+                    <option key={ind._id} value={ind._id}>
+                      {ind.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-[11px] text-slate-500">
+                  Current: {editLead?.industry?.name || editLead?.industryName || "—"}
+                </p>
+              </div>
+
+              {editType === "RawLead" && (
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Company</label>
+                  <input
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-slate-100"
+                    value={
+                      editLead?.company?.CompanyName ||
+                      editLead?.companyName ||
+                      ""
+                    }
+                    disabled
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  Mobile (comma separated)
+                </label>
+                <input
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring focus:ring-blue-100 focus:outline-none"
+                  value={editMobiles}
+                  onChange={(e) => setEditMobiles(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Email</label>
+                <input
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring focus:ring-blue-100 focus:outline-none"
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Location</label>
+                <input
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring focus:ring-blue-100 focus:outline-none"
+                  value={editLocation}
+                  onChange={(e) => setEditLocation(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Division</label>
+                <input
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring focus:ring-blue-100 focus:outline-none"
+                  value={editDivision}
+                  onChange={(e) => setEditDivision(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Product Line</label>
+                <input
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring focus:ring-blue-100 focus:outline-none"
+                  value={editProductLine}
+                  onChange={(e) => setEditProductLine(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Turn Over</label>
+                <input
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring focus:ring-blue-100 focus:outline-none"
+                  value={editTurnOver}
+                  onChange={(e) => setEditTurnOver(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Employee Strength</label>
+                <input
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring focus:ring-blue-100 focus:outline-none"
+                  value={editEmployeeStrength}
+                  onChange={(e) =>
+                    setEditEmployeeStrength(e.target.value)
+                  }
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-xs font-medium text-slate-600 mb-1">Remarks</label>
+                <textarea
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring focus:ring-blue-100 focus:outline-none"
+                  rows={3}
+                  value={editRemarks}
+                  onChange={(e) => setEditRemarks(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-col md:flex-row md:justify-end gap-3">
+              <button
+                className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-sm hover:bg-slate-50"
+                onClick={() => setEditOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 rounded-lg bg-indigo-600 text-sm text-white hover:bg-indigo-700"
+                onClick={saveEdit}
+              >
+                Save changes
               </button>
             </div>
           </div>

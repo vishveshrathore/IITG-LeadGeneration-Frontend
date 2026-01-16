@@ -62,6 +62,8 @@ import AdminLocalHiringPublicApplications from './pages/Admin/Recruitment/LocalH
 import AdminLocalHiringCurrentPositions from './pages/Admin/Recruitment/LocalHiringCurrentPositions';
 import DataAnalystDashboard from "./pages/DataAnalyst/DataAnalystDashboard.jsx";
 import RecruitmentQCDashboard from "./pages/RecruitmentQC/RecruitmentQCDashboard.jsx";
+import RecruitmentQCLocalHiring from "./pages/RecruitmentQC/LocalHiring.jsx";
+import RecruitmentQCLocalHiringWorksheet from "./pages/RecruitmentQC/LocalHiringWorksheet.jsx";
 import LGStats from "./pages/Admin/LGStats.jsx";
 import CreDashboard from "./pages/Admin/CreDashboard.jsx";
 import HRRecruiterDashboard from "./pages/HR Recuriter/HrRecruiterDashboard.jsx";
@@ -103,12 +105,28 @@ function App() {
           }
         />
 
-        {/* Recruitment / QC Manager dashboard */}
+        {/* Recruitment / QC Manager routes */}
         <Route
           path="/recruitment-qc/dashboard"
           element={
             <ProtectedRoute role="Recruitment / QC Manager">
               <RecruitmentQCDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/recruitment-qc/local-hiring"
+          element={
+            <ProtectedRoute role="Recruitment / QC Manager">
+              <RecruitmentQCLocalHiring />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/recruitment-qc/local-hiring/worksheet"
+          element={
+            <ProtectedRoute role="Recruitment / QC Manager">
+              <RecruitmentQCLocalHiringWorksheet />
             </ProtectedRoute>
           }
         />
