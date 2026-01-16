@@ -20,6 +20,7 @@ const RawLeadManager = () => {
   const [totalLeads, setTotalLeads] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
   const [users, setUsers] = useState([]); // <-- store all users for AssignedTo filter
+  const [industries, setIndustries] = useState([]);
 
   const [searchFilters, setSearchFilters] = useState({
     search: "",
@@ -98,11 +99,32 @@ const RawLeadManager = () => {
     }
   };
 
+  const fetchIndustries = async () => {
+    try {
+      // Use non-paginated endpoint that returns all industries
+      const res = await axios.get(`${API_BASE}/admin/industry`, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
+      const data = res.data;
+      const list = Array.isArray(data) ? data : data.industries || [];
+      setIndustries(list);
+    } catch (err) {
+      console.error("Failed to fetch industries:", err);
+      toast.error("Failed to fetch industries");
+    }
+  };
+
   useEffect(() => {
     fetchLeads();
     fetchLeadSummary();
     fetchUsers(); // fetch users once
   }, [currentPage]);
+
+  useEffect(() => {
+    fetchIndustries();
+  }, []);
 
   useEffect(() => {
     const delayFetch = debounce(() => {
@@ -220,13 +242,18 @@ const RawLeadManager = () => {
           </button>
         </div>
 
-        <input
-  type="text"
-  placeholder="Enter Industry (optional)"
-  value={industry}
-  onChange={(e) => setIndustry(e.target.value)}
-  className="border p-2 rounded w-60"
-/>
+        <select
+          value={industry}
+          onChange={(e) => setIndustry(e.target.value)}
+          className="border p-2 rounded w-60"
+        >
+          <option value="">Select Industry (optional)</option>
+          {industries.map((ind) => (
+            <option key={ind._id} value={ind.name}>
+              {ind.name}
+            </option>
+          ))}
+        </select>
 
 
         {file && (
